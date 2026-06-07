@@ -6,6 +6,7 @@ import { guildMemberAddEvent } from './events/guildMemberAdd';
 import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
 import { execute as executeSystemSync } from './commands/systemsync';
+import { initPostgresSync } from './events/postgresSync';
 
 // Load environment variables
 config();
@@ -20,7 +21,10 @@ const client = new Client({
 });
 
 // Register Events
-client.once('ready', (c) => readyEvent(c));
+client.once('ready', (c) => {
+  readyEvent(c);
+  initPostgresSync(client);
+});
 client.on('userUpdate', (oldUser, newUser) => userUpdateEvent(oldUser, newUser));
 client.on('guildMemberAdd', (member) => guildMemberAddEvent(member));
 client.on('guildMemberUpdate', (oldMember, newMember) => guildMemberUpdateEvent(oldMember, newMember));

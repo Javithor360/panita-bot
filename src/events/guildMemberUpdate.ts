@@ -1,10 +1,16 @@
 import { GuildMember, PartialGuildMember } from 'discord.js';
 import { prisma } from '../lib/prisma';
+import { isSyncLocked } from '../utils/syncLock';
 
 export const guildMemberUpdateEvent = async (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) => {
   if (process.env.GUILD_ID && newMember.guild.id !== process.env.GUILD_ID) return;
 
   const discordId = newMember.user.id;
+  
+  if (isSyncLocked(discordId)) {
+    console.log(`[Sync] Ignored guildMemberUpdate for ${newMember.user.tag} due to active PG-Sync lock.`);
+    return;
+  }
   
   // 1. Check for avatar changes (Server avatars vs Global avatars)
   if (oldMember.avatar !== newMember.avatar) {
@@ -29,6 +35,7 @@ export const guildMemberUpdateEvent = async (oldMember: GuildMember | PartialGui
       // Find the user in our DB first
       const dbUser = await prisma.user.findUnique({
         where: { discord_id: discordId },
+        include: { roles: true }
       });
 
       if (dbUser) {
@@ -37,15 +44,23 @@ export const guildMemberUpdateEvent = async (oldMember: GuildMember | PartialGui
           where: { discord_role_id: { in: roleIds } }
         });
 
-        // Disconnect all existing roles and connect the new ones
-        await prisma.user.update({
-          where: { discord_id: discordId },
-          data: {
-            roles: {
-              set: dbRoles.map(role => ({ id: role.id }))
+        const currentRoleIds = dbUser.roles.map(r => r.id);
+        const newRoleIds = dbRoles.map(r => r.id);
+
+        const rolesToAdd = newRoleIds.filter(id => !currentRoleIds.includes(id));
+        const rolesToRemove = currentRoleIds.filter(id => !newRoleIds.includes(id));
+
+        if (rolesToAdd.length > 0 || rolesToRemove.length > 0) {
+          await prisma.user.update({
+            where: { discord_id: discordId },
+            data: {
+              roles: {
+                connect: rolesToAdd.map(id => ({ id })),
+                disconnect: rolesToRemove.map(id => ({ id }))
+              }
             }
-          }
-        });
+          });
+        }
 
         // Sync Editions
         const dbEditionsWithDiscordRoles = await prisma.edition.findMany({
