@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { prisma } from '../lib/prisma';
+import { setGlobalSyncLock } from '../utils/syncLock';
 
 export const data = new SlashCommandBuilder()
   .setName('systemsync')
@@ -18,6 +19,8 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     if (!guild) {
       return interaction.editReply('This command can only be used in a server.');
     }
+
+    setGlobalSyncLock(true);
 
     // Step 1: Clean test data (disconnect roles and delete UserEditions)
     console.log('Cleaning up old UserEdition and Role associations...');
@@ -104,5 +107,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   } catch (error) {
     console.error('Error during systemsync:', error);
     await interaction.editReply('An error occurred during synchronization. Check console for details.');
+  } finally {
+    setGlobalSyncLock(false);
   }
 };

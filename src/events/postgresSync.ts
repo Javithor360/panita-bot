@@ -1,7 +1,7 @@
 import { Client } from 'discord.js';
 import { Client as PgClient } from 'pg';
 import { PrismaClient } from '@prisma/client';
-import { acquireSyncLock, releaseSyncLock } from '../utils/syncLock';
+import { acquireSyncLock, releaseSyncLock, isGlobalSyncLocked } from '../utils/syncLock';
 
 const prisma = new PrismaClient();
 
@@ -95,6 +95,10 @@ export function initPostgresSync(client: Client) {
 
   pgClient.on('notification', (msg) => {
     if (msg.channel === 'discord_sync' && msg.payload) {
+      if (isGlobalSyncLocked()) {
+        // Ignore Postgres events during /systemsync to prevent destroying Discord API rate limits
+        return;
+      }
       try {
         const data = JSON.parse(msg.payload);
         console.log(`[PG-Sync] Event received on ${data.table}: ${data.action}`);
