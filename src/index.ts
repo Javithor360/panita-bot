@@ -7,6 +7,7 @@ import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
 import { execute as executeSystemSync } from './commands/systemsync';
 import { initPostgresSync } from './events/postgresSync';
+import { keepAlive } from './server';
 
 // Load environment variables
 config();
@@ -24,6 +25,7 @@ const client = new Client({
 client.once('ready', (c) => {
   readyEvent(c);
   initPostgresSync(client);
+  keepAlive(); // Initialize web server to keep the bot alive
 });
 client.on('userUpdate', (oldUser, newUser) => userUpdateEvent(oldUser, newUser));
 client.on('guildMemberAdd', (member) => guildMemberAddEvent(member));
