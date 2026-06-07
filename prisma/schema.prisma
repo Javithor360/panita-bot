@@ -9,47 +9,44 @@ datasource db {
 }
 
 model Photo {
-  id          String    @id @default(uuid())
+  id          String     @id @default(uuid())
   url         String
-  title       String?
   description String?
-  enabled     Boolean   @default(true)
+  enabled     Boolean    @default(true)
   date_taken  DateTime?
-  created_at  DateTime  @default(now())
-
-  user_id Int?
-  user    User? @relation(fields: [user_id], references: [id])
-
-  edition_id String?
-  edition    Edition? @relation(fields: [edition_id], references: [id])
-
-  categories Category[] // Implicit many-to-many relation
+  created_at  DateTime   @default(now())
+  user_id     Int?
+  edition_id  String?
+  title       String?
+  edition     Edition?   @relation(fields: [edition_id], references: [id])
+  user        User?      @relation(fields: [user_id], references: [id])
+  categories  Category[] @relation("CategoryToPhoto")
 }
 
 model User {
-  id           Int     @id @default(autoincrement())
-  ign          String?
-  discord_name String
-  discord_id   String  @unique
-  avatar_url   String? // ADDED FOR PANITA BOT
-  password     String?
-  enabled      Boolean @default(false)
-  trusted_author Boolean @default(false)
-  joined_at    DateTime @default(now())
-
-  photos Photo[]
-  roles  Role[]
-  emblems Emblem[]
-  editions UserEdition[]
+  id             Int           @id @default(autoincrement())
+  ign            String?
+  discord_name   String
+  discord_id     String        @unique
+  password       String?
+  enabled        Boolean       @default(false)
+  joined_at      DateTime      @default(now())
+  trusted_author Boolean       @default(false)
+  avatar_url     String?
+  photos         Photo[]
+  editions       UserEdition[]
+  emblems        Emblem[]      @relation("EmblemToUser")
+  roles          Role[]        @relation("RoleToUser")
 }
 
 model Edition {
-  id         String   @id
-  name       String
-  started_at DateTime?
-  photos     Photo[]
-  emblems    Emblem[]
-  users      UserEdition[]
+  id              String        @id
+  name            String
+  started_at      DateTime?
+  discord_role_id String?       @unique
+  emblems         Emblem[]
+  photos          Photo[]
+  users           UserEdition[]
 }
 
 model Category {
@@ -57,16 +54,16 @@ model Category {
   name   String
   icon   String?
   color  String?
-  photos Photo[]
+  photos Photo[] @relation("CategoryToPhoto")
 }
 
 model Role {
-  id              String @id @default(uuid())
+  id              String  @id @default(uuid())
   name            String
   color           String
-  position        Int    @default(0)
-  discord_role_id String? @unique // ADDED FOR PANITA BOT
-  users           User[]
+  position        Int     @default(0)
+  discord_role_id String? @unique
+  users           User[]  @relation("RoleToUser")
 }
 
 model Emblem {
@@ -76,17 +73,16 @@ model Emblem {
   icon_url    String
   edition_id  String?
   edition     Edition? @relation(fields: [edition_id], references: [id])
-  users       User[]
+  users       User[]   @relation("EmblemToUser")
 }
 
 model UserEdition {
-  id          String    @id @default(uuid())
-  user_id     Int
-  edition_id  String
-  joined_at   DateTime?
-
-  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  edition     Edition   @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid())
+  user_id    Int
+  edition_id String
+  joined_at  DateTime?
+  edition    Edition   @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, edition_id])
 }

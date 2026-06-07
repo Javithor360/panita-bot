@@ -46,7 +46,50 @@ export const guildMemberUpdateEvent = async (oldMember: GuildMember | PartialGui
             }
           }
         });
-        console.log(`Synced roles for user ${newMember.user.tag}`);
+
+        // Sync Editions
+        const dbEditionsWithDiscordRoles = await prisma.edition.findMany({
+          where: { discord_role_id: { not: null } }
+        });
+
+        const assignedDiscordEditionIds = dbEditionsWithDiscordRoles
+          .filter(e => roleIds.includes(e.discord_role_id!))
+          .map(e => e.id);
+          
+        const managedEditionIds = dbEditionsWithDiscordRoles.map(e => e.id);
+
+        const existingUserEditions = await prisma.userEdition.findMany({
+          where: { 
+            user_id: dbUser.id,
+            edition_id: { in: managedEditionIds } 
+          }
+        });
+        
+        const existingEditionIds = existingUserEditions.map(ue => ue.edition_id);
+        
+        const toAdd = assignedDiscordEditionIds.filter(id => !existingEditionIds.includes(id));
+        const toRemove = existingEditionIds.filter(id => !assignedDiscordEditionIds.includes(id));
+        
+        if (toRemove.length > 0) {
+          await prisma.userEdition.deleteMany({
+            where: {
+              user_id: dbUser.id,
+              edition_id: { in: toRemove }
+            }
+          });
+        }
+        
+        if (toAdd.length > 0) {
+          await prisma.userEdition.createMany({
+            data: toAdd.map(editionId => ({
+              user_id: dbUser.id,
+              edition_id: editionId,
+              joined_at: new Date()
+            }))
+          });
+        }
+
+        console.log(`Synced roles and editions for user ${newMember.user.tag}`);
       }
     } catch (error) {
       console.error(`Failed to sync roles for user ${discordId}:`, error);
