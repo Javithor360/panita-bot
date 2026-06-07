@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Photo {
+  id          String    @id @default(uuid())
+  url         String
+  title       String?
+  description String?
+  enabled     Boolean   @default(true)
+  date_taken  DateTime?
+  created_at  DateTime  @default(now())
+
+  user_id Int?
+  user    User? @relation(fields: [user_id], references: [id])
+
+  edition_id String?
+  edition    Edition? @relation(fields: [edition_id], references: [id])
+
+  categories Category[] // Implicit many-to-many relation
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  ign          String?
+  discord_name String
+  discord_id   String  @unique
+  avatar_url   String? // ADDED FOR PANITA BOT
+  password     String?
+  enabled      Boolean @default(false)
+  trusted_author Boolean @default(false)
+  joined_at    DateTime @default(now())
+
+  photos Photo[]
+  roles  Role[]
+  emblems Emblem[]
+  editions UserEdition[]
+}
+
+model Edition {
+  id         String   @id
+  name       String
+  started_at DateTime?
+  photos     Photo[]
+  emblems    Emblem[]
+  users      UserEdition[]
+}
+
+model Category {
+  id     String  @id
+  name   String
+  icon   String?
+  color  String?
+  photos Photo[]
+}
+
+model Role {
+  id              String @id @default(uuid())
+  name            String
+  color           String
+  position        Int    @default(0)
+  discord_role_id String? @unique // ADDED FOR PANITA BOT
+  users           User[]
+}
+
+model Emblem {
+  id          String   @id
+  name        String
+  description String?
+  icon_url    String
+  edition_id  String?
+  edition     Edition? @relation(fields: [edition_id], references: [id])
+  users       User[]
+}
+
+model UserEdition {
+  id          String    @id @default(uuid())
+  user_id     Int
+  edition_id  String
+  joined_at   DateTime?
+
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  edition     Edition   @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, edition_id])
+}
