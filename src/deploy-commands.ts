@@ -24,7 +24,7 @@ for (const file of commandFiles) {
     const baseData = command.data.toJSON();
     commands.push(baseData);
 
-    // Aliases as standalone Slash Commands (Optional based on user preference, but logic is preserved)
+    // Aliases as standalone Slash Commands
     if (command.metadata?.aliases && Array.isArray(command.metadata.aliases)) {
       for (const alias of command.metadata.aliases) {
         commands.push({ ...baseData, name: alias });
