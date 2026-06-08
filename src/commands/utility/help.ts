@@ -27,18 +27,25 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
 
   if (commandName) {
     // Dynamically find the specific command
-    const commandsPath = __dirname;
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+    const commandsPath = path.join(__dirname, '..');
+    const commandFolders = fs.readdirSync(commandsPath);
     let command: any = null;
 
-    for (const file of commandFiles) {
-      const cmd = require(path.join(commandsPath, file));
-      if (cmd.data && cmd.execute) {
-        if (cmd.data.name === commandName.toLowerCase() || (cmd.metadata?.aliases && cmd.metadata.aliases.includes(commandName.toLowerCase()))) {
-          command = cmd;
-          break;
+    for (const folder of commandFolders) {
+      const folderPath = path.join(commandsPath, folder);
+      if (!fs.statSync(folderPath).isDirectory()) continue;
+
+      const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+      for (const file of commandFiles) {
+        const cmd = require(path.join(folderPath, file));
+        if (cmd.data && cmd.execute) {
+          if (cmd.data.name === commandName.toLowerCase() || (cmd.metadata?.aliases && cmd.metadata.aliases.includes(commandName.toLowerCase()))) {
+            command = cmd;
+            break;
+          }
         }
       }
+      if (command) break;
     }
 
     if (!command) {
@@ -71,19 +78,25 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
     const categories: Record<string, string[]> = {};
     const processedCommands = new Set<string>();
 
-    const commandsPath = __dirname;
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+    const commandsPath = path.join(__dirname, '..');
+    const commandFolders = fs.readdirSync(commandsPath);
 
-    for (const file of commandFiles) {
-      const cmd = require(path.join(commandsPath, file));
-      if (cmd.data && cmd.execute) {
-        if (processedCommands.has(cmd.data.name)) continue;
-        processedCommands.add(cmd.data.name);
+    for (const folder of commandFolders) {
+      const folderPath = path.join(commandsPath, folder);
+      if (!fs.statSync(folderPath).isDirectory()) continue;
 
-        const cat = cmd.metadata?.category || 'Sin Categoría';
-        if (!categories[cat]) categories[cat] = [];
+      const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+      for (const file of commandFiles) {
+        const cmd = require(path.join(folderPath, file));
+        if (cmd.data && cmd.execute) {
+          if (processedCommands.has(cmd.data.name)) continue;
+          processedCommands.add(cmd.data.name);
 
-        categories[cat].push(`\`${cmd.data.name}\``);
+          const cat = cmd.metadata?.category || 'Sin Categoría';
+          if (!categories[cat]) categories[cat] = [];
+
+          categories[cat].push(`\`${cmd.data.name}\``);
+        }
       }
     }
 
