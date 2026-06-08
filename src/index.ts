@@ -76,7 +76,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// UI Component interactions listener (Buttons, Modals)
+// UI Component interactions listener (Buttons, Modals, Select Menus)
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
     // We dynamically route the button based on its prefix or origin
@@ -92,6 +92,13 @@ client.on('interactionCreate', async (interaction) => {
       const command = commands.get('register');
       if (command && command.executeModal) {
         await command.executeModal(interaction);
+      }
+    }
+  } else if (interaction.isStringSelectMenu()) {
+    if (interaction.customId.startsWith('select_skin')) {
+      const command = commands.get('skin');
+      if (command && command.executeStringSelect) {
+        await command.executeStringSelect(interaction);
       }
     }
   }
