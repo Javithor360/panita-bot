@@ -152,7 +152,23 @@ client.on('messageCreate', async (message) => {
       client: message.client,
       createdTimestamp: message.createdTimestamp,
       options: {
-        getString: () => args[0] || null, // Simplified for single args like /help [comando]
+        getSubcommand: () => {
+          // Si el primer argumento coincide con un subcomando esperado, lo devolvemos
+          return args[0]?.toLowerCase() || null;
+        },
+        getString: (name?: string) => {
+          // Adapter básico para parsear los argumentos
+          if (name === 'state' || name === 'text') {
+            return args.slice(1).join(' ') || null;
+          }
+          if (name === 'comando') {
+            return args[0] || null;
+          }
+          if (args.length > 1) {
+            return args.slice(1).join(' ') || null;
+          }
+          return args[0] || null;
+        },
       },
       deferReply: async () => { /* No-op for text commands */ },
       reply: async (opts: any) => {
