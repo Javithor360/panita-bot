@@ -101,6 +101,11 @@ client.on('interactionCreate', async (interaction) => {
       if (command && command.executeButton) {
         await command.executeButton(interaction);
       }
+    } else if (interaction.customId.startsWith('btn_gallery_')) {
+      const command = commands.get('gallery');
+      if (command && command.executeButton) {
+        await command.executeButton(interaction);
+      }
     }
   } else if (interaction.isModalSubmit()) {
     if (interaction.customId.startsWith('modal_activate')) {
