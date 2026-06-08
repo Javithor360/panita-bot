@@ -24,7 +24,8 @@ const client = new Client({
   ],
 });
 
-export const commands = new Collection<string, any>();
+// Setup dynamic command registry
+const commands = new Collection<string, any>();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
 

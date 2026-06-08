@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, Message } from 'discord.js';
-import { commands } from '../index';
+import fs from 'fs';
+import path from 'path';
 
 export const data = new SlashCommandBuilder()
   .setName('help')
@@ -24,7 +25,20 @@ const buildHelpEmbed = (commandName?: string) => {
   const embed = new EmbedBuilder().setColor('#5865F2');
 
   if (commandName) {
-    const command = commands.get(commandName.toLowerCase());
+    // Dynamically find the specific command
+    const commandsPath = __dirname;
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+    let command: any = null;
+
+    for (const file of commandFiles) {
+      const cmd = require(path.join(commandsPath, file));
+      if (cmd.data && cmd.execute) {
+        if (cmd.data.name === commandName.toLowerCase() || (cmd.metadata?.aliases && cmd.metadata.aliases.includes(commandName.toLowerCase()))) {
+          command = cmd;
+          break;
+        }
+      }
+    }
 
     if (!command) {
       embed.setColor('#ED4245')
@@ -54,24 +68,27 @@ const buildHelpEmbed = (commandName?: string) => {
   } else {
     // Global Help Menu
     const categories: Record<string, string[]> = {};
-
-    // Use a Set to track processed commands to avoid listing aliases as distinct commands
     const processedCommands = new Set<string>();
 
-    commands.forEach((cmd, name) => {
-      // Only process the main command name, not the aliases
-      if (processedCommands.has(cmd.data.name)) return;
-      processedCommands.add(cmd.data.name);
+    const commandsPath = __dirname;
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
 
-      const cat = cmd.metadata?.category || 'Sin Categoría';
-      if (!categories[cat]) categories[cat] = [];
+    for (const file of commandFiles) {
+      const cmd = require(path.join(commandsPath, file));
+      if (cmd.data && cmd.execute) {
+        if (processedCommands.has(cmd.data.name)) continue;
+        processedCommands.add(cmd.data.name);
 
-      let item = `**/${cmd.data.name}** - ${cmd.metadata?.description || cmd.data.description}`;
-      if (cmd.metadata?.devOnly) {
-        item += ' *(Restringido)*';
+        const cat = cmd.metadata?.category || 'Sin Categoría';
+        if (!categories[cat]) categories[cat] = [];
+
+        let item = `**/${cmd.data.name}** - ${cmd.metadata?.description || cmd.data.description}`;
+        if (cmd.metadata?.devOnly) {
+          item += ' *(Restringido)*';
+        }
+        categories[cat].push(item);
       }
-      categories[cat].push(item);
-    });
+    }
 
     embed.setTitle('📚 Lista de Comandos')
       .setDescription('Aquí tienes la lista de todos los comandos disponibles. Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`), a menos que se indique lo contrario.')
