@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { prisma } from '../lib/prisma';
-import { setGlobalSyncLock } from '../utils/syncLock';
+import { prisma } from '../../lib/prisma';
+import { setGlobalSyncLock } from '../../utils/syncLock';
 
 export const data = new SlashCommandBuilder()
   .setName('systemsync')

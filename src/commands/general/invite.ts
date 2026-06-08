@@ -6,7 +6,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['invitacion', 'discord'],
-  category: 'Utilidad',
+  category: 'General',
   description: 'Comparte el enlace oficial de invitación al servidor de Discord para que puedas invitar a tus amigos.',
   usage: 'invite',
   slashOnly: false,

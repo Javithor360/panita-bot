@@ -32,7 +32,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: [],
-  category: 'Moderacion',
+  category: 'Moderación',
   description: 'Permite cambiar el estado y la actividad del bot.',
   usage: 'bot <status|activity> <value>',
   slashOnly: false,

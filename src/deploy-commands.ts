@@ -16,22 +16,29 @@ const clientId = Buffer.from(token.split('.')[0], 'base64').toString();
 
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+const commandFolders = fs.readdirSync(commandsPath);
 
-for (const file of commandFiles) {
-  const command = require(path.join(commandsPath, file));
-  if ('data' in command && 'execute' in command) {
-    const baseData = command.data.toJSON();
-    commands.push(baseData);
+for (const folder of commandFolders) {
+  const folderPath = path.join(commandsPath, folder);
+  if (!fs.statSync(folderPath).isDirectory()) continue;
 
-    // Aliases as standalone Slash Commands
-    if (command.metadata?.aliases && Array.isArray(command.metadata.aliases)) {
-      for (const alias of command.metadata.aliases) {
-        commands.push({ ...baseData, name: alias });
+  const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+  
+  for (const file of commandFiles) {
+    const command = require(path.join(folderPath, file));
+    if ('data' in command && 'execute' in command) {
+      const baseData = command.data.toJSON();
+      commands.push(baseData);
+
+      // Aliases as standalone Slash Commands
+      if (command.metadata?.aliases && Array.isArray(command.metadata.aliases)) {
+        for (const alias of command.metadata.aliases) {
+          commands.push({ ...baseData, name: alias });
+        }
       }
+    } else {
+      console.warn(`[WARNING] The command at ${file} is missing a required "data" or "execute" property.`);
     }
-  } else {
-    console.warn(`[WARNING] The command at ${file} is missing a required "data" or "execute" property.`);
   }
 }
 

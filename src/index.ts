@@ -27,10 +27,16 @@ const client = new Client({
 // Setup dynamic command registry
 const commands = new Collection<string, any>();
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+const commandFolders = fs.readdirSync(commandsPath);
 
-for (const file of commandFiles) {
-  const command = require(path.join(commandsPath, file));
+for (const folder of commandFolders) {
+  const folderPath = path.join(commandsPath, folder);
+  if (!fs.statSync(folderPath).isDirectory()) continue;
+
+  const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
+  
+  for (const file of commandFiles) {
+    const command = require(path.join(folderPath, file));
   if ('data' in command && 'execute' in command) {
     commands.set(command.data.name, command);
     
@@ -39,6 +45,7 @@ for (const file of commandFiles) {
       for (const alias of command.metadata.aliases) {
         commands.set(alias, command);
       }
+    }
     }
   }
 }

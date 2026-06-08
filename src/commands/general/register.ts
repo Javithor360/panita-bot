@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ModalSubmitInteraction, ComponentType, TextInputStyle, ModalBuilder, GuildMember } from 'discord.js';
 import bcrypt from 'bcryptjs';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../../lib/prisma';
 
 export const data = new SlashCommandBuilder()
   .setName('register')
@@ -8,7 +8,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['registrar', 'activar'],
-  category: 'Utilidad',
+  category: 'General',
   description: 'Activa tu cuenta de Discord para iniciar sesión en el Panel Web.',
   usage: 'register',
   slashOnly: true,

@@ -6,7 +6,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['latencia'],
-  category: 'General',
+  category: 'Utilidad',
   description: 'Calcula la latencia y el tiempo de respuesta del bot.',
   usage: 'ping',
   slashOnly: false,

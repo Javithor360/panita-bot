@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../../lib/prisma';
 
 export const data = new SlashCommandBuilder()
   .setName('cleanalts')

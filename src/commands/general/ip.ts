@@ -6,7 +6,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['server', 'jugar'],
-  category: 'Utilidad',
+  category: 'General',
   description: 'Proporciona la IP y estado actual del servidor de Minecraft.',
   usage: 'ip',
   slashOnly: false,

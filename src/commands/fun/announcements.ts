@@ -9,7 +9,7 @@ export const metadata = {
   category: 'Diversión',
   description: 'Manda a leer el canal de anuncios con dialecto chileno.',
   usage: 'announcements',
-  slashOnly: true,
+  slashOnly: false,
   devOnly: false,
   staffOnly: false
 };

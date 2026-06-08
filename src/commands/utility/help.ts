@@ -13,7 +13,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['ayuda', 'comandos'],
-  category: 'General',
+  category: 'Utilidad',
   description: 'Muestra la lista de todos los comandos disponibles o ayuda sobre uno en específico.',
   usage: 'help [comando]',
   slashOnly: false,

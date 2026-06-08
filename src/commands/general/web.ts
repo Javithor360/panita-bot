@@ -6,7 +6,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['pagina', 'panel'],
-  category: 'Utilidad',
+  category: 'General',
   description: 'Comparte el enlace directo al Panel Web del servidor.',
   usage: 'web',
   slashOnly: false,
