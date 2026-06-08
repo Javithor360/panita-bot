@@ -4,7 +4,14 @@ export const data = new SlashCommandBuilder()
   .setName('ping')
   .setDescription('Muestra la latencia del bot.');
 
-export const aliases = ['latencia'];
+export const metadata = {
+  aliases: ['latencia'],
+  category: 'General',
+  description: 'Calcula la latencia y el tiempo de respuesta del bot.',
+  usage: 'ping',
+  slashOnly: false,
+  devOnly: false
+};
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   await interaction.reply({ content: 'Calculando...' });

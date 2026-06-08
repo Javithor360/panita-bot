@@ -6,7 +6,14 @@ export const data = new SlashCommandBuilder()
   .setName('register')
   .setDescription('Activa tu cuenta para acceder al Panel Web.');
 
-export const aliases = ['registrar', 'activar'];
+export const metadata = {
+  aliases: ['registrar', 'activar'],
+  category: 'Utilidad',
+  description: 'Activa tu cuenta de Discord para iniciar sesión en el Panel Web.',
+  usage: 'register',
+  slashOnly: true,
+  devOnly: false
+};
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   const member = interaction.member as GuildMember;

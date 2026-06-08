@@ -4,14 +4,18 @@ import { setGlobalSyncLock } from '../utils/syncLock';
 
 export const data = new SlashCommandBuilder()
   .setName('systemsync')
-  .setDescription('Syncs the database with current Discord members (Developer Only)');
+  .setDescription('Sincroniza la base de datos con los roles actuales del servidor');
+
+export const metadata = {
+  aliases: [],
+  category: 'Desarrollador',
+  description: 'Sincroniza la base de datos con los roles actuales del servidor.',
+  usage: 'systemsync',
+  slashOnly: true,
+  devOnly: true
+};
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
-  // Check if it's the developer
-  if (interaction.user.id !== '409529980469641217') {
-    return interaction.reply({ content: 'You are not authorized to run this command.', ephemeral: true });
-  }
-
   await interaction.deferReply({ ephemeral: true });
 
   try {

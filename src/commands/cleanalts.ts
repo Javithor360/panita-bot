@@ -3,13 +3,18 @@ import { prisma } from '../lib/prisma';
 
 export const data = new SlashCommandBuilder()
   .setName('cleanalts')
-  .setDescription('Elimina de la base de datos las cuentas secundarias (Solo Desarrollador)');
+  .setDescription('Elimina de la base de datos las cuentas secundarias');
+
+export const metadata = {
+  aliases: [],
+  category: 'Desarrollador',
+  description: 'Elimina de la base de datos las cuentas secundarias (multicuentas).',
+  usage: 'cleanalts',
+  slashOnly: true,
+  devOnly: true
+};
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
-  if (interaction.user.id !== '409529980469641217') {
-    return interaction.reply({ content: 'No estás autorizado para usar este comando.', ephemeral: true });
-  }
-
   await interaction.deferReply({ ephemeral: true });
 
   try {

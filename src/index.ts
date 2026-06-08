@@ -19,14 +19,12 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildPresences,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
   ],
 });
 
-// Setup dynamic command registry
-const commands = new Collection<string, any>();
+export const commands = new Collection<string, any>();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
 
@@ -35,9 +33,9 @@ for (const file of commandFiles) {
   if ('data' in command && 'execute' in command) {
     commands.set(command.data.name, command);
     
-    // Bind aliases to the same command
-    if (command.aliases && Array.isArray(command.aliases)) {
-      for (const alias of command.aliases) {
+    // Register aliases in the collection
+    if (command.metadata?.aliases && Array.isArray(command.metadata.aliases)) {
+      for (const alias of command.metadata.aliases) {
         commands.set(alias, command);
       }
     }
@@ -60,6 +58,10 @@ client.on('interactionCreate', async (interaction) => {
 
   const command = commands.get(interaction.commandName);
   if (!command) return;
+
+  if (command.metadata?.devOnly && interaction.user.id !== '409529980469641217') {
+    return interaction.reply({ content: '❌ No estás autorizado para usar este comando.', ephemeral: true });
+  }
 
   try {
     await command.execute(interaction);
@@ -106,6 +108,14 @@ client.on('messageCreate', async (message) => {
 
   const command = commands.get(commandName);
   if (!command) return;
+
+  if (command.metadata?.slashOnly) {
+    return message.reply('❌ Este comando es interactivo y solo se puede usar como **Slash Command** (ejemplo: `/' + commandName + '`).');
+  }
+
+  if (command.metadata?.devOnly && message.author.id !== '409529980469641217') {
+    return message.reply('❌ No estás autorizado para usar este comando.');
+  }
 
   // Execute text-based command if supported
   if (command.executeText) {

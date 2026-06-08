@@ -21,7 +21,15 @@ const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('
 for (const file of commandFiles) {
   const command = require(path.join(commandsPath, file));
   if ('data' in command && 'execute' in command) {
-    commands.push(command.data.toJSON());
+    const baseData = command.data.toJSON();
+    commands.push(baseData);
+
+    // Aliases as standalone Slash Commands (Optional based on user preference, but logic is preserved)
+    if (command.metadata?.aliases && Array.isArray(command.metadata.aliases)) {
+      for (const alias of command.metadata.aliases) {
+        commands.push({ ...baseData, name: alias });
+      }
+    }
   } else {
     console.warn(`[WARNING] The command at ${file} is missing a required "data" or "execute" property.`);
   }
