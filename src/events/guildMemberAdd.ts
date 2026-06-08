@@ -34,7 +34,7 @@ export const guildMemberAddEvent = async (member: GuildMember) => {
         data: {
           discord_id: discordId,
           discord_name: member.user.username,
-          ign: member.nickname || member.user.username,
+          ign: null,
           enabled: false,
           password: null,
           trusted_author: false,

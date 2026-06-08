@@ -2,17 +2,19 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, Message } from 'disco
 
 export const data = new SlashCommandBuilder()
   .setName('ping')
-  .setDescription('Replies with Pong!');
+  .setDescription('Muestra la latencia del bot.');
+
+export const aliases = ['latencia'];
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.reply({ content: 'Pinging...' });
+  await interaction.reply({ content: 'Calculando...' });
   const reply = await interaction.fetchReply();
   const latency = reply.createdTimestamp - interaction.createdTimestamp;
-  await interaction.editReply(`Pong! Latency: ${latency}ms`);
+  await interaction.editReply(`¡Pong! Latencia: ${latency}ms`);
 };
 
 export const executeText = async (message: Message, args: string[]) => {
-  const sent = await message.reply('Pinging...');
+  const sent = await message.reply('Calculando...');
   const latency = sent.createdTimestamp - message.createdTimestamp;
-  await sent.edit(`Pong! Latency: ${latency}ms`);
+  await sent.edit(`¡Pong! Latencia: ${latency}ms`);
 };

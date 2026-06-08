@@ -1,5 +1,7 @@
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ModalSubmitInteraction } from 'discord.js';
 import { config } from 'dotenv';
+import bcrypt from 'bcryptjs';
+import { prisma } from './lib/prisma';
 import fs from 'fs';
 import path from 'path';
 import { readyEvent } from './events/ready';
@@ -33,6 +35,13 @@ for (const file of commandFiles) {
   const command = require(path.join(commandsPath, file));
   if ('data' in command && 'execute' in command) {
     commands.set(command.data.name, command);
+    
+    // Bind aliases to the same command
+    if (command.aliases && Array.isArray(command.aliases)) {
+      for (const alias of command.aliases) {
+        commands.set(alias, command);
+      }
+    }
   }
 }
 
@@ -58,9 +67,79 @@ client.on('interactionCreate', async (interaction) => {
   } catch (error) {
     console.error(error);
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+      await interaction.followUp({ content: '¡Hubo un error al ejecutar este comando!', ephemeral: true });
     } else {
-      await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+      await interaction.reply({ content: '¡Hubo un error al ejecutar este comando!', ephemeral: true });
+    }
+  }
+});
+
+// Button interactions listener
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isButton()) return;
+
+  if (interaction.customId === 'btn_activate_account') {
+    const modal = new ModalBuilder()
+      .setCustomId('modal_activate_account')
+      .setTitle('Activación de Cuenta');
+
+    const ignInput = new TextInputBuilder()
+      .setCustomId('input_ign')
+      .setLabel('IGN de Minecraft')
+      .setPlaceholder('Ej: Steve')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMinLength(3)
+      .setMaxLength(16);
+
+    const passwordInput = new TextInputBuilder()
+      .setCustomId('input_password')
+      .setLabel('Contraseña')
+      .setPlaceholder('Debe tener al menos 6 caracteres')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMinLength(6)
+      .setMaxLength(32);
+
+    const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(ignInput);
+    const secondActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(passwordInput);
+
+    modal.addComponents(firstActionRow, secondActionRow);
+
+    await interaction.showModal(modal);
+  }
+});
+
+// Modal submit listener
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isModalSubmit()) return;
+
+  if (interaction.customId === 'modal_activate_account') {
+    const ign = interaction.fields.getTextInputValue('input_ign');
+    const password = interaction.fields.getTextInputValue('input_password');
+    const discordId = interaction.user.id;
+
+    try {
+      // Defer reply immediately since hashing might take a bit
+      await interaction.deferReply({ ephemeral: true });
+
+      const hashedPassword = bcrypt.hashSync(password, 10);
+
+      await prisma.user.update({
+        where: { discord_id: discordId },
+        data: {
+          ign: ign,
+          password: hashedPassword,
+          enabled: true
+        }
+      });
+
+      await interaction.editReply({
+        content: `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\`.\n\nYa puedes iniciar sesión en: https://panita.vercel.app/login`
+      });
+    } catch (error) {
+      console.error('[Activation Error]', error);
+      await interaction.editReply('Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.');
     }
   }
 });
@@ -84,7 +163,7 @@ client.on('messageCreate', async (message) => {
       await command.executeText(message, args);
     } catch (error) {
       console.error(error);
-      await message.reply('There was an error trying to execute that command!');
+      await message.reply('¡Ocurrió un error al intentar ejecutar ese comando!');
     }
   }
 });
