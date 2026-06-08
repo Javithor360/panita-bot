@@ -60,7 +60,7 @@ client.on('interactionCreate', async (interaction) => {
   const command = commands.get(interaction.commandName);
   if (!command) return;
 
-  if (command.metadata?.devOnly && interaction.user.id !== '409529980469641217') {
+  if (command.metadata?.devOnly && interaction.user.id !== process.env.DEVELOPER_ID) {
     return interaction.reply({ content: '❌ No estás autorizado para usar este comando.', ephemeral: true });
   }
 
@@ -129,7 +129,7 @@ client.on('messageCreate', async (message) => {
     return message.reply('❌ Este comando es interactivo y solo se puede usar como **Slash Command** (ejemplo: `/' + commandName + '`).');
   }
 
-  if (command.metadata?.devOnly && message.author.id !== '409529980469641217') {
+  if (command.metadata?.devOnly && message.author.id !== process.env.DEVELOPER_ID) {
     return message.reply('❌ No estás autorizado para usar este comando.');
   }
 

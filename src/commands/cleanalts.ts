@@ -28,7 +28,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     const altIds: string[] = [];
 
     for (const [, member] of members) {
-      if (member.roles.cache.has('900215815855546389')) {
+      if (member.roles.cache.has(process.env.ALT_ROLE_ID as string)) {
         altIds.push(member.user.id);
       }
     }

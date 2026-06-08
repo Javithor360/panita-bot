@@ -53,7 +53,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     for (const [, member] of members) {
       // Ignore bots and alt accounts (multicuentas)
       if (member.user.bot) continue;
-      if (member.roles.cache.has('900215815855546389')) continue;
+      if (member.roles.cache.has(process.env.ALT_ROLE_ID as string)) continue;
 
       const discordId = member.user.id;
       const avatarUrl = member.user.displayAvatarURL({ size: 256, extension: 'png' });

@@ -18,7 +18,7 @@ export const metadata = {
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   const member = interaction.member as GuildMember;
-  if (member?.roles.cache.has('900215815855546389')) {
+  if (member?.roles.cache.has(process.env.ALT_ROLE_ID as string)) {
     return interaction.reply({
       content: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
       ephemeral: true

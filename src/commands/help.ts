@@ -97,7 +97,7 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
 
     for (const [catName, cmdList] of Object.entries(categories)) {
       // Hide the developer category unless the user is the developer
-      if (catName === 'Desarrollador' && userId !== '409529980469641217') {
+      if (catName === 'Desarrollador' && userId !== process.env.DEVELOPER_ID) {
         continue;
       }
       
