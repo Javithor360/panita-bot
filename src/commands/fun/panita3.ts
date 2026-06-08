@@ -25,8 +25,8 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   // Get Unix timestamp in seconds (Discord uses seconds, not milliseconds)
   const unixTimestamp = Math.floor(futureDate.getTime() / 1000);
   
-  // The format <t:TIMESTAMP:R> is Discord's relative time format (e.g. "in 24 days")
+  // The format <t:TIMESTAMP:F> is Discord's full date and time format
   await interaction.reply({
-    content: `Panitacraft 3 será lanzado oficialmente **<t:${unixTimestamp}:R>**... <:jaimePog:723406415917613056>`
+    content: `Panitacraft 3 será lanzado oficialmente el **<t:${unixTimestamp}:F>**... <:jaimePog:723406415917613056>`
   });
 };
