@@ -1,6 +1,5 @@
-import { Client, GatewayIntentBits, Collection, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ModalSubmitInteraction } from 'discord.js';
+import { Client, GatewayIntentBits, Collection } from 'discord.js';
 import { config } from 'dotenv';
-import bcrypt from 'bcryptjs';
 import { prisma } from './lib/prisma';
 import fs from 'fs';
 import path from 'path';
@@ -74,72 +73,23 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// Button interactions listener
+// UI Component interactions listener (Buttons, Modals)
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return;
-
-  if (interaction.customId === 'btn_activate_account') {
-    const modal = new ModalBuilder()
-      .setCustomId('modal_activate_account')
-      .setTitle('Activación de Cuenta');
-
-    const ignInput = new TextInputBuilder()
-      .setCustomId('input_ign')
-      .setLabel('IGN de Minecraft')
-      .setPlaceholder('Ej: Steve')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMinLength(3)
-      .setMaxLength(16);
-
-    const passwordInput = new TextInputBuilder()
-      .setCustomId('input_password')
-      .setLabel('Contraseña')
-      .setPlaceholder('Debe tener al menos 6 caracteres')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMinLength(6)
-      .setMaxLength(32);
-
-    const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(ignInput);
-    const secondActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(passwordInput);
-
-    modal.addComponents(firstActionRow, secondActionRow);
-
-    await interaction.showModal(modal);
-  }
-});
-
-// Modal submit listener
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isModalSubmit()) return;
-
-  if (interaction.customId === 'modal_activate_account') {
-    const ign = interaction.fields.getTextInputValue('input_ign');
-    const password = interaction.fields.getTextInputValue('input_password');
-    const discordId = interaction.user.id;
-
-    try {
-      // Defer reply immediately since hashing might take a bit
-      await interaction.deferReply({ ephemeral: true });
-
-      const hashedPassword = bcrypt.hashSync(password, 10);
-
-      await prisma.user.update({
-        where: { discord_id: discordId },
-        data: {
-          ign: ign,
-          password: hashedPassword,
-          enabled: true
-        }
-      });
-
-      await interaction.editReply({
-        content: `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\`.\n\nYa puedes iniciar sesión en: https://panita.vercel.app/login`
-      });
-    } catch (error) {
-      console.error('[Activation Error]', error);
-      await interaction.editReply('Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.');
+  if (interaction.isButton()) {
+    // We dynamically route the button based on its prefix or origin
+    // For now, we know the activate button belongs to the 'register' command
+    if (interaction.customId.startsWith('btn_activate')) {
+      const command = commands.get('register');
+      if (command && command.executeButton) {
+        await command.executeButton(interaction);
+      }
+    }
+  } else if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith('modal_activate')) {
+      const command = commands.get('register');
+      if (command && command.executeModal) {
+        await command.executeModal(interaction);
+      }
     }
   }
 });
