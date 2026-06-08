@@ -10,7 +10,8 @@ export const metadata = {
   description: 'Comparte el enlace oficial de invitación al servidor de Discord para que puedas invitar a tus amigos.',
   usage: 'invite',
   slashOnly: false,
-  devOnly: false
+  devOnly: false,
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {

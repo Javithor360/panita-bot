@@ -10,7 +10,8 @@ export const metadata = {
   description: 'Calcula la latencia y el tiempo de respuesta del bot.',
   usage: 'ping',
   slashOnly: false,
-  devOnly: false
+  devOnly: false,
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {

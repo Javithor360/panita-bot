@@ -11,7 +11,8 @@ export const metadata = {
   description: 'Elimina de la base de datos las cuentas secundarias (multicuentas).',
   usage: 'cleanalts',
   slashOnly: true,
-  devOnly: true
+  devOnly: true,
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {

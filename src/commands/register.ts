@@ -12,7 +12,8 @@ export const metadata = {
   description: 'Activa tu cuenta de Discord para iniciar sesión en el Panel Web.',
   usage: 'register',
   slashOnly: true,
-  devOnly: false
+  devOnly: false,
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {

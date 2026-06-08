@@ -15,7 +15,8 @@ export const metadata = {
   description: 'Muestra la skin de un jugador de Minecraft en diferentes vistas interactivas.',
   usage: 'skin <jugador>',
   slashOnly: true,
-  devOnly: false
+  devOnly: false,
+  staffOnly: false
 };
 
 const skinOptions = [

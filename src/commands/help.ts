@@ -17,7 +17,8 @@ export const metadata = {
   description: 'Muestra la lista de todos los comandos disponibles o ayuda sobre uno en específico.',
   usage: 'help [comando]',
   slashOnly: false,
-  devOnly: false
+  devOnly: false,
+  staffOnly: false
 };
 
 // Helper function to build the embed logic

@@ -10,7 +10,8 @@ export const metadata = {
   description: 'Comparte el enlace directo al Panel Web del servidor.',
   usage: 'web',
   slashOnly: false,
-  devOnly: false
+  devOnly: false,
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {

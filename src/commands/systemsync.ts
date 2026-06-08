@@ -12,7 +12,8 @@ export const metadata = {
   description: 'Sincroniza la base de datos con los roles actuales del servidor.',
   usage: 'systemsync',
   slashOnly: true,
-  devOnly: true
+  devOnly: true,
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {

@@ -64,6 +64,14 @@ client.on('interactionCreate', async (interaction) => {
     return interaction.reply({ content: '❌ No estás autorizado para usar este comando.', ephemeral: true });
   }
 
+  if (command.metadata?.staffOnly) {
+    const staffRoleId = process.env.STAFF_ROLE_ID;
+    const member = interaction.member as import('discord.js').GuildMember;
+    if (!staffRoleId || !member?.roles.cache.has(staffRoleId)) {
+      return interaction.reply({ content: '❌ No tienes permisos de Staff para usar este comando.', ephemeral: true });
+    }
+  }
+
   try {
     await command.execute(interaction);
   } catch (error) {
@@ -123,6 +131,13 @@ client.on('messageCreate', async (message) => {
 
   if (command.metadata?.devOnly && message.author.id !== '409529980469641217') {
     return message.reply('❌ No estás autorizado para usar este comando.');
+  }
+
+  if (command.metadata?.staffOnly) {
+    const staffRoleId = process.env.STAFF_ROLE_ID;
+    if (!staffRoleId || !message.member?.roles.cache.has(staffRoleId)) {
+      return message.reply('❌ No tienes permisos de Staff para usar este comando.');
+    }
   }
 
   // Create an adapter to mimic ChatInputCommandInteraction for simple text commands
