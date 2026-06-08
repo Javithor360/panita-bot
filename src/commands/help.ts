@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, Message } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, Message, Client } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -21,7 +21,7 @@ export const metadata = {
 };
 
 // Helper function to build the embed logic
-const buildHelpEmbed = (userId: string, commandName?: string) => {
+const buildHelpEmbed = (userId: string, client: Client, commandName?: string) => {
   const embed = new EmbedBuilder().setColor('#5865F2');
 
   if (commandName) {
@@ -86,9 +86,13 @@ const buildHelpEmbed = (userId: string, commandName?: string) => {
       }
     }
 
-    embed.setTitle('📚 Lista de Comandos')
-      .setDescription('Ejecutar comandos usando **Slash Commands** (`/<comando>`) o mediante el **Prefijo Clásico** (`!<comando>`)')
-      .setFooter({ text: 'Para más detalle, utiliza /help [comando]. Sintaxis: <obligatorio> | [opcional]' });
+    embed.setTitle('<:llamushroom:1513402954135244810> Lista de Comandos')
+      .setDescription('Aquí tienes la lista de todos los comandos disponibles. Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`), a menos que se indique lo contrario.')
+      .setFooter({ text: 'Usa /help [comando] para ver detalles. Sintaxis: <obligatorio> | [opcional]' });
+
+    if (client.user) {
+      embed.setThumbnail(client.user.displayAvatarURL());
+    }
 
     for (const [catName, cmdList] of Object.entries(categories)) {
       // Hide the developer category unless the user is the developer
@@ -105,12 +109,12 @@ const buildHelpEmbed = (userId: string, commandName?: string) => {
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   const commandName = interaction.options.getString('comando');
-  const embed = buildHelpEmbed(interaction.user.id, commandName ?? undefined);
+  const embed = buildHelpEmbed(interaction.user.id, interaction.client, commandName ?? undefined);
   await interaction.reply({ embeds: [embed] });
 };
 
 export const executeText = async (message: Message, args: string[]) => {
   const commandName = args[0];
-  const embed = buildHelpEmbed(message.author.id, commandName);
+  const embed = buildHelpEmbed(message.author.id, message.client, commandName);
   await message.reply({ embeds: [embed] });
 };
