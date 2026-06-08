@@ -2,10 +2,10 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionR
 import { prisma } from '../lib/prisma';
 
 export const data = new SlashCommandBuilder()
-  .setName('activar')
+  .setName('register')
   .setDescription('Activa tu cuenta para acceder al Panel Web.');
 
-export const aliases = ['activate'];
+export const aliases = ['registrar', 'activar'];
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   const discordId = interaction.user.id;
@@ -52,7 +52,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     .setDescription('Al activar tu cuenta tendrás acceso completo al Panel Web, permitiéndote ver tus estadísticas, subir fotos e interactuar con la plataforma de la comunidad.')
     .addFields(
       { name: 'Pasos para Activar', value: '1. Haz clic en el botón "Comenzar Activación" de abajo.\n2. Aparecerá un formulario privado emergente.\n3. Ingresa tu IGN de Minecraft y una contraseña segura.\n4. Envía el formulario para activar tu cuenta instantáneamente.' },
-      { name: '⚠️ Aviso Importante', value: 'Tu nombre de Minecraft (IGN) **no se puede cambiar fácilmente más adelante**. Asegúrate de ingresar un nombre válido que te pertenezca legítimamente. Hacerse pasar por otros jugadores está estrictamente prohibido y puede resultar en un baneo.' },
+      { name: '⚠️ Aviso Importante', value: 'Tu nombre de Minecraft (IGN) **no se puede cambiar fácilmente más adelante** y se utilizará para agregarte a la **whitelist** del servidor. Asegúrate de ingresar un nombre válido que te pertenezca legítimamente. Hacerse pasar por otros jugadores está estrictamente prohibido y puede resultar en un baneo.' },
       { name: 'Privacidad', value: 'El formulario de activación es 100% privado. Nadie, ni siquiera los administradores del servidor, podrá ver la contraseña que escribas.' }
     );
 
