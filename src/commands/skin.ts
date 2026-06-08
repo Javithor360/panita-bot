@@ -39,8 +39,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   const embed = new EmbedBuilder()
     .setTitle(`Skin de ${jugador}`)
     .setColor('#38a169')
-    .setImage(imageUrl)
-    .setFooter({ text: 'Powered by crafty.gg' });
+    .setImage(imageUrl);
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId(`select_skin_${jugador}`)
@@ -63,15 +62,10 @@ export const executeStringSelect = async (interaction: StringSelectMenuInteracti
   const timeParam = Date.now();
   const imageUrl = `https://render.crafty.gg/${selectedView}/${jugador}?t=${timeParam}`;
 
-  // Find the name of the view to update the title slightly to reflect the view
-  const selectedOptionInfo = skinOptions.find(opt => opt.value === selectedView);
-  const viewName = selectedOptionInfo ? selectedOptionInfo.label : 'Skin';
-
   const embed = new EmbedBuilder()
-    .setTitle(`${viewName} de ${jugador}`)
+    .setTitle(`Skin de ${jugador}`)
     .setColor('#38a169')
-    .setImage(imageUrl)
-    .setFooter({ text: 'Powered by crafty.gg' });
+    .setImage(imageUrl);
 
   await interaction.update({
     embeds: [embed]
