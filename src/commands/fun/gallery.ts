@@ -26,7 +26,8 @@ const getRandomPhoto = async () => {
     skip: randomIndex,
     include: {
       user: true,
-      categories: true
+      categories: true,
+      edition: true
     }
   });
 
@@ -47,8 +48,16 @@ const buildGalleryMessage = (photo: any) => {
   const embed = new EmbedBuilder()
     .setTitle(photo.title || 'Foto de la Galería')
     .setColor('#38a169')
-    .setImage(photo.url)
-    .setAuthor({ name: authorName });
+    .setImage(photo.url);
+
+  if (photo.user?.ign) {
+    embed.setAuthor({ 
+      name: authorName, 
+      iconURL: `https://mc-heads.net/avatar/${photo.user.ign}/256` 
+    });
+  } else {
+    embed.setAuthor({ name: authorName });
+  }
 
   let descriptionText = '';
   
@@ -60,27 +69,29 @@ const buildGalleryMessage = (photo: any) => {
     const dateToUse = photo.date_taken || photo.created_at;
     // Format to short date in Discord (e.g. 10/12/2023) using Unix timestamp
     const unixTimestamp = Math.floor(dateToUse.getTime() / 1000);
-    descriptionText += `**Fecha:** <t:${unixTimestamp}:d>\n`;
+    descriptionText += `**Publicación:** <t:${unixTimestamp}:d>\n`;
   }
 
   if (photo.categories && photo.categories.length > 0) {
     const tagsStr = photo.categories.map((c: any) => `\`${c.name}\``).join(', ');
-    descriptionText += `**Tags:** ${tagsStr}\n`;
+    descriptionText += `**Categorías:** ${tagsStr}\n`;
   }
 
   if (descriptionText.length > 0) {
     embed.setDescription(descriptionText.trim());
   }
 
+  if (photo.edition) {
+    embed.setFooter({ text: photo.edition.name });
+  }
+
   const rerollButton = new ButtonBuilder()
     .setCustomId('btn_gallery_reroll')
-    .setLabel('Aleatoria')
     .setEmoji('🎲')
     .setStyle(ButtonStyle.Secondary);
 
   const linkButton = new ButtonBuilder()
     .setCustomId(`btn_gallery_link_${photo.id}`)
-    .setLabel('Copiar Enlace')
     .setEmoji('🔗')
     .setStyle(ButtonStyle.Secondary);
 
@@ -110,7 +121,7 @@ export const executeButton = async (interaction: ButtonInteraction) => {
   if (interaction.customId.startsWith('btn_gallery_link_')) {
     const photoId = interaction.customId.replace('btn_gallery_link_', '');
     await interaction.reply({
-      content: `Aquí tienes el enlace. Puedes copiarlo seleccionándolo:\n\`https://panita.vercel.app/gallery?photo=${photoId}\``,
+      content: `Aquí tienes el enlace. Puedes copiarlo seleccionándolo:\n<https://panita.vercel.app/gallery?photo=${photoId}>`,
       ephemeral: true
     });
     return;
