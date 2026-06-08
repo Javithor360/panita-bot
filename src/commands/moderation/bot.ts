@@ -46,7 +46,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   
   if (!subcommand) {
     return interaction.reply({
-      content: '❌ Invalid subcommand. Use `status` or `activity`.',
+      content: '❌ Subcomando inválido. Use `status` o `activity`.',
       ephemeral: true
     });
   }
@@ -60,23 +60,33 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     
     // Reply to the staff member
     await interaction.reply({
-      content: `✅ Bot status successfully changed to **${state}**.`,
+      content: `✅ Estado del bot cambiado a **${state}**.`,
       ephemeral: true
     });
   } else if (subcommand === 'activity') {
     const text = interaction.options.getString('text', true);
     
-    // Set the bot activity. ActivityType.Custom allows it to show just the text without "Playing"
-    interaction.client.user.setActivity({
-      name: 'Custom Status',
-      type: ActivityType.Custom,
-      state: text
-    });
-    
-    // Reply to the staff member
-    await interaction.reply({
-      content: `✅ Bot activity successfully changed to: **${text}**.`,
-      ephemeral: true
-    });
+    if (text.toLowerCase() === 'clear') {
+      // Clear the bot activity
+      interaction.client.user.setActivity();
+      
+      await interaction.reply({
+        content: `✅ Actividad del bot eliminada.`,
+        ephemeral: true
+      });
+    } else {
+      // Set the bot activity. ActivityType.Custom allows it to show just the text without "Playing"
+      interaction.client.user.setActivity({
+        name: 'Custom Status',
+        type: ActivityType.Custom,
+        state: text
+      });
+      
+      // Reply to the staff member
+      await interaction.reply({
+        content: `✅ Actividad del bot actualizada a: **${text}**.`,
+        ephemeral: true
+      });
+    }
   }
 };
