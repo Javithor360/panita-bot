@@ -118,12 +118,36 @@ client.on('messageCreate', async (message) => {
     return message.reply('❌ No estás autorizado para usar este comando.');
   }
 
-  // Execute text-based command if supported
-  if (command.executeText) {
+  // Create an adapter to mimic ChatInputCommandInteraction for simple text commands
+  if (!command.metadata?.slashOnly && command.execute) {
+    let sentMessage: import('discord.js').Message | null = null;
+
+    const interactionAdapter = {
+      isChatInputCommand: () => true,
+      user: message.author,
+      member: message.member,
+      guild: message.guild,
+      client: message.client,
+      createdTimestamp: message.createdTimestamp,
+      options: {
+        getString: () => args[0] || null, // Simplified for single args like /help [comando]
+      },
+      deferReply: async () => { /* No-op for text commands */ },
+      reply: async (opts: any) => {
+        sentMessage = await message.reply(opts);
+        return sentMessage;
+      },
+      fetchReply: async () => sentMessage,
+      editReply: async (opts: any) => {
+        if (sentMessage) return await sentMessage.edit(opts);
+        return await message.reply(opts);
+      }
+    };
+
     try {
-      await command.executeText(message, args);
+      await command.execute(interactionAdapter as unknown as import('discord.js').ChatInputCommandInteraction);
     } catch (error) {
-      console.error(error);
+      console.error('[Adapter Error]', error);
       await message.reply('¡Ocurrió un error al intentar ejecutar ese comando!');
     }
   }

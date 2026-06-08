@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, Message } from 'discord.js';
 
 export const data = new SlashCommandBuilder()
   .setName('ip')
@@ -15,6 +15,6 @@ export const metadata = {
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   await interaction.reply({
-    content: '<:noautorizo:1513404854939156521> **Por el momento no hay servidor de Minecraft vigente.** ¡Mantente atento a los anuncios!'
+    content: '<:noautorizo:1116806520265506866> **Por el momento no hay servidor de Minecraft vigente.**'
   });
 };

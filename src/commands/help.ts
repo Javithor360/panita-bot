@@ -59,7 +59,7 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
         { name: 'Descripción', value: command.metadata?.description || command.data.description || 'Sin descripción.' },
         { name: 'Categoría', value: command.metadata?.category || 'Sin categoría', inline: true },
         { name: 'Permisos', value: devOnlyText, inline: true },
-        { name: 'Modos de uso', value: supportedModes, inline: true },
+        { name: 'Modos de uso', value: supportedModes, inline: false },
         { name: 'Alias', value: aliasesText },
         { name: 'Uso Estructurado', value: `\`/${command.metadata?.usage || command.data.name}\`` }
       )
@@ -86,9 +86,9 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
       }
     }
 
-    embed.setTitle('<:llamushroom:1513402954135244810> Lista de Comandos')
-      .setDescription('Aquí tienes la lista de todos los comandos disponibles. Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`), a menos que se indique lo contrario.')
-      .setFooter({ text: 'Usa /help [comando] para ver detalles. Sintaxis: <obligatorio> | [opcional]' });
+    embed.setTitle('<:llamushroom:1513402349920714852> Lista de Comandos')
+      .setDescription('Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`)')
+      .setFooter({ text: 'Para más detalles, utiliza /help [comando] | Sintaxis: <obligatorio> - [opcional]' });
 
     if (client.user) {
       embed.setThumbnail(client.user.displayAvatarURL());
@@ -111,10 +111,4 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   const commandName = interaction.options.getString('comando');
   const embed = buildHelpEmbed(interaction.user.id, interaction.client, commandName ?? undefined);
   await interaction.reply({ embeds: [embed] });
-};
-
-export const executeText = async (message: Message, args: string[]) => {
-  const commandName = args[0];
-  const embed = buildHelpEmbed(message.author.id, message.client, commandName);
-  await message.reply({ embeds: [embed] });
 };
