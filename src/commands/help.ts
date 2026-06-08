@@ -21,7 +21,7 @@ export const metadata = {
 };
 
 // Helper function to build the embed logic
-const buildHelpEmbed = (commandName?: string) => {
+const buildHelpEmbed = (userId: string, commandName?: string) => {
   const embed = new EmbedBuilder().setColor('#5865F2');
 
   if (commandName) {
@@ -43,7 +43,7 @@ const buildHelpEmbed = (commandName?: string) => {
     if (!command) {
       embed.setColor('#ED4245')
         .setTitle('❌ Comando no encontrado')
-        .setDescription(`No se encontró ningún comando llamado \`${commandName}\`.`);
+        .setDescription(`No se encontró ningún comando con el nombre \`${commandName}\`.`);
       return embed;
     }
 
@@ -82,20 +82,21 @@ const buildHelpEmbed = (commandName?: string) => {
         const cat = cmd.metadata?.category || 'Sin Categoría';
         if (!categories[cat]) categories[cat] = [];
 
-        let item = `**/${cmd.data.name}** - ${cmd.metadata?.description || cmd.data.description}`;
-        if (cmd.metadata?.devOnly) {
-          item += ' *(Restringido)*';
-        }
-        categories[cat].push(item);
+        categories[cat].push(`\`${cmd.data.name}\``);
       }
     }
 
     embed.setTitle('📚 Lista de Comandos')
-      .setDescription('Aquí tienes la lista de todos los comandos disponibles. Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`), a menos que se indique lo contrario.')
-      .setFooter({ text: 'Usa /help [comando] para ver detalles. Sintaxis: <obligatorio> | [opcional]' });
+      .setDescription('Ejecutar comandos usando **Slash Commands** (`/<comando>`) o mediante el **Prefijo Clásico** (`!<comando>`)')
+      .setFooter({ text: 'Para más detalle, utiliza /help [comando]. Sintaxis: <obligatorio> | [opcional]' });
 
     for (const [catName, cmdList] of Object.entries(categories)) {
-      embed.addFields({ name: `📁 ${catName}`, value: cmdList.join('\n') });
+      // Hide the developer category unless the user is the developer
+      if (catName === 'Desarrollador' && userId !== '409529980469641217') {
+        continue;
+      }
+      
+      embed.addFields({ name: `📁 ${catName}`, value: cmdList.join(', ') });
     }
   }
 
@@ -104,12 +105,12 @@ const buildHelpEmbed = (commandName?: string) => {
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   const commandName = interaction.options.getString('comando');
-  const embed = buildHelpEmbed(commandName ?? undefined);
+  const embed = buildHelpEmbed(interaction.user.id, commandName ?? undefined);
   await interaction.reply({ embeds: [embed] });
 };
 
 export const executeText = async (message: Message, args: string[]) => {
   const commandName = args[0];
-  const embed = buildHelpEmbed(commandName);
+  const embed = buildHelpEmbed(message.author.id, commandName);
   await message.reply({ embeds: [embed] });
 };
