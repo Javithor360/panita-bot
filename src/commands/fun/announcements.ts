@@ -5,7 +5,7 @@ export const data = new SlashCommandBuilder()
   .setDescription('Un recordatorio "amistoso" para leer los anuncios.');
 
 export const metadata = {
-  aliases: [],
+  aliases: ['anuncios'],
   category: 'Diversión',
   description: 'Manda a leer el canal de anuncios con dialecto chileno.',
   usage: 'announcements',

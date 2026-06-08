@@ -22,7 +22,7 @@ export const metadata = {
 };
 
 // Helper function to build the embed logic
-const buildHelpEmbed = (userId: string, client: Client, commandName?: string) => {
+const buildHelpEmbed = (member: any, client: Client, commandName?: string) => {
   const embed = new EmbedBuilder().setColor('#5865F2');
 
   if (commandName) {
@@ -108,13 +108,33 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
       embed.setThumbnail(client.user.displayAvatarURL());
     }
 
-    for (const [catName, cmdList] of Object.entries(categories)) {
-      // Hide the developer category unless the user is the developer
+    const orderedCategories = [
+      'General',
+      'Utilidad',
+      'Diversión',
+      'Moderacion',
+      'Desarrollador'
+    ];
+
+    const userId = member?.user?.id || member?.id;
+
+    for (const catName of orderedCategories) {
+      if (!categories[catName] || categories[catName].length === 0) continue;
+
+      // Hide Moderacion category unless the user is Staff
+      if (catName === 'Moderacion') {
+        const staffRoleId = process.env.STAFF_ROLE_ID;
+        if (!staffRoleId || !member?.roles?.cache?.has(staffRoleId)) {
+          continue;
+        }
+      }
+
+      // Hide Desarrollador category unless the user is the developer
       if (catName === 'Desarrollador' && userId !== process.env.DEVELOPER_ID) {
         continue;
       }
       
-      embed.addFields({ name: `📁 ${catName}`, value: cmdList.join(', ') });
+      embed.addFields({ name: `📁 ${catName}`, value: categories[catName].join(', ') });
     }
   }
 
@@ -123,6 +143,6 @@ const buildHelpEmbed = (userId: string, client: Client, commandName?: string) =>
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   const commandName = interaction.options.getString('comando');
-  const embed = buildHelpEmbed(interaction.user.id, interaction.client, commandName ?? undefined);
+  const embed = buildHelpEmbed(interaction.member, interaction.client, commandName ?? undefined);
   await interaction.reply({ embeds: [embed] });
 };
