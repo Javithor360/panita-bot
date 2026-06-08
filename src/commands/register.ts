@@ -40,7 +40,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   // 2. Check if already activated
   if (user.enabled) {
     return interaction.reply({
-      content: '¡Tu cuenta ya está activada! Puedes iniciar sesión en https://panita.vercel.app/login',
+      content: '¡Tu cuenta ya está activada! Puedes iniciar sesión en <https://panita.vercel.app/login>',
       ephemeral: true
     });
   }
@@ -52,15 +52,13 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     .setDescription('Al activar tu cuenta tendrás acceso completo al Panel Web, permitiéndote ver tus estadísticas, subir fotos e interactuar con la plataforma de la comunidad.')
     .addFields(
       { name: 'Pasos para Activar', value: '1. Haz clic en el botón "Comenzar Activación" de abajo.\n2. Aparecerá un formulario privado emergente.\n3. Ingresa tu IGN de Minecraft y una contraseña segura.\n4. Envía el formulario para activar tu cuenta instantáneamente.' },
-      { name: '⚠️ Aviso Importante', value: 'Tu nombre de Minecraft (IGN) **no se puede cambiar fácilmente más adelante** y se utilizará para agregarte a la **whitelist** del servidor. Asegúrate de ingresar un nombre válido que te pertenezca legítimamente. Hacerse pasar por otros jugadores está estrictamente prohibido y puede resultar en un baneo.' },
-      { name: 'Privacidad', value: 'El formulario de activación es 100% privado. Nadie, ni siquiera los administradores del servidor, podrá ver la contraseña que escribas.' }
+      { name: '⚠️ Aviso Importante', value: 'Tu nombre de Minecraft (IGN) **no se puede cambiar más adelante** y se utilizará para agregarte a la **whitelist** del servidor. Asegúrate de ingresar un nombre válido que te pertenezca legítimamente. Hacerse pasar por otros jugadores está estrictamente prohibido y puede resultar en un baneo.' }
     );
 
   const button = new ButtonBuilder()
     .setCustomId('btn_activate_account')
     .setLabel('Comenzar Activación')
-    .setStyle(ButtonStyle.Success)
-    .setEmoji('🚀');
+    .setStyle(ButtonStyle.Success);
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
 
