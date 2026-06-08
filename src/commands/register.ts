@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ModalSubmitInteraction, ComponentType, TextInputStyle, ModalBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ModalSubmitInteraction, ComponentType, TextInputStyle, ModalBuilder, GuildMember } from 'discord.js';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 
@@ -9,6 +9,14 @@ export const data = new SlashCommandBuilder()
 export const aliases = ['registrar', 'activar'];
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
+  const member = interaction.member as GuildMember;
+  if (member?.roles.cache.has('900215815855546389')) {
+    return interaction.reply({
+      content: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
+      ephemeral: true
+    });
+  }
+
   const discordId = interaction.user.id;
 
   // 1. Ensure user exists
@@ -135,12 +143,12 @@ export const executeModal = async (interaction: ModalSubmitInteraction) => {
     const discordId = interaction.user.id;
 
     if (password !== confirmPassword) {
-      return interaction.reply({ content: '❌ Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.', ephemeral: true });
+      return interaction.reply({ content: 'Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.', ephemeral: true });
     }
 
     const specialCharRegex = /[!@#$%^&*(),.?":{}|<>_\-+=]/;
     if (!specialCharRegex.test(password)) {
-      return interaction.reply({ content: '❌ La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.', ephemeral: true });
+      return interaction.reply({ content: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.', ephemeral: true });
     }
 
     try {
