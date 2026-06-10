@@ -82,7 +82,10 @@ const buildGalleryMessage = (photo: any) => {
   }
 
   if (photo.edition) {
-    embed.setFooter({ text: photo.edition.name });
+    embed.setFooter({ 
+      text: photo.edition.name,
+      iconURL: `https://res.cloudinary.com/panita/image/upload/panita-web/logos/icon_${photo.edition.id}.png`
+    });
   }
 
   const rerollButton = new ButtonBuilder()
