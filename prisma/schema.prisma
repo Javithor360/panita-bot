@@ -71,6 +71,7 @@ model Emblem {
   name        String
   description String?
   icon_url    String
+  position    Int      @default(0)
   edition_id  String?
   edition     Edition? @relation(fields: [edition_id], references: [id])
   users       User[]   @relation("EmblemToUser")
