@@ -23,7 +23,7 @@ export const metadata = {
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   let text = interaction.options.getString('texto');
   
-  // Use args from prefix command adapter
+  // Use raw args from the prefix command adapter
   if ('args' in interaction && Array.isArray((interaction as any).args)) {
     const rawArgs = (interaction as any).args.join(' ');
     if (rawArgs.length > 0) {
