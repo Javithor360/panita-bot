@@ -113,6 +113,7 @@ const buildHelpEmbed = (member: any, client: Client, commandName?: string) => {
       'Utilidad',
       'Diversión',
       'Moderacion',
+      'Tickets',
       'Desarrollador'
     ];
 
@@ -121,8 +122,8 @@ const buildHelpEmbed = (member: any, client: Client, commandName?: string) => {
     for (const catName of orderedCategories) {
       if (!categories[catName] || categories[catName].length === 0) continue;
 
-      // Hide Moderacion category unless the user is Staff
-      if (catName === 'Moderacion') {
+      // Hide Moderacion and Tickets categories unless the user is Staff
+      if (catName === 'Moderacion' || catName === 'Tickets') {
         const staffRoleId = process.env.STAFF_ROLE_ID;
         if (!staffRoleId || !member?.roles?.cache?.has(staffRoleId)) {
           continue;
@@ -133,6 +134,15 @@ const buildHelpEmbed = (member: any, client: Client, commandName?: string) => {
       if (catName === 'Desarrollador' && userId !== process.env.DEVELOPER_ID) {
         continue;
       }
+      
+      embed.addFields({ name: `📁 ${catName}`, value: categories[catName].join(', ') });
+    }
+
+    // Append any unlisted categories to the bottom
+    const appendedCategories = new Set(orderedCategories);
+    for (const catName of Object.keys(categories)) {
+      if (appendedCategories.has(catName)) continue;
+      if (categories[catName].length === 0) continue;
       
       embed.addFields({ name: `📁 ${catName}`, value: categories[catName].join(', ') });
     }
