@@ -19,6 +19,7 @@ import {
   ModalActionRowComponentBuilder
 } from 'discord.js';
 import { prisma } from '../../lib/prisma';
+import * as discordTranscripts from 'discord-html-transcripts';
 
 export const data = new SlashCommandBuilder()
   .setName('ticket')
@@ -547,8 +548,8 @@ export const executeButton = async (interaction: ButtonInteraction) => {
     await channel.send({ embeds: [closedEmbed] });
 
     const controlsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('btn_ticket_transcript').setLabel('Historial').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
-      new ButtonBuilder().setCustomId('btn_ticket_reopen').setLabel('Abrir').setStyle(ButtonStyle.Secondary).setEmoji('🔓'),
+      new ButtonBuilder().setCustomId('btn_ticket_transcript').setLabel('Transcripción').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
+      new ButtonBuilder().setCustomId('btn_ticket_reopen').setLabel('Reabrir').setStyle(ButtonStyle.Secondary).setEmoji('🔓'),
       new ButtonBuilder().setCustomId('btn_ticket_delete').setLabel('Eliminar').setStyle(ButtonStyle.Secondary).setEmoji('⛔')
     );
 
@@ -604,27 +605,20 @@ export const executeButton = async (interaction: ButtonInteraction) => {
     await interaction.deferReply({ ephemeral: true });
     
     const channel = interaction.channel as TextChannel;
-    let messages: Message[] = [];
-    let lastId: string | undefined;
+    
+    try {
+      const attachment = await discordTranscripts.createTranscript(channel, {
+        limit: -1, 
+        returnType: discordTranscripts.ExportReturnType.Attachment,
+        filename: `${channel.name}-transcripcion.html`,
+        saveImages: true, 
+        poweredBy: false
+      });
 
-    while (true) {
-      const fetched = await channel.messages.fetch({ limit: 100, before: lastId });
-      if (fetched.size === 0) break;
-      
-      messages = messages.concat(Array.from(fetched.values()));
-      lastId = fetched.last()?.id;
+      await interaction.editReply({ content: 'Aquí tienes la transcripción del ticket:', files: [attachment] });
+    } catch (e) {
+      console.error('Error generating transcript:', e);
+      await interaction.editReply('❌ Hubo un error al generar la transcripción.');
     }
-
-    messages.reverse();
-
-    let transcriptData = `Historial para ${channel.name}\n\n`;
-    for (const msg of messages) {
-      transcriptData += `[${msg.createdAt.toLocaleString()}] ${msg.author.tag}: ${msg.content || '[Embed/Attachment]'}\n`;
-    }
-
-    const buffer = Buffer.from(transcriptData, 'utf-8');
-    const attachment = new AttachmentBuilder(buffer, { name: `${channel.name}-historial.txt` });
-
-    await interaction.editReply({ content: 'Aquí tienes el historial de mensajes:', files: [attachment] });
   }
 };
