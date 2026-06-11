@@ -87,3 +87,26 @@ model UserEdition {
 
   @@unique([user_id, edition_id])
 }
+
+model TicketPanel {
+  id              String   @id
+  guild_id        String
+  channel_id      String
+  message_id      String
+  title           String
+  description     String?
+  category_id     String?
+  staff_role_id   String?
+  ticket_counter  Int      @default(0)
+  tickets         Ticket[]
+}
+
+model Ticket {
+  id          String       @id @default(uuid())
+  panel_id    String
+  channel_id  String       @unique
+  creator_id  String
+  status      String       @default("OPEN")
+  created_at  DateTime     @default(now())
+  panel       TicketPanel  @relation(fields: [panel_id], references: [id], onDelete: Cascade)
+}

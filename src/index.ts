@@ -106,10 +106,20 @@ client.on('interactionCreate', async (interaction) => {
       if (command && command.executeButton) {
         await command.executeButton(interaction);
       }
+    } else if (interaction.customId.startsWith('btn_ticket_')) {
+      const command = commands.get('ticket');
+      if (command && command.executeButton) {
+        await command.executeButton(interaction);
+      }
     }
   } else if (interaction.isModalSubmit()) {
     if (interaction.customId.startsWith('modal_activate')) {
       const command = commands.get('register');
+      if (command && command.executeModal) {
+        await command.executeModal(interaction);
+      }
+    } else if (interaction.customId.startsWith('modal_ticket_')) {
+      const command = commands.get('ticket');
       if (command && command.executeModal) {
         await command.executeModal(interaction);
       }
@@ -162,10 +172,17 @@ client.on('messageCreate', async (message) => {
       member: message.member,
       guild: message.guild,
       client: message.client,
+      channel: message.channel,
+      channelId: message.channelId,
       createdTimestamp: message.createdTimestamp,
       options: {
+        getSubcommandGroup: () => {
+          // If there's a group, it's args[0], and subcommand is args[1]
+          if (args.length >= 2 && ['config', 'panel'].includes(args[0]?.toLowerCase())) return args[0]?.toLowerCase();
+          return null;
+        },
         getSubcommand: () => {
-          // Si el primer argumento coincide con un subcomando esperado, lo devolvemos
+          if (args.length >= 2 && ['config', 'panel'].includes(args[0]?.toLowerCase())) return args[1]?.toLowerCase();
           return args[0]?.toLowerCase() || null;
         },
         getString: (name?: string) => {
@@ -181,6 +198,53 @@ client.on('messageCreate', async (message) => {
           }
           return args[0] || null;
         },
+        getUser: (name?: string) => {
+          const mention = args.find(a => a.startsWith('<@') && a.endsWith('>'));
+          if (mention) {
+            const id = mention.replace(/[<@!>]/g, '');
+            return message.guild?.members.cache.get(id)?.user || { id };
+          }
+          const lastArg = args[args.length - 1];
+          if (!lastArg) return null;
+
+          const isSnowflake = /^\d{17,20}$/.test(lastArg);
+          if (isSnowflake) {
+            return message.guild?.members.cache.get(lastArg)?.user || { id: lastArg };
+          }
+
+          const member = message.guild?.members.cache.find(m => 
+            m.user.username.toLowerCase() === lastArg.toLowerCase() ||
+            (m.user.globalName && m.user.globalName.toLowerCase() === lastArg.toLowerCase()) ||
+            (m.nickname && m.nickname.toLowerCase() === lastArg.toLowerCase())
+          );
+          return member?.user || null;
+        },
+        getRole: (name?: string) => {
+          const mention = args.find(a => a.startsWith('<@&') && a.endsWith('>'));
+          if (mention) {
+            const id = mention.replace(/[<@&>]/g, '');
+            return message.guild?.roles.cache.get(id) || null;
+          }
+          const lastArg = args[args.length - 1];
+          if (!lastArg) return null;
+          const role = message.guild?.roles.cache.find(r => r.id === lastArg || r.name.toLowerCase() === lastArg.toLowerCase() || r.name.toLowerCase() === lastArg.replace('@', '').toLowerCase());
+          return role || null;
+        },
+        getChannel: (name?: string) => {
+          const mention = args.find(a => a.startsWith('<#') && a.endsWith('>'));
+          if (mention) {
+            const id = mention.replace(/[<#>]/g, '');
+            return message.guild?.channels.cache.get(id) || null;
+          }
+          const lastArg = args[args.length - 1];
+          if (!lastArg) return null;
+          const channel = message.guild?.channels.cache.find(c => c.id === lastArg || c.name.toLowerCase() === lastArg.toLowerCase() || c.name.toLowerCase() === lastArg.replace('#', '').toLowerCase());
+          return channel || null;
+        },
+        getInteger: (name?: string) => {
+          const num = parseInt(args[args.length - 1]);
+          return isNaN(num) ? null : num;
+        }
       },
       deferReply: async () => { /* No-op for text commands */ },
       reply: async (opts: any) => {
@@ -191,7 +255,8 @@ client.on('messageCreate', async (message) => {
       editReply: async (opts: any) => {
         if (sentMessage) return await sentMessage.edit(opts);
         return await message.reply(opts);
-      }
+      },
+      args: args // Expose raw args for advanced commands
     };
 
     try {
