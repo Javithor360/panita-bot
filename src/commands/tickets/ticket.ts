@@ -438,7 +438,7 @@ export const executeButton = async (interaction: ButtonInteraction) => {
       data: { ticket_counter: { increment: 1 } }
     });
 
-    const ticketNumber = updatedPanel.ticket_counter.toString().padStart(3, '0');
+    const ticketNumber = updatedPanel.ticket_counter.toString().padStart(4, '0');
     let channelName = updatedPanel.show_panel_id_in_name ? `ticket-${panel.id}-${ticketNumber}` : `ticket-${ticketNumber}`;
 
     const commonPermissions = [
@@ -622,10 +622,22 @@ export const executeButton = async (interaction: ButtonInteraction) => {
     });
 
     const channel = interaction.channel as TextChannel;
+    
+    // Renombrar de closed- a ticket-
+    const newName = channel.name.replace(/^closed-/, 'ticket-');
+    await channel.setName(newName).catch(console.error);
+
     await channel.permissionOverwrites.edit(ticket.creator_id, {
       ViewChannel: true,
       SendMessages: true,
-      ReadMessageHistory: true
+      ReadMessageHistory: true,
+      AttachFiles: true,
+      EmbedLinks: true,
+      UseExternalEmojis: true,
+      UseExternalStickers: true,
+      AddReactions: true,
+      MentionEveryone: true,
+      PinMessages: true
     }).catch(console.error);
 
     await interaction.message.delete().catch(() => {});
