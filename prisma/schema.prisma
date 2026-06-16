@@ -89,16 +89,17 @@ model UserEdition {
 }
 
 model TicketPanel {
-  id              String   @id
-  guild_id        String
-  channel_id      String
-  message_id      String
-  title           String
-  description     String?
-  category_id     String?
-  staff_role_id   String?
-  ticket_counter  Int      @default(0)
-  tickets         Ticket[]
+  id                      String   @id
+  guild_id                String
+  channel_id              String
+  message_id              String
+  title                   String
+  description             String?
+  category_id             String?
+  staff_role_id           String?
+  ticket_counter          Int      @default(0)
+  show_panel_id_in_name   Boolean  @default(true)
+  tickets                 Ticket[]
 }
 
 model Ticket {

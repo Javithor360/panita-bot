@@ -75,6 +75,12 @@ export const data = new SlashCommandBuilder()
       .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
       .addIntegerOption(opt => opt.setName('number').setDescription('Número inicial').setRequired(true))
     )
+    .addSubcommand(sub => sub
+      .setName('show_id_in_name')
+      .setDescription('Alternar si se muestra el ID del panel en el nombre del ticket')
+      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
+      .addBooleanOption(opt => opt.setName('show').setDescription('Mostrar u ocultar (true/false)').setRequired(true))
+    )
   );
 
 export const metadata = {
@@ -94,13 +100,13 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
 
   if (isPrefix) {
     if (!subcommandGroup && !subcommand) {
-      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket panel <resend|delete|list|info>`\n`!ticket config <staff_role|category|counter>`');
+      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket panel <resend|delete|list|info>`\n`!ticket config <staff_role|category|counter|show_id_in_name>`');
     }
     if (subcommandGroup === 'panel' && !subcommand) {
       return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket panel <resend|delete|list|info>`');
     }
     if (subcommandGroup === 'config' && !subcommand) {
-      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket config <staff_role|category|counter>`');
+      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket config <staff_role|category|counter|show_id_in_name>`');
     }
   }
 
@@ -318,6 +324,21 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
       });
       return interaction.editReply(`✅ El contador del panel **${panel.id}** ha sido seteado a ${number}.`);
     }
+
+    if (subcommand === 'show_id_in_name') {
+      const show = interaction.options.getBoolean('show');
+      if (show === null) return interaction.reply('❌ Debes especificar true o false.');
+
+      await interaction.deferReply();
+      let panel = await prisma.ticketPanel.findFirst({ where: { id: panelQueryId } });
+      if (!panel) return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
+
+      await prisma.ticketPanel.update({
+        where: { id: panel.id },
+        data: { show_panel_id_in_name: show }
+      });
+      return interaction.editReply(`✅ Mostrar ID en el nombre del canal para el panel **${panel.id}** ha sido seteado a \`${show}\`.`);
+    }
   }
 };
 
@@ -411,8 +432,21 @@ export const executeButton = async (interaction: ButtonInteraction) => {
       data: { ticket_counter: { increment: 1 } }
     });
 
-    const ticketNumber = updatedPanel.ticket_counter.toString().padStart(4, '0');
-    let channelName = `ticket-${panel.id}-${ticketNumber}`;
+    const ticketNumber = updatedPanel.ticket_counter.toString().padStart(3, '0');
+    let channelName = updatedPanel.show_panel_id_in_name ? `ticket-${panel.id}-${ticketNumber}` : `ticket-${ticketNumber}`;
+
+    const commonPermissions = [
+      PermissionsBitField.Flags.ViewChannel,
+      PermissionsBitField.Flags.SendMessages,
+      PermissionsBitField.Flags.ReadMessageHistory,
+      PermissionsBitField.Flags.AttachFiles,
+      PermissionsBitField.Flags.EmbedLinks,
+      PermissionsBitField.Flags.UseExternalEmojis,
+      PermissionsBitField.Flags.UseExternalStickers,
+      PermissionsBitField.Flags.AddReactions,
+      PermissionsBitField.Flags.MentionEveryone,
+      PermissionsBitField.Flags.PinMessages
+    ];
 
     const permissionOverwrites: OverwriteResolvable[] = [
       {
@@ -421,18 +455,18 @@ export const executeButton = async (interaction: ButtonInteraction) => {
       },
       {
         id: interaction.user.id,
-        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
+        allow: commonPermissions,
       },
       {
         id: interaction.client.user!.id,
-        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.ManageChannels],
+        allow: [...commonPermissions, PermissionsBitField.Flags.ManageChannels],
       }
     ];
 
     if (panel.staff_role_id) {
       permissionOverwrites.push({
         id: panel.staff_role_id,
-        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
+        allow: commonPermissions,
       });
     }
 
@@ -534,6 +568,10 @@ export const executeButton = async (interaction: ButtonInteraction) => {
     });
 
     const channel = interaction.channel as TextChannel;
+    
+    // Renombrar el canal a closed-
+    const newName = channel.name.replace(/^ticket-/, 'closed-');
+    await channel.setName(newName).catch(console.error);
     
     await channel.permissionOverwrites.edit(ticket.creator_id, {
       ViewChannel: false

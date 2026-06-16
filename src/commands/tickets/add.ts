@@ -54,7 +54,14 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   await channel.permissionOverwrites.create(fetchedUser.id, {
     ViewChannel: true,
     SendMessages: true,
-    ReadMessageHistory: true
+    ReadMessageHistory: true,
+    AttachFiles: true,
+    EmbedLinks: true,
+    UseExternalEmojis: true,
+    UseExternalStickers: true,
+    AddReactions: true,
+    MentionEveryone: true,
+    PinMessages: true
   });
   
   return interaction.editReply(`✅ Se ha añadido a <@${fetchedUser.id}> a este ticket.`);
