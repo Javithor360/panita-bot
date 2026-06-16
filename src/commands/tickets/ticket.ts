@@ -575,13 +575,18 @@ export const executeButton = async (interaction: ButtonInteraction) => {
 
     const channel = interaction.channel as TextChannel;
     
-    // Renombrar el canal a closed-
+    // Renombrar el canal a closed- (sin await para evitar bloqueos por rate limit de Discord)
     const newName = channel.name.replace(/^ticket-/, 'closed-');
-    await channel.setName(newName).catch(console.error);
+    channel.setName(newName).catch(console.error);
     
-    await channel.permissionOverwrites.edit(ticket.creator_id, {
-      ViewChannel: false
-    }).catch(console.error);
+    // Remover al creador y a todos los usuarios añadidos con !add
+    const overwrites = channel.permissionOverwrites.cache;
+    for (const [id, overwrite] of overwrites) {
+      // overwrite.type === 1 corresponde a miembros (usuarios)
+      if (overwrite.type === 1 && id !== interaction.client.user!.id) {
+        channel.permissionOverwrites.delete(id).catch(() => {});
+      }
+    }
 
     await interaction.message.delete().catch(() => {});
 
@@ -623,9 +628,9 @@ export const executeButton = async (interaction: ButtonInteraction) => {
 
     const channel = interaction.channel as TextChannel;
     
-    // Renombrar de closed- a ticket-
+    // Renombrar de closed- a ticket- (sin await para evitar bloqueos por rate limit)
     const newName = channel.name.replace(/^closed-/, 'ticket-');
-    await channel.setName(newName).catch(console.error);
+    channel.setName(newName).catch(console.error);
 
     await channel.permissionOverwrites.edit(ticket.creator_id, {
       ViewChannel: true,
