@@ -275,7 +275,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
 
   if (subcommandGroup === 'config') {
     const panelQueryId = isPrefix ? args[2] : interaction.options.getString('panel_id');
-    if (!panelQueryId) return interaction.reply('❌ Debes especificar el ID del panel (ej: `!ticket config staff_role soporte @Staff`).');
+    if (!panelQueryId) return interaction.reply('❌ Debes especificar el ID del panel (ej: `!ticket config <subcomando> <panel_id> <valor>`).');
 
     if (subcommand === 'staff_role') {
       const role = interaction.options.getRole('role');
@@ -326,8 +326,14 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     }
 
     if (subcommand === 'show_id_in_name') {
-      const show = interaction.options.getBoolean('show');
-      if (show === null) return interaction.reply('❌ Debes especificar true o false.');
+      let show: boolean | null = null;
+      if (isPrefix) {
+        if (args[3] === 'true') show = true;
+        else if (args[3] === 'false') show = false;
+      } else {
+        show = interaction.options.getBoolean('show');
+      }
+      if (show === null) return interaction.reply('❌ Debes especificar true o false (ej: `!ticket config show_id_in_name soporte false`).');
 
       await interaction.deferReply();
       let panel = await prisma.ticketPanel.findFirst({ where: { id: panelQueryId } });
