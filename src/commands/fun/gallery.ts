@@ -15,14 +15,22 @@ export const metadata = {
   staffOnly: false
 };
 
+const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
+
+const getWhereCondition = () => ({
+  enabled: true,
+  NOT: videoExtensions.map(ext => ({ url: { endsWith: ext, mode: 'insensitive' as const } }))
+});
+
 const getRandomPhoto = async () => {
-  const count = await prisma.photo.count({ where: { enabled: true } });
+  const where = getWhereCondition();
+  const count = await prisma.photo.count({ where });
   
   if (count === 0) return null;
 
   const randomIndex = Math.floor(Math.random() * count);
   const photo = await prisma.photo.findFirst({
-    where: { enabled: true },
+    where,
     skip: randomIndex,
     include: {
       user: true,
