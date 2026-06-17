@@ -42,7 +42,7 @@ const getRandomPhoto = async () => {
   return photo;
 };
 
-const buildGalleryMessage = (photo: any) => {
+const buildGalleryMessage = (photo: any, userId?: string) => {
   if (!photo) {
     return {
       content: '❌ Actualmente no hay fotos disponibles en la galería.',
@@ -97,12 +97,12 @@ const buildGalleryMessage = (photo: any) => {
   }
 
   const rerollButton = new ButtonBuilder()
-    .setCustomId('btn_gallery_reroll')
+    .setCustomId(userId ? `btn_gallery_reroll::${userId}` : 'btn_gallery_reroll')
     .setEmoji('🎲')
     .setStyle(ButtonStyle.Secondary);
 
   const linkButton = new ButtonBuilder()
-    .setCustomId(`btn_gallery_link_${photo.id}`)
+    .setCustomId(userId ? `btn_gallery_link_${photo.id}::${userId}` : `btn_gallery_link_${photo.id}`)
     .setEmoji('🔗')
     .setStyle(ButtonStyle.Secondary);
 
@@ -119,7 +119,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   
   try {
     const photo = await getRandomPhoto();
-    const messagePayload = buildGalleryMessage(photo);
+    const messagePayload = buildGalleryMessage(photo, interaction.user.id);
     
     await interaction.editReply(messagePayload);
   } catch (error) {
@@ -129,8 +129,21 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
 };
 
 export const executeButton = async (interaction: ButtonInteraction) => {
+  let executorId: string | undefined;
+  if (interaction.customId.includes('::')) {
+    const parts = interaction.customId.split('::');
+    executorId = parts[1];
+  }
+
+  if (executorId && interaction.user.id !== executorId) {
+    return interaction.reply({ content: '❌ Solo la persona que ejecutó el comando puede usar este botón.', ephemeral: true });
+  }
+
   if (interaction.customId.startsWith('btn_gallery_link_')) {
-    const photoId = interaction.customId.replace('btn_gallery_link_', '');
+    let photoId = interaction.customId.replace('btn_gallery_link_', '');
+    if (photoId.includes('::')) {
+      photoId = photoId.split('::')[0];
+    }
     await interaction.reply({
       content: `Aquí tienes el enlace. Puedes copiarlo seleccionándolo:\n<https://panita.vercel.app/gallery?photo=${photoId}>`,
       ephemeral: true
@@ -142,7 +155,7 @@ export const executeButton = async (interaction: ButtonInteraction) => {
   
   try {
     const photo = await getRandomPhoto();
-    const messagePayload = buildGalleryMessage(photo);
+    const messagePayload = buildGalleryMessage(photo, executorId);
     
     // Fallback if no photos
     if (!photo) {

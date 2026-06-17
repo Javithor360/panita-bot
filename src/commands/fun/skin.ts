@@ -43,7 +43,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     .setImage(imageUrl);
 
   const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId(`select_skin_${jugador}`)
+    .setCustomId(`select_skin_${jugador}::${interaction.user.id}`)
     .setPlaceholder('Selecciona una vista diferente...')
     .addOptions(skinOptions);
 
@@ -57,7 +57,19 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
 
 export const executeStringSelect = async (interaction: StringSelectMenuInteraction) => {
   const customId = interaction.customId;
-  const jugador = customId.replace('select_skin_', '');
+  let jugador = customId.replace('select_skin_', '');
+  let executorId: string | undefined;
+
+  if (jugador.includes('::')) {
+    const parts = jugador.split('::');
+    jugador = parts[0];
+    executorId = parts[1];
+  }
+
+  if (executorId && interaction.user.id !== executorId) {
+    return interaction.reply({ content: '❌ Solo la persona que ejecutó el comando puede usar este menú.', ephemeral: true });
+  }
+
   const selectedView = interaction.values[0];
 
   const timeParam = Date.now();
