@@ -52,6 +52,27 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
         }
       }
     });
+  } else {
+    let updated = false;
+    const dataToUpdate: any = {};
+    
+    if (user.discord_name !== interaction.user.username) {
+      dataToUpdate.discord_name = interaction.user.username;
+      updated = true;
+    }
+    
+    const currentAvatar = interaction.user.displayAvatarURL({ size: 256, extension: 'png' });
+    if (user.avatar_url !== currentAvatar) {
+      dataToUpdate.avatar_url = currentAvatar;
+      updated = true;
+    }
+
+    if (updated) {
+      user = await prisma.user.update({
+        where: { discord_id: discordId },
+        data: dataToUpdate
+      });
+    }
   }
 
   // 2. Check if already activated

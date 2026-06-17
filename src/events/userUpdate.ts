@@ -8,20 +8,27 @@ export const userUpdateEvent = async (oldUser: User | PartialUser, newUser: User
     if (!guild || !guild.members.cache.has(newUser.id)) return;
   }
 
-  // Check if avatar has changed
-  if (oldUser.avatar !== newUser.avatar) {
+  const avatarChanged = oldUser.avatar !== newUser.avatar;
+  const usernameChanged = oldUser.username !== newUser.username;
+
+  if (avatarChanged || usernameChanged) {
     const discordId = newUser.id;
     const newAvatarUrl = newUser.displayAvatarURL({ size: 256, extension: 'png' });
+    const newUsername = newUser.username;
+
+    const dataToUpdate: any = {};
+    if (avatarChanged) dataToUpdate.avatar_url = newAvatarUrl;
+    if (usernameChanged) dataToUpdate.discord_name = newUsername;
 
     try {
       // We use updateMany to avoid crashing if the user doesn't exist in our DB
       await prisma.user.updateMany({
         where: { discord_id: discordId },
-        data: { avatar_url: newAvatarUrl },
+        data: dataToUpdate,
       });
-      console.log(`Updated avatar for user ${newUser.tag}`);
+      console.log(`Updated user data for ${newUser.tag} (Avatar: ${avatarChanged}, Username: ${usernameChanged})`);
     } catch (error) {
-      console.error(`Failed to update avatar for user ${discordId}:`, error);
+      console.error(`Failed to update user data for ${discordId}:`, error);
     }
   }
 };
