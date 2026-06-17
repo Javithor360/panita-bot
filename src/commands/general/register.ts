@@ -13,7 +13,7 @@ export const metadata = {
   usage: 'register',
   slashOnly: true,
   devOnly: false,
-  staffOnly: true
+  staffOnly: false
 };
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
