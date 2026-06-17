@@ -256,7 +256,8 @@ client.on('messageCreate', async (message) => {
         if (sentMessage) return await sentMessage.edit(opts);
         return await message.reply(opts);
       },
-      args: args // Expose raw args for advanced commands
+      args: args, // Expose raw args for advanced commands
+      message: message // Expose original message to allow commands to interact with it
     };
 
     try {
