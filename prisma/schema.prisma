@@ -25,7 +25,7 @@ model Photo {
 
 model User {
   id             Int           @id @default(autoincrement())
-  ign            String?
+  ign            String?       @unique
   discord_name   String
   discord_id     String        @unique
   password       String?
