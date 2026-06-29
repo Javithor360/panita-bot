@@ -111,3 +111,12 @@ model Ticket {
   created_at  DateTime     @default(now())
   panel       TicketPanel  @relation(fields: [panel_id], references: [id], onDelete: Cascade)
 }
+
+model Tag {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  content    String?
+  media_urls String[]
+  author_id  String
+  created_at DateTime @default(now())
+}
