@@ -11,8 +11,8 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
         value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensa: 15 niveles de experiencia.\n⠀◈ Castigo:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
       },
       {
-        name: "CAMBIOS DE DIFICULTAD 🎯",
-        value: ">>> **➔ Tumbas**\nAl morir, se genera una tumba en la posición de muerte. Al visitar la tumba, spawnea un Zombie con el inventario del jugador muerto."
+        name: "MECÁNICAS INICIALES 🪬",
+        value: ">>> **➔ Tumbas**\nAl morir, se genera una tumba en la posición de muerte. Al visitar la tumba, spawnea un Zombie con el inventario del jugador muerto.\n\n**➔ Generación renovada**\nGeneración de terreno modificada con nuevos biomas y estructuras.\n\n**➔ Rebalanceo de Aldeanos**\nExperimento de rebalanceo de Aldeanos activado, siguiendo las propuestas en el sistema de tradeo desarrolladas por Mojang."
       }
     ],
     // image: ""
