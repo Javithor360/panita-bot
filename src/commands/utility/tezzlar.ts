@@ -21,7 +21,6 @@ export const data = new SlashCommandBuilder()
           .setRequired(false)
       )
   );
-
 export const metadata = {
   aliases: ['tez', 'tz'],
   category: 'Utilidad',
