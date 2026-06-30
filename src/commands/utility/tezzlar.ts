@@ -24,9 +24,9 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['tezz'],
-  category: 'Utility',
+  category: 'Utilidad',
   description: 'Proporciona información diaria sobre el evento Tezzlar III.',
-  usage: 'tezzlar day <numero> [--force]',
+  usage: 'tezzlar day <numero>',
   slashOnly: false,
   devOnly: false,
   staffOnly: false
