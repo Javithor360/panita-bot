@@ -32,5 +32,9 @@ export const execute = async (interaction: ChatInputCommandInteraction | any) =>
     embed.setDescription(descriptionText);
   }
 
-  await interaction.reply({ embeds: [embed] });
+  if (interaction.message) {
+    await interaction.channel.send({ embeds: [embed] });
+  } else {
+    await interaction.reply({ embeds: [embed] });
+  }
 };
