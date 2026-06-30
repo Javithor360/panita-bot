@@ -5,7 +5,7 @@ export const data = new SlashCommandBuilder()
   .setDescription('Muestra el enlace del tráiler de Tezzlar 3.');
 
 export const metadata = {
-  aliases: ['tezzlar', 'tezzlar3'],
+  aliases: [],
   category: 'General',
   description: 'Comparte el enlace del tráiler de Tezzlar 3.',
   usage: 'trailer',
