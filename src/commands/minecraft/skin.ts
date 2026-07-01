@@ -11,7 +11,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['skins'],
-  category: 'Diversión',
+  category: 'Minecraft',
   description: 'Muestra la skin de un jugador de Minecraft en diferentes vistas interactivas.',
   usage: 'skin <jugador>',
   slashOnly: true,

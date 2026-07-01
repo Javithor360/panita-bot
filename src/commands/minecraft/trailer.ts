@@ -6,7 +6,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: [],
-  category: 'General',
+  category: 'Minecraft',
   description: 'Comparte el enlace del tráiler de Tezzlar 3.',
   usage: 'trailer',
   slashOnly: false,

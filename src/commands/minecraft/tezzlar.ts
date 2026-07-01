@@ -23,7 +23,7 @@ export const data = new SlashCommandBuilder()
   );
 export const metadata = {
   aliases: ['tez', 'tz'],
-  category: 'Utilidad',
+  category: 'Minecraft',
   description: 'Proporciona información diaria sobre el evento Tezzlar III.',
   usage: 'tezzlar day <numero>',
   slashOnly: false,
