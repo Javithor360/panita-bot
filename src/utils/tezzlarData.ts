@@ -8,11 +8,11 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensa: 15 niveles de experiencia.\n⠀◈ Castigo:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
+        value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensas:\n⠀⠀\\- 25 niveles de experiencia\n⠀⠀\\- Tótem de flor dorada\n⠀◈ Castigos:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
       },
       {
         name: "MECÁNICAS INICIALES 🪬",
-        value: ">>> **➔ Tumbas**\nAl morir, se genera una tumba en la posición de muerte. Al visitar la tumba, spawnea un Zombie con el inventario del jugador muerto.\n\n**➔ Generación renovada**\nGeneración de terreno modificada con nuevos biomas y estructuras.\n\n**➔ Rebalanceo de Aldeanos**\nExperimento de rebalanceo de Aldeanos activado, siguiendo las propuestas en el sistema de tradeo desarrolladas por Mojang."
+        value: ">>> **➔ Tumbas**\nAl morir, se genera una tumba en la posición de muerte. Al visitar la tumba, spawnea un Zombie con el inventario del jugador muerto.\n\n**➔ Generación renovada**\nGeneración de terreno modificada con nuevos biomas y estructuras.\n\n**➔ Rebalanceo de Aldeanos**\nExperimento de rebalanceo de Aldeanos activado, siguiendo las propuestas en el sistema de tradeo desarrolladas por Mojang.\n\n**➔ Loot individualizado**\nLos cofres de botín ahora funcionan por instancias personales; cada jugador puede abrir un mismo cofre y reclamar su propia porción de loot de forma independiente."
       }
     ],
     // image: ""
@@ -21,11 +21,11 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensa: 15 niveles de experiencia.\n⠀◈ Castigo:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
+        value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensas:\n⠀⠀\\- 25 niveles de experiencia\n⠀⠀\\- Tótem de flor dorada\n⠀◈ Castigos:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
-        value: ">>> **➔ Stacks extendidos**\nAlgunos ítems extienden su cantidad máxima por stack:\n⠀- **Bloques**: La mayoría de bloques se pueden acumular hasta 99.\n⠀- **Pociones**: Todas las pociones se pueden coleccionar hasta 3.\n⠀- **Comida**: Algunas comidas como la Sopa de Remolacha y Manzana Dorada se acumulan hasta 67."
+        value: ">>> **➔ Karma letal**\nMatar a otro jugador te mata a ti también.\n\n**➔ Death Train**\nUn efecto climatológico que ocurre cuando muere un jugador. Otorga lentitud a los jugadores expuestos a la lluvia y hace que todos los mobs spawneen con Fuerza II y efectos adicionales como Weaving o Infested. La duración de la tormenta depende del día actual (se suma 1 hora de duración por cada día de Tezzlar transcurrido).\n\n**➔ Stacks extendidos**\nAlgunos ítems extienden su cantidad máxima por stack:\n⠀- **Bloques**: La mayoría de bloques se pueden acumular hasta 99.\n⠀- **Pociones**: Todas las pociones se pueden coleccionar hasta 3.\n⠀- **Comida**: Algunas comidas como la Sopa de Remolacha y Manzana Dorada se acumulan hasta 67."
       },
       {
         name: "NUEVOS CRAFTEOS 🔨",
@@ -37,7 +37,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensa: 15 niveles de experiencia.\n⠀◈ Castigo:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
+        value: ">>> **➔ Conseguir Full Diamante**\nEquípate una armadura completa de diamante.\n⠀◈ Recompensas:\n⠀⠀\\- 25 niveles de experiencia\n⠀⠀\\- Tótem de flor dorada\n⠀◈ Castigos:\n⠀⠀⠀\\- No puedes guardar diamantes en tu inventario.\n⠀⠀⠀\\- Recibes 1.5x de daño de todas las fuentes."
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -53,7 +53,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Conseguir Manzanas Doradas**\nConsigue una base de 32 insumos de manzanas doradas para sobrevivir a los próximos días.\n⠀◈ Recompensas:\n⠀⠀\\- Tres manzanas de notch\n⠀⠀\\- Dos tótems de gallina\n⠀⠀\\- Arco táctico\n⠀◈ Castigo:\n⠀⠀\\- Ninguno"
+        value: ">>> **➔ Conseguir Manzanas Doradas**\nConsigue una base de 32 insumos de manzanas doradas para sobrevivir a los próximos días.\n⠀◈ Recompensas:\n⠀⠀\\- 67 Manzanas de Manzanium\n⠀⠀\\- Tres manzanas de notch\n⠀⠀\\- Dos tótems de gallina\n⠀⠀\\- Arco táctico\n⠀◈ Castigos:\n⠀⠀\\- Ninguno"
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -69,7 +69,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Conseguir Manzanas Doradas**\nConsigue una base de 32 insumos de manzanas doradas para sobrevivir a los próximos días.\n⠀◈ Recompensas:\n⠀⠀\\- Tres manzanas de notch\n⠀⠀\\- Dos tótems de gallina\n⠀⠀\\- Arco táctico\n⠀◈ Castigo:\n⠀⠀\\- Ninguno"
+        value: ">>> **➔ Conseguir Manzanas Doradas**\nConsigue una base de 32 insumos de manzanas doradas para sobrevivir a los próximos días.\n⠀◈ Recompensas:\n⠀⠀\\- 67 Manzanas de Manzanium\n⠀⠀\\- Tres manzanas de notch\n⠀⠀\\- Dos tótems de gallina\n⠀⠀\\- Arco táctico\n⠀◈ Castigos:\n⠀⠀\\- Ninguno"
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -85,7 +85,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Conseguir Manzanas Doradas**\nConsigue una base de 32 insumos de manzanas doradas para sobrevivir a los próximos días.\n⠀◈ Recompensas:\n⠀⠀\\- Tres manzanas de notch\n⠀⠀\\- Dos tótems de gallina\n⠀⠀\\- Arco táctico\n⠀◈ Castigo:\n⠀⠀\\- Ninguno"
+        value: ">>> **➔ Conseguir Manzanas Doradas**\nConsigue una base de 32 insumos de manzanas doradas para sobrevivir a los próximos días.\n⠀◈ Recompensas:\n⠀⠀\\- 67 Manzanas de Manzanium\n⠀⠀\\- Tres manzanas de notch\n⠀⠀\\- Dos tótems de gallina\n⠀⠀\\- Arco táctico\n⠀◈ Castigos:\n⠀⠀\\- Ninguno"
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -101,7 +101,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Invocar Gólems de Hierro**\nCon la base ya asentada, es necesario mantenerla protegida ante cualquier amenaza. Por ello, en equipo deben contratar la seguridad de los queridos Gólems de Hierro.\n⠀◈ Recompensas:\n⠀⠀\\- Casco Semi-God de Hierro Prémium\n⠀⠀\\- Peto Semi-God de Hierro Prémium\n⠀⠀\\- Perneras Semi-God de Hierro Prémium\n⠀⠀\\- Botas Semi-God de Hierro Prémium\n⠀⠀\\- Pico de Hierro Prémium\n⠀⠀\\- Pala de Hierro Prémium\n⠀⠀\\- Hacha de Hierro Prémium\n⠀◈ Castigo:\n⠀⠀\\- Los gólems de hierro te atacan naturalmente"
+        value: ">>> **➔ Invocar Gólems de Hierro**\nCon la base ya asentada, es necesario mantenerla protegida ante cualquier amenaza. Por ello, en equipo deben contratar la seguridad de los queridos Gólems de Hierro.\n⠀◈ Recompensas:\n⠀⠀\\- Casco Semi-God de Hierro Prémium\n⠀⠀\\- Peto Semi-God de Hierro Prémium\n⠀⠀\\- Perneras Semi-God de Hierro Prémium\n⠀⠀\\- Botas Semi-God de Hierro Prémium\n⠀⠀\\- Shulker Box\n⠀◈ Castigos:\n⠀⠀\\- Los gólems de hierro te atacan naturalmente.\n⠀⠀\\- Los gólems de hierro son inmunes al daño de jugador y tienen x3 de vida máxima."
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -117,7 +117,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Invocar Gólems de Hierro**\nCon la base ya asentada, es necesario mantenerla protegida ante cualquier amenaza. Por ello, en equipo deben contratar la seguridad de los queridos Gólems de Hierro.\n⠀◈ Recompensas:\n⠀⠀\\- Casco Semi-God de Hierro Prémium\n⠀⠀\\- Peto Semi-God de Hierro Prémium\n⠀⠀\\- Perneras Semi-God de Hierro Prémium\n⠀⠀\\- Botas Semi-God de Hierro Prémium\n⠀⠀\\- Pico de Hierro Prémium\n⠀⠀\\- Pala de Hierro Prémium\n⠀⠀\\- Hacha de Hierro Prémium\n⠀◈ Castigo:\n⠀⠀\\- Los gólems de hierro te atacan naturalmente"
+        value: ">>> **➔ Invocar Gólems de Hierro**\nCon la base ya asentada, es necesario mantenerla protegida ante cualquier amenaza. Por ello, en equipo deben contratar la seguridad de los queridos Gólems de Hierro.\n⠀◈ Recompensas:\n⠀⠀\\- Casco Semi-God de Hierro Prémium\n⠀⠀\\- Peto Semi-God de Hierro Prémium\n⠀⠀\\- Perneras Semi-God de Hierro Prémium\n⠀⠀\\- Botas Semi-God de Hierro Prémium\n⠀⠀\\- Shulker Box\n⠀◈ Castigos:\n⠀⠀\\- Los gólems de hierro te atacan naturalmente.\n⠀⠀\\- Los gólems de hierro son inmunes al daño de jugador y tienen x3 de vida máxima."
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -145,7 +145,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Matar un Wither Boss en Nether**\nAhora que nos hemos asentado, hay que salir a conquistar otras tierras, la mejor forma es demostrando de lo qué eres capaz. Así que, ve y acaba con un Wither en la dimensión del Nether.\n⠀◈ Recompensas:\n⠀⠀\\- Ninguna\n⠀◈ Castigos:\n⠀⠀\\- Cada vez que recibes Regeneration se convierte en Wither II\n⠀⠀\\- Cuando recibes daño en el Nether, tienes probabilidad de spawnear un Wither Skeleton en tu posición (sin probabilidad de drops)"
+        value: ">>> **➔ Matar un Wither Boss en Nether**\nAhora que nos hemos asentado, hay que salir a conquistar otras tierras, la mejor forma es demostrando de lo qué eres capaz. Así que, ve y acaba con un Wither en la dimensión del Nether.\n⠀◈ Recompensas:\n⠀⠀\\- Shulker Box negra\n⠀⠀\\- 50 niveles de experiencia\n⠀◈ Castigos:\n⠀⠀\\- Cada vez que recibes Regeneration se convierte en Wither II\n⠀⠀\\- Cuando recibes daño en el Nether, tienes probabilidad de spawnear un Wither Skeleton en tu posición (sin probabilidad de drops)"
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -161,7 +161,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Matar un Wither Boss en Nether**\nAhora que nos hemos asentado, hay que salir a conquistar otras tierras, la mejor forma es demostrando de lo qué eres capaz. Así que, ve y acaba con un Wither en la dimensión del Nether.\n⠀◈ Recompensas:\n⠀⠀\\- Ninguna\n⠀◈ Castigos:\n⠀⠀\\- Cada vez que recibes Regeneration se convierte en Wither II\n⠀⠀\\- Cuando recibes daño en el Nether, tienes probabilidad de spawnear un Wither Skeleton en tu posición (sin probabilidad de drops)"
+        value: ">>> **➔ Matar un Wither Boss en Nether**\nAhora que nos hemos asentado, hay que salir a conquistar otras tierras, la mejor forma es demostrando de lo qué eres capaz. Así que, ve y acaba con un Wither en la dimensión del Nether.\n⠀◈ Recompensas:\n⠀⠀\\- Shulker Box negra\n⠀⠀\\- 50 niveles de experiencia\n⠀◈ Castigos:\n⠀⠀\\- Cada vez que recibes Regeneration se convierte en Wither II\n⠀⠀\\- Cuando recibes daño en el Nether, tienes probabilidad de spawnear un Wither Skeleton en tu posición (sin probabilidad de drops)"
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -173,7 +173,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Matar un Wither Boss en Nether**\nAhora que nos hemos asentado, hay que salir a conquistar otras tierras, la mejor forma es demostrando de lo qué eres capaz. Así que, ve y acaba con un Wither en la dimensión del Nether.\n⠀◈ Recompensas:\n⠀⠀\\- Ninguna\n⠀◈ Castigos:\n⠀⠀\\- Cada vez que recibes Regeneration se convierte en Wither II\n⠀⠀\\- Cuando recibes daño en el Nether, tienes probabilidad de spawnear un Wither Skeleton en tu posición (sin probabilidad de drops)"
+        value: ">>> **➔ Matar un Wither Boss en Nether**\nAhora que nos hemos asentado, hay que salir a conquistar otras tierras, la mejor forma es demostrando de lo qué eres capaz. Así que, ve y acaba con un Wither en la dimensión del Nether.\n⠀◈ Recompensas:\n⠀⠀\\- Shulker Box negra\n⠀⠀\\- 50 niveles de experiencia\n⠀◈ Castigos:\n⠀⠀\\- Cada vez que recibes Regeneration se convierte en Wither II\n⠀⠀\\- Cuando recibes daño en el Nether, tienes probabilidad de spawnear un Wither Skeleton en tu posición (sin probabilidad de drops)"
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -189,7 +189,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Encarcelar un Warden**\n¿Un Wither Boss no fue suficiente? ¡Pues vamos por más! Ahora, en equipo, deberán tenderle una trampa al Warden para llevarlo a la superficie y encerrarlo en una zona restringida.\n⠀◈ Recompensas:\n⠀⠀\\- Ninguna\n⠀◈ Castigos:\n⠀⠀\\- Los Warden spawnean naturalmente en la superficie.\n⠀⠀\\- Durante las noches, recibes el efecto de Darkness en el Overworld."
+        value: ">>> **➔ Encarcelar un Warden**\n¿Un Wither Boss no fue suficiente? ¡Pues vamos por más! Ahora, en equipo, deberán tenderle una trampa al Warden para llevarlo a la superficie y encerrarlo en una zona restringida.\n⠀◈ Recompensas:\n⠀⠀\\- 3 tótems de sulfuro\n⠀⠀\\- 67 Manzanas de Manzanium\n⠀◈ Castigos:\n⠀⠀\\- Los Warden spawnean naturalmente en la superficie.\n⠀⠀\\- Durante las noches, recibes el efecto de Darkness en el Overworld."
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
@@ -205,7 +205,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "MISIONES ACTIVAS 🛠️",
-        value: ">>> **➔ Encarcelar un Warden**\n¿Un Wither Boss no fue suficiente? ¡Pues vamos por más! Ahora, en equipo, deberán tenderle una trampa al Warden para llevarlo a la superficie y encerrarlo en una zona restringida.\n⠀◈ Recompensas:\n⠀⠀\\- Ninguna\n⠀◈ Castigos:\n⠀⠀\\- Los Warden spawnean naturalmente en la superficie.\n⠀⠀\\- Durante las noches, recibes el efecto de Darkness en el Overworld."
+        value: ">>> **➔ Encarcelar un Warden**\n¿Un Wither Boss no fue suficiente? ¡Pues vamos por más! Ahora, en equipo, deberán tenderle una trampa al Warden para llevarlo a la superficie y encerrarlo en una zona restringida.\n⠀◈ Recompensas:\n⠀⠀\\- 3 tótems de sulfuro\n⠀⠀\\- 67 Manzanas de Manzanium\n⠀◈ Castigos:\n⠀⠀\\- Los Warden spawnean naturalmente en la superficie.\n⠀⠀\\- Durante las noches, recibes el efecto de Darkness en el Overworld."
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
