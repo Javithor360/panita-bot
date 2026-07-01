@@ -12,7 +12,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
       },
       {
         name: "MECÁNICAS INICIALES 🪬",
-        value: ">>> **➔ Tumbas**\nAl morir, se genera una tumba en la posición de muerte. Al visitar la tumba, spawnea un Zombie con el inventario del jugador muerto.\n\n**➔ Generación renovada**\nGeneración de terreno modificada con nuevos biomas y estructuras.\n\n**➔ Rebalanceo de Aldeanos**\nExperimento de rebalanceo de Aldeanos activado, siguiendo las propuestas en el sistema de tradeo desarrolladas por Mojang.\n\n**➔ Loot individualizado**\nLos cofres de botín ahora funcionan por instancias personales; cada jugador puede abrir un mismo cofre y reclamar su propia porción de loot de forma independiente."
+        value: ">>> **➔ Límite del mundo**\nTodas las dimensiones tienen un borde de mundo establecido en un máximo de 5,000 x 5,000 bloques para explorar.\n\n**➔ Tumbas**\nAl morir, se genera una tumba en la posición de muerte. Al visitar la tumba, spawnea un Zombie con el inventario del jugador muerto.\n\n**➔ Generación renovada**\nGeneración de terreno modificada con nuevos biomas y estructuras.\n\n**➔ Rebalanceo de Aldeanos**\nExperimento de rebalanceo de Aldeanos activado, siguiendo las propuestas en el sistema de tradeo desarrolladas por Mojang.\n\n**➔ Loot individualizado**\nLos cofres de botín ahora funcionan por instancias personales; cada jugador puede abrir un mismo cofre y reclamar su propia porción de loot de forma independiente."
       }
     ],
     // image: ""
@@ -73,7 +73,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
-        value: ">>> **➔ Phantoms**\nCuando te pegan, te montas encima de ellos.\n\n**➔ Camas explosivas**\nLas noches ya no se pueden saltar porque las camas explotan al interactuar con ellas.\n\n**➔ Armamento**\nEs mucho más común que los mobs aparezcan equipados con armas y armaduras."
+        value: ">>> **➔ Expansión mundial**\nEl borde del mundo se expande 2,000 bloques adicionales.\n\n**➔ Phantoms**\nCuando te pegan, te montas encima de ellos.\n\n**➔ Camas explosivas**\nLas noches ya no se pueden saltar porque las camas explotan al interactuar con ellas.\n\n**➔ Armamento**\nEs mucho más común que los mobs aparezcan equipados con armas y armaduras."
       },
       {
         name: "NUEVOS MOBS 🥚",
@@ -217,7 +217,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
     fields: [
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
-        value: ">>> **➔ Dieta estricta**\nComer Zanahorias Doradas o carnes te quita toda la barra de comida.\n\n**➔ Arañas dopadas**\nLas arañas siempre spawnean con efectos de poción.\n\n**➔ Noche eterna**\nSiempre es de noche en el Overworld, pero ya no es obligatorio que llueva todas las noches."
+        value: ">>> **➔ Expansión mundial**\nEl borde del mundo se expande 3,000 bloques adicionales.\n\n**➔ Dieta estricta**\nComer Zanahorias Doradas o carnes te quita toda la barra de comida.\n\n**➔ Arañas dopadas**\nLas arañas siempre spawnean con efectos de poción.\n\n**➔ Noche eterna**\nSiempre es de noche en el Overworld, pero ya no es obligatorio que llueva todas las noches."
       },
       {
         name: "NUEVOS MOBS 🥚",
