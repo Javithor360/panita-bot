@@ -176,7 +176,9 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
     if (!replyOptions.content && (!replyOptions.files || replyOptions.files.length === 0)) {
       replyOptions.content = "Este tag está vacío.";
     }
-
+    if (adapterMessage) {
+      return adapterMessage.channel.send(replyOptions);
+    }
     return interaction.reply(replyOptions);
   }
 };
