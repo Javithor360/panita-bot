@@ -177,7 +177,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
       replyOptions.content = "Este tag está vacío.";
     }
     if (adapterMessage) {
-      return adapterMessage.channel.send(replyOptions);
+      return (adapterMessage.channel as any).send(replyOptions);
     }
     return interaction.reply(replyOptions);
   }
