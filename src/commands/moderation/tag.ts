@@ -69,7 +69,18 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
       subcommand = firstArg;
       if (firstArg !== 'list') {
         nombre = adapterArgs[1]?.toLowerCase() || '';
-        texto = adapterArgs.slice(2).join(' ');
+        
+        if (subcommand === 'add' && adapterMessage) {
+          // Extract the text preserving all spaces, indents, and newlines
+          const match = adapterMessage.content.match(/^\S+\s+\S+\s+\S+\s+/);
+          if (match) {
+            texto = adapterMessage.content.slice(match[0].length);
+          } else {
+            texto = '';
+          }
+        } else {
+          texto = adapterArgs.slice(2).join(' ');
+        }
       }
     } else {
       subcommand = 'ver';
