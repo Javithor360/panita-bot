@@ -11,7 +11,7 @@ export const metadata = {
   category: 'General',
   description: 'Activa tu cuenta de Discord para iniciar sesión en el Panel Web.',
   usage: 'register',
-  slashOnly: true,
+  slashOnly: false,
   devOnly: false,
   staffOnly: false
 };
