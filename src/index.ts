@@ -54,7 +54,6 @@ for (const folder of commandFolders) {
 client.once('ready', (c) => {
   readyEvent(c);
   initPostgresSync(client);
-  keepAlive(); // Initialize web server to keep Render awake
 });
 client.on('userUpdate', (oldUser, newUser) => userUpdateEvent(oldUser, newUser));
 client.on('guildMemberAdd', (member) => guildMemberAddEvent(member));
@@ -275,5 +274,7 @@ if (!token) {
   console.error("No DISCORD_TOKEN found in .env file");
   process.exit(1);
 }
+
+keepAlive(); // Initialize web server to keep Render awake
 
 client.login(token).catch(console.error);
