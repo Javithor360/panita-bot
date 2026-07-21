@@ -277,4 +277,10 @@ if (!token) {
 
 keepAlive(); // Initialize web server to keep Render awake
 
-client.login(token).catch(console.error);
+client.on('debug', console.log);
+client.on('warn', console.log);
+client.on('error', console.error);
+
+client.login(token)
+  .then(() => console.log("Login request accepted. Waiting for sync..."))
+  .catch(err => console.error("Fatal error in login: ", err));
