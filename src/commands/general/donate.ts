@@ -52,7 +52,7 @@ export const execute = async (interaction: ChatInputCommandInteraction | any) =>
     .setDescription('La mejor forma de apoyar nuestros proyectos es a través de una donación. Esto nos permite sustentar los gastos de alojamiento de los servidores y realizar inversiones en infraestructura para seguir creando contenido y futuros proyectos.\n\n*¡Recuerda que toda donación es completamente opcional, pero te lo agradeceremos un montón!*')
     .addFields(
       {
-        name: '🌟 Beneficios de donación',
+        name: '🌟 Beneficios de tu donación',
         value: '>>> ◈ Apoyar a la comunidad.\n◈ Reconocimiento especial en nuestro sitio web.\n◈ Rango exclusivo en el servidor de Minecraft vigente.\n◈ Spoilers de futuros proyectos.'
       },
       {
