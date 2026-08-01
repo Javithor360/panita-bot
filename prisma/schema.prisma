@@ -24,25 +24,28 @@ model Photo {
 }
 
 model User {
-  id             Int           @id @default(autoincrement())
-  ign            String?       @unique
+  id             Int            @id @default(autoincrement())
+  ign            String?        @unique
   discord_name   String
-  discord_id     String        @unique
+  discord_id     String         @unique
   password       String?
-  enabled        Boolean       @default(false)
-  joined_at      DateTime      @default(now())
-  trusted_author Boolean       @default(false)
+  enabled        Boolean        @default(false)
+  joined_at      DateTime       @default(now())
+  trusted_author Boolean        @default(false)
   avatar_url     String?
   photos         Photo[]
   editions       UserEdition[]
-  emblems        Emblem[]      @relation("EmblemToUser")
-  roles          Role[]        @relation("RoleToUser")
+  emblems        Emblem[]       @relation("EmblemToUser")
+  roles          Role[]         @relation("RoleToUser")
+  forms          Form[]         @relation("FormCreator")
+  form_responses FormResponse[] @relation("UserFormResponses")
 }
 
 model Edition {
   id              String        @id
   name            String
   started_at      DateTime?
+  ended_at        DateTime?
   discord_role_id String?       @unique
   emblems         Emblem[]
   photos          Photo[]
@@ -89,27 +92,27 @@ model UserEdition {
 }
 
 model TicketPanel {
-  id                      String   @id
-  guild_id                String
-  channel_id              String
-  message_id              String
-  title                   String
-  description             String?
-  category_id             String?
-  staff_role_id           String?
-  ticket_counter          Int      @default(0)
-  show_panel_id_in_name   Boolean  @default(true)
-  tickets                 Ticket[]
+  id                    String   @id
+  guild_id              String
+  channel_id            String
+  message_id            String
+  title                 String
+  description           String?
+  category_id           String?
+  staff_role_id         String?
+  ticket_counter        Int      @default(0)
+  show_panel_id_in_name Boolean  @default(true)
+  tickets               Ticket[]
 }
 
 model Ticket {
-  id          String       @id @default(uuid())
-  panel_id    String
-  channel_id  String       @unique
-  creator_id  String
-  status      String       @default("OPEN")
-  created_at  DateTime     @default(now())
-  panel       TicketPanel  @relation(fields: [panel_id], references: [id], onDelete: Cascade)
+  id         String      @id @default(uuid())
+  panel_id   String
+  channel_id String      @unique
+  creator_id String
+  status     String      @default("OPEN")
+  created_at DateTime    @default(now())
+  panel      TicketPanel @relation(fields: [panel_id], references: [id], onDelete: Cascade)
 }
 
 model Tag {
@@ -119,4 +122,64 @@ model Tag {
   media_urls String[]
   author_id  String
   created_at DateTime @default(now())
+}
+
+model Form {
+  id            String         @id @default(uuid())
+  slug          String         @unique
+  title         String
+  description   String?
+  is_open       Boolean        @default(false)
+  require_login Boolean        @default(true)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+  creator_id    Int
+  creator       User           @relation("FormCreator", fields: [creator_id], references: [id])
+  sections      FormSection[]
+  responses     FormResponse[]
+}
+
+model FormSection {
+  id          String         @id @default(uuid())
+  form_id     String
+  title       String?
+  description String?
+  position    Int            @default(0)
+  form        Form           @relation(fields: [form_id], references: [id], onDelete: Cascade)
+  questions   FormQuestion[]
+}
+
+model FormQuestion {
+  id          String       @id @default(uuid())
+  section_id  String
+  title       String
+  description String?
+  type        String
+  is_required Boolean      @default(false)
+  position    Int          @default(0)
+  options     Json?
+  section     FormSection  @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  answers     FormAnswer[]
+}
+
+model FormResponse {
+  id         String       @id @default(uuid())
+  form_id    String
+  user_id    Int
+  created_at DateTime     @default(now())
+  form       Form         @relation(fields: [form_id], references: [id], onDelete: Cascade)
+  user       User         @relation("UserFormResponses", fields: [user_id], references: [id], onDelete: Cascade)
+  answers    FormAnswer[]
+
+  @@unique([form_id, user_id])
+}
+
+model FormAnswer {
+  id          String       @id @default(uuid())
+  response_id String
+  question_id String
+  value       String?
+  values      String[]
+  response    FormResponse @relation(fields: [response_id], references: [id], onDelete: Cascade)
+  question    FormQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
 }
