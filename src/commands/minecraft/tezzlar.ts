@@ -10,10 +10,10 @@ export const data = new SlashCommandBuilder()
       .setDescription('Muestra la información de un día específico de Tezzlar III.')
       .addIntegerOption(option =>
         option.setName('numero')
-          .setDescription('Número de día (1-31)')
+          .setDescription('Número de día (1-32)')
           .setRequired(true)
           .setMinValue(1)
-          .setMaxValue(31)
+          .setMaxValue(32)
       )
       .addBooleanOption(option =>
         option.setName('force')
@@ -42,8 +42,8 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
       return interaction.reply({ content: '❌ Subcomando inválido. Uso correcto: `!tezzlar day <numero>`', ephemeral: true });
     }
     const num = parseInt(args[1]);
-    if (isNaN(num) || num < 1 || num > 31) {
-      return interaction.reply({ content: '❌ Debes proporcionar un número de día válido entre 1 y 31.', ephemeral: true });
+    if (isNaN(num) || num < 1 || num > 32) {
+      return interaction.reply({ content: '❌ Debes proporcionar un número de día válido entre 1 y 32.', ephemeral: true });
     }
     numero = num;
     isForce = args.includes('--force');
@@ -81,6 +81,7 @@ export const execute = async (interaction: ChatInputCommandInteraction) => {
   let color = 0xadd8e6; // Light blue
   if (numero >= 11 && numero <= 21) color = 0xfdfd96; // Pastel yellow
   if (numero >= 22 && numero <= 31) color = 0xe74c3c; // Red
+  if (numero === 32) color = 0xffd700; // Gold
 
   const embed = new EmbedBuilder()
     .setAuthor({
