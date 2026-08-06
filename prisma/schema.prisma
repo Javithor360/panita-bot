@@ -18,6 +18,8 @@ model Photo {
   user_id     Int?
   edition_id  String?
   title       String?
+  media_type  String     @default("image")  // "image" | "video"
+  youtube_id  String?                        // YouTube video ID (only for media_type = "video")
   edition     Edition?   @relation(fields: [edition_id], references: [id])
   user        User?      @relation(fields: [user_id], references: [id])
   categories  Category[] @relation("CategoryToPhoto")
@@ -39,6 +41,7 @@ model User {
   roles          Role[]         @relation("RoleToUser")
   forms          Form[]         @relation("FormCreator")
   form_responses FormResponse[] @relation("UserFormResponses")
+  wiki_articles  WikiArticle[]
 }
 
 model Edition {
@@ -52,6 +55,7 @@ model Edition {
   emblems         Emblem[]
   photos          Photo[]
   users           UserEdition[]
+  wiki_articles   WikiArticle[]
 }
 
 model Category {
@@ -185,4 +189,49 @@ model FormAnswer {
   values      String[]
   response    FormResponse @relation(fields: [response_id], references: [id], onDelete: Cascade)
   question    FormQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------
+// WIKI SYSTEM
+// ---------------------------------------------------------
+
+model WikiCategory {
+  id          String        @id @default(uuid())
+  slug        String        @unique // e.g. "mobs", "items", "eventos"
+  name        String
+  description String?
+  icon        String? // Lucide icon name
+  position    Int           @default(0) // display order in sidebar
+  articles    WikiArticle[]
+}
+
+model WikiArticle {
+  id           String   @id @default(uuid())
+  slug         String   @unique // e.g. "zombie-vestigio"
+  aliases      String[] @default([]) // alternative slugs / acronyms
+  title        String
+  content      Json // BlockNote JSON blocks
+  excerpt      String? // short summary for listing cards
+  cover_url    String? // main image URL (Cloudinary)
+  infobox_data Json? // array of { label: string, value: string }
+  category_id  String
+  edition_id   String? // null = global; set = edition-specific
+  author_id    Int
+  is_published Boolean  @default(true) // false = draft
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  category WikiCategory @relation(fields: [category_id], references: [id])
+  edition  Edition?     @relation(fields: [edition_id], references: [id])
+  author   User         @relation(fields: [author_id], references: [id])
+}
+
+model WikiAsset {
+  id         String   @id @default(uuid())
+  name       String // filename without extension, e.g. "superdiamond_helmet"
+  url        String // Cloudinary URL
+  category   String // folder name, e.g. "items", "mobs"
+  created_at DateTime @default(now())
+
+  @@unique([category, name]) // prevent duplicate uploads
 }
