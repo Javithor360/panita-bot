@@ -7,7 +7,7 @@ export const data = new SlashCommandBuilder()
 
 export const metadata = {
   aliases: ['comandos', 'cmds'],
-  category: 'General',
+  category: 'Minecraft',
   description: 'Muestra una lista interactiva de los comandos disponibles dentro del servidor.',
   usage: 'comandos',
   slashOnly: false,
