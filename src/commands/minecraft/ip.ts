@@ -30,16 +30,8 @@ export const execute = async (interaction: ChatInputCommandInteraction | any) =>
     isNumeric = interaction.options.getBoolean('numeric') ?? false;
   }
 
-  const now = new Date();
-  const start = new Date('2026-07-01T20:00:00-06:00');
-  const end = new Date('2026-08-01T00:00:00-06:00');
-
-  let content = '<:noautorizo:1116806520265506866> **Por el momento no hay servidor de Minecraft vigente.**';
-
-  if (now >= start && now <= end) {
-    const ip = isNumeric ? '142.44.255.131:25599' : 'tezzlar3.my.pebble.host';
-    content = `🌐 **IP del Servidor:** \`${ip}\``;
-  }
+  const ip = isNumeric ? '51.81.146.102:25593' : 'mc.panitacraft.com';
+  const content = `🌐 **IP del Servidor:** \`${ip}\``;
 
   await interaction.reply({ content });
 };
