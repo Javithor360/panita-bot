@@ -16,6 +16,6 @@ export const metadata = {
 
 export const execute = async (interaction: ChatInputCommandInteraction) => {
   await interaction.reply({
-    content: 'Visita nuestro sitio web oficial: <https://panita.vercel.app>'
+    content: 'Visita nuestro sitio web oficial: <https://www.panitacraft.com/>'
   });
 };
