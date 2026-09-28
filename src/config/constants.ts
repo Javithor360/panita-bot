@@ -7,6 +7,7 @@ export const URLS = {
   login: `${WEB_BASE}/login`,
   tezzlar3: `${WEB_BASE}/tezzlar3`,
   gallery: (photoId: string) => `${WEB_BASE}/gallery?photo=${photoId}`,
+  editionIcon: (editionId: string) => `https://res.cloudinary.com/panita/image/upload/panita-web/logos/icon_${editionId}.png`,
   paypal: 'https://www.paypal.me/Javithor360',
   discordInvite: 'https://discord.gg/m9zFH8yqUu',
   trailer: 'https://youtu.be/DgSIYtxt_jEZ',
