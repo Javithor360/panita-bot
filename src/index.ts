@@ -1,5 +1,5 @@
+import { env } from './config/env';
 import { Client, GatewayIntentBits, Collection } from 'discord.js';
-import { config } from 'dotenv';
 import { prisma } from './lib/prisma';
 import fs from 'fs';
 import path from 'path';
@@ -10,9 +10,6 @@ import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
 import { initPostgresSync } from './events/postgresSync';
 import { keepAlive } from './server';
-
-// Load environment variables
-config();
 
 // Initialize Discord Client with necessary intents
 const client = new Client({
@@ -270,10 +267,4 @@ client.on('messageCreate', async (message) => {
 });
 
 // Start the bot
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-  console.error("No DISCORD_TOKEN found in .env file");
-  process.exit(1);
-}
-
-client.login(token).catch(console.error);
+client.login(env.DISCORD_TOKEN).catch(console.error);
