@@ -1,158 +1,90 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, Message, Client } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
+import { EmbedBuilder, SlashCommandBuilder, type Client, type GuildMember } from 'discord.js';
+import { CATEGORIES, CATEGORY_ORDER, COLORS, EMOJIS, PREFIX } from '../../config/constants';
+import { canAccess } from '../../core/access';
+import { defineCommand, type Access } from '../../core/command';
+import { getRegistry, type CommandInfo } from '../../core/registry';
 
-export const data = new SlashCommandBuilder()
-  .setName('help')
-  .setDescription('Muestra la lista de comandos o información sobre uno en específico.')
-  .addStringOption(option => 
-    option.setName('comando')
-      .setDescription('El nombre del comando del que quieres ver más detalles.')
-      .setRequired(false)
-  );
+const buildCommandEmbed = (command: CommandInfo | undefined, query: string) => {
+  const embed = new EmbedBuilder().setColor(COLORS.blurple);
 
-export const metadata = {
-  aliases: ['ayuda'],
-  category: 'Utilidad',
-  description: 'Muestra la lista de todos los comandos disponibles o ayuda sobre uno en específico.',
-  usage: 'help [comando]',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
+  if (!command) {
+    return embed.setColor(COLORS.error)
+      .setTitle('❌ Comando no encontrado')
+      .setDescription(`No se encontró ningún comando con el nombre \`${query}\`.`);
+  }
+
+  const aliasesText = command.aliases.length > 0 ? command.aliases.map(a => `\`${PREFIX}${a}\``).join(', ') : 'Ninguno';
+  const supportedModes = command.slashOnly ? 'Solo Slash Commands (`/`)' : 'Slash Commands (`/`) y Prefijo (`!`)';
+  const slashUsage = command.usage.filter(u => !command.prefixOnlyUsage.includes(u)).map(u => `\`/${u}\``);
+  const prefixUsage = command.usage.map(u => `\`${PREFIX}${u}\``);
+
+  embed.setTitle(`ℹ️ Información del Comando: ${command.name}`)
+    .addFields(
+      { name: 'Descripción', value: command.description || 'Sin descripción.' },
+      { name: 'Categoría', value: command.category, inline: true },
+      { name: 'Permisos', value: ACCESS_LABELS[command.access], inline: true },
+      { name: 'Modos de uso', value: supportedModes, inline: false },
+      { name: 'Alias (solo con prefijo `!`)', value: aliasesText },
+    );
+
+  if (slashUsage.length > 0) embed.addFields({ name: 'Uso con Slash (`/`)', value: slashUsage.join('\n') });
+  if (!command.slashOnly) embed.addFields({ name: 'Uso con Prefijo (`!`)', value: prefixUsage.join('\n') });
+
+  return embed.setFooter({ text: 'Sintaxis: <obligatorio> | [opcional] | [--bandera]' });
 };
 
-// Helper function to build the embed logic
-const buildHelpEmbed = (member: any, client: Client, commandName?: string) => {
-  const embed = new EmbedBuilder().setColor('#5865F2');
+const ACCESS_LABELS: Record<Access, string> = {
+  everyone: 'Cualquier usuario',
+  staff: '🛡️ Solo Staff',
+  developer: '🔒 Solo Desarrollador',
+};
 
-  if (commandName) {
-    // Dynamically find the specific command
-    const commandsPath = path.join(__dirname, '..');
-    const commandFolders = fs.readdirSync(commandsPath);
-    let command: any = null;
+const buildOverviewEmbed = (member: GuildMember, client: Client<true>) => {
+  // Only list what this member can actually run
+  const categories: Record<string, string[]> = {};
+  for (const command of getRegistry().info()) {
+    if (!canAccess(command.access, member)) continue;
+    (categories[command.category] ??= []).push(`\`${command.name}\``);
+  }
 
-    for (const folder of commandFolders) {
-      const folderPath = path.join(commandsPath, folder);
-      if (!fs.statSync(folderPath).isDirectory()) continue;
+  const embed = new EmbedBuilder()
+    .setColor(COLORS.blurple)
+    .setTitle(`${EMOJIS.llamushroom} Lista de Comandos`)
+    .setDescription('Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`)')
+    .setThumbnail(client.user.displayAvatarURL())
+    .setFooter({ text: 'Para más detalles, utiliza /help [comando] | Sintaxis: <obligatorio> - [opcional]' });
 
-      const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
-      for (const file of commandFiles) {
-        const cmd = require(path.join(folderPath, file));
-        if (cmd.data && cmd.execute) {
-          if (cmd.data.name === commandName.toLowerCase() || (cmd.metadata?.aliases && cmd.metadata.aliases.includes(commandName.toLowerCase()))) {
-            command = cmd;
-            break;
-          }
-        }
-      }
-      if (command) break;
-    }
-
-    if (!command) {
-      embed.setColor('#ED4245')
-        .setTitle('❌ Comando no encontrado')
-        .setDescription(`No se encontró ningún comando con el nombre \`${commandName}\`.`);
-      return embed;
-    }
-
-    const aliasesText = command.metadata?.aliases && command.metadata.aliases.length > 0 
-      ? command.metadata.aliases.map((a: string) => `\`${a}\``).join(', ') 
-      : 'Ninguno';
-
-    const supportedModes = command.metadata?.slashOnly ? 'Solo Slash Commands (`/`)' : 'Slash Commands (`/`) y Prefijo (`!`)';
-    const devOnlyText = command.metadata?.devOnly ? '🔒 Solo Desarrollador' : 'Cualquier usuario';
-
-    embed.setTitle(`ℹ️ Información del Comando: ${command.data.name}`)
-      .addFields(
-        { name: 'Descripción', value: command.metadata?.description || command.data.description || 'Sin descripción.' },
-        { name: 'Categoría', value: command.metadata?.category || 'Sin categoría', inline: true },
-        { name: 'Permisos', value: devOnlyText, inline: true },
-        { name: 'Modos de uso', value: supportedModes, inline: false },
-        { name: 'Alias', value: aliasesText },
-        { name: 'Uso Estructurado', value: `\`/${command.metadata?.usage || command.data.name}\`` }
-      )
-      .setFooter({ text: 'Sintaxis: <obligatorio> | [opcional]' });
-
-  } else {
-    // Global Help Menu
-    const categories: Record<string, string[]> = {};
-    const processedCommands = new Set<string>();
-
-    const commandsPath = path.join(__dirname, '..');
-    const commandFolders = fs.readdirSync(commandsPath);
-
-    for (const folder of commandFolders) {
-      const folderPath = path.join(commandsPath, folder);
-      if (!fs.statSync(folderPath).isDirectory()) continue;
-
-      const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
-      for (const file of commandFiles) {
-        const cmd = require(path.join(folderPath, file));
-        if (cmd.data && cmd.execute) {
-          if (processedCommands.has(cmd.data.name)) continue;
-          processedCommands.add(cmd.data.name);
-
-          const cat = cmd.metadata?.category || 'Sin Categoría';
-          if (!categories[cat]) categories[cat] = [];
-
-          categories[cat].push(`\`${cmd.data.name}\``);
-        }
-      }
-    }
-
-    embed.setTitle('<:llamushroom:1513402349920714852> Lista de Comandos')
-      .setDescription('Puedes ejecutarlos usando **Slash Commands** (`/comando`) o mediante el **Prefijo Clásico** (`!comando`)')
-      .setFooter({ text: 'Para más detalles, utiliza /help [comando] | Sintaxis: <obligatorio> - [opcional]' });
-
-    if (client.user) {
-      embed.setThumbnail(client.user.displayAvatarURL());
-    }
-
-    const orderedCategories = [
-      'General',
-      'Utilidad',
-      'Diversión',
-      'Moderacion',
-      'Tickets',
-      'Desarrollador'
-    ];
-
-    const userId = member?.user?.id || member?.id;
-
-    for (const catName of orderedCategories) {
-      if (!categories[catName] || categories[catName].length === 0) continue;
-
-      // Hide Moderacion and Tickets categories unless the user is Staff
-      if (catName === 'Moderacion' || catName === 'Tickets') {
-        const staffRoleId = process.env.STAFF_ROLE_ID;
-        if (!staffRoleId || !member?.roles?.cache?.has(staffRoleId)) {
-          continue;
-        }
-      }
-
-      // Hide Desarrollador category unless the user is the developer
-      if (catName === 'Desarrollador' && userId !== process.env.DEVELOPER_ID) {
-        continue;
-      }
-      
-      embed.addFields({ name: `📁 ${catName}`, value: categories[catName].join(', ') });
-    }
-
-    // Append any unlisted categories to the bottom
-    const appendedCategories = new Set(orderedCategories);
-    for (const catName of Object.keys(categories)) {
-      if (appendedCategories.has(catName)) continue;
-      if (categories[catName].length === 0) continue;
-      
-      embed.addFields({ name: `📁 ${catName}`, value: categories[catName].join(', ') });
-    }
+  // Known categories first (in order), then any other category
+  const ordered = [
+    ...CATEGORY_ORDER.filter(c => categories[c]),
+    ...Object.keys(categories).filter(c => !(CATEGORY_ORDER as readonly string[]).includes(c)),
+  ];
+  for (const category of ordered) {
+    embed.addFields({ name: `📁 ${category}`, value: categories[category].join(', ') });
   }
 
   return embed;
 };
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  const commandName = interaction.options.getString('comando');
-  const embed = buildHelpEmbed(interaction.member, interaction.client, commandName ?? undefined);
-  await interaction.reply({ embeds: [embed] });
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Muestra la lista de comandos o información sobre uno en específico.')
+    .addStringOption(option =>
+      option.setName('comando')
+        .setDescription('El nombre del comando del que quieres ver más detalles.')
+        .setRequired(false),
+    ),
+  meta: {
+    category: CATEGORIES.utility,
+    description: 'Muestra la lista de todos los comandos disponibles o ayuda sobre uno en específico.',
+    aliases: ['ayuda'],
+  },
+  async run(ctx) {
+    const query = ctx.options.getString('comando');
+    const embed = query
+      ? buildCommandEmbed(getRegistry().findInfo(query), query)
+      : buildOverviewEmbed(ctx.member, ctx.client);
+    await ctx.reply({ embeds: [embed] });
+  },
+});

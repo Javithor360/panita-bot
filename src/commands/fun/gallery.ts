@@ -1,171 +1,94 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction } from 'discord.js';
-import { prisma } from '../../lib/prisma';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES, COLORS, URLS } from '../../config/constants';
+import { button, defineCommand } from '../../core/command';
+import { encodeCustomId } from '../../core/customId';
+import { discordTimestamp } from '../../lib/format';
+import { resolveEmbedImage } from '../../lib/images';
+import { mcHeadUrl } from '../../lib/minecraft';
+import { getRandomPhoto, type GalleryPhoto } from '../../services/gallery';
 
-export const data = new SlashCommandBuilder()
-  .setName('gallery')
-  .setDescription('Muestra una foto aleatoria de la galería del servidor.');
+const NAME = 'gallery';
+const EMPTY_GALLERY = '❌ Actualmente no hay fotos disponibles en la galería.';
 
-export const metadata = {
-  aliases: ['galeria', 'foto'],
-  category: 'Diversión',
-  description: 'Muestra una foto aleatoria de la galería, incluyendo detalles y etiquetas.',
-  usage: 'gallery',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
-
-const getWhereCondition = () => ({
-  enabled: true,
-  NOT: videoExtensions.map(ext => ({ url: { endsWith: ext, mode: 'insensitive' as const } }))
-});
-
-const getRandomPhoto = async () => {
-  const where = getWhereCondition();
-  const count = await prisma.photo.count({ where });
-  
-  if (count === 0) return null;
-
-  const randomIndex = Math.floor(Math.random() * count);
-  const photo = await prisma.photo.findFirst({
-    where,
-    skip: randomIndex,
-    include: {
-      user: true,
-      categories: true,
-      edition: true
-    }
-  });
-
-  return photo;
-};
-
-const buildGalleryMessage = (photo: any, userId?: string) => {
-  if (!photo) {
-    return {
-      content: '❌ Actualmente no hay fotos disponibles en la galería.',
-      embeds: [],
-      components: []
-    };
-  }
-
-  const authorName = photo.user?.ign || 'Anónimo';
-  
+const buildPhotoEmbed = (photo: GalleryPhoto, imageUrl: string) => {
+  const ign = photo.user?.ign;
   const embed = new EmbedBuilder()
     .setTitle(photo.title || 'Foto de la Galería')
-    .setColor('#38a169')
-    .setImage(photo.url);
+    .setColor(COLORS.green)
+    .setImage(imageUrl)
+    .setAuthor(ign ? { name: ign, iconURL: mcHeadUrl(ign) } : { name: 'Anónimo' });
 
-  if (photo.user?.ign) {
-    embed.setAuthor({ 
-      name: authorName, 
-      iconURL: `https://mc-heads.net/avatar/${photo.user.ign}/256` 
-    });
-  } else {
-    embed.setAuthor({ name: authorName });
+  const lines: string[] = [];
+  if (photo.description) lines.push(`${photo.description}\n`);
+  lines.push(`**Publicación:** ${discordTimestamp(photo.date_taken ?? photo.created_at, 'd')}`);
+  if (photo.categories.length > 0) {
+    lines.push(`**Categorías:** ${photo.categories.map(c => `\`${c.name}\``).join(', ')}`);
   }
-
-  let descriptionText = '';
-  
-  if (photo.description) {
-    descriptionText += `${photo.description}\n\n`;
-  }
-  
-  if (photo.date_taken || photo.created_at) {
-    const dateToUse = photo.date_taken || photo.created_at;
-    // Format to short date in Discord (e.g. 10/12/2023) using Unix timestamp
-    const unixTimestamp = Math.floor(dateToUse.getTime() / 1000);
-    descriptionText += `**Publicación:** <t:${unixTimestamp}:d>\n`;
-  }
-
-  if (photo.categories && photo.categories.length > 0) {
-    const tagsStr = photo.categories.map((c: any) => `\`${c.name}\``).join(', ');
-    descriptionText += `**Categorías:** ${tagsStr}\n`;
-  }
-
-  if (descriptionText.length > 0) {
-    embed.setDescription(descriptionText.trim());
-  }
+  embed.setDescription(lines.join('\n'));
 
   if (photo.edition) {
-    embed.setFooter({ 
-      text: photo.edition.name,
-      iconURL: `https://res.cloudinary.com/panita/image/upload/panita-web/logos/icon_${photo.edition.id}.png`
-    });
+    embed.setFooter({ text: photo.edition.name, iconURL: URLS.editionIcon(photo.edition.id) });
   }
+  return embed;
+};
 
-  const rerollButton = new ButtonBuilder()
-    .setCustomId(userId ? `btn_gallery_reroll::${userId}` : 'btn_gallery_reroll')
-    .setEmoji('🎲')
-    .setStyle(ButtonStyle.Secondary);
+/**
+ * Message for a photo; its buttons only work for `ownerId`. The image is uploaded with the message
+ * (see `resolveEmbedImage`) so it also shows up reliably when the message is edited by a reroll.
+ */
+const buildGalleryMessage = async (photo: GalleryPhoto | null, ownerId: string) => {
+  if (!photo) return { content: EMPTY_GALLERY, embeds: [], components: [], files: [] };
 
-  const linkButton = new ButtonBuilder()
-    .setCustomId(userId ? `btn_gallery_link_${photo.id}::${userId}` : `btn_gallery_link_${photo.id}`)
-    .setEmoji('🔗')
-    .setStyle(ButtonStyle.Secondary);
+  const image = await resolveEmbedImage(photo.url, 'gallery');
 
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(rerollButton, linkButton);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(encodeCustomId({ namespace: NAME, action: 'reroll', owner: ownerId }))
+      .setEmoji('🎲')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(encodeCustomId({ namespace: NAME, action: 'link', args: [photo.id], owner: ownerId }))
+      .setEmoji('🔗')
+      .setStyle(ButtonStyle.Secondary),
+  );
 
   return {
-    embeds: [embed],
-    components: [row]
+    embeds: [buildPhotoEmbed(photo, image.url)],
+    components: [row],
+    files: image.file ? [image.file] : [],
   };
 };
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply();
-  
-  try {
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName(NAME)
+    .setDescription('Muestra una foto aleatoria de la galería del servidor.'),
+  meta: {
+    category: CATEGORIES.fun,
+    description: 'Muestra una foto aleatoria de la galería, incluyendo detalles y etiquetas.',
+    aliases: ['galeria', 'foto'],
+  },
+  async run(ctx) {
+    await ctx.defer();
     const photo = await getRandomPhoto();
-    const messagePayload = buildGalleryMessage(photo, interaction.user.id);
-    
-    await interaction.editReply(messagePayload);
-  } catch (error) {
-    console.error('[Gallery Command Error]', error);
-    await interaction.editReply({ content: 'Hubo un error al buscar la foto en la galería.' });
-  }
-};
-
-export const executeButton = async (interaction: ButtonInteraction) => {
-  let executorId: string | undefined;
-  if (interaction.customId.includes('::')) {
-    const parts = interaction.customId.split('::');
-    executorId = parts[1];
-  }
-
-  if (executorId && interaction.user.id !== executorId) {
-    return interaction.reply({ content: '❌ Solo la persona que ejecutó el comando puede usar este botón.', ephemeral: true });
-  }
-
-  if (interaction.customId.startsWith('btn_gallery_link_')) {
-    let photoId = interaction.customId.replace('btn_gallery_link_', '');
-    if (photoId.includes('::')) {
-      photoId = photoId.split('::')[0];
-    }
-    await interaction.reply({
-      content: `Aquí tienes el enlace. Puedes copiarlo seleccionándolo:\n<https://panita.vercel.app/gallery?photo=${photoId}>`,
-      ephemeral: true
-    });
-    return;
-  }
-
-  await interaction.deferUpdate();
-  
-  try {
-    const photo = await getRandomPhoto();
-    const messagePayload = buildGalleryMessage(photo, executorId);
-    
-    // Fallback if no photos
-    if (!photo) {
-      await interaction.editReply({ content: '❌ Actualmente no hay fotos disponibles en la galería.', embeds: [], components: [] });
-      return;
-    }
-    
-    await interaction.editReply(messagePayload);
-  } catch (error) {
-    console.error('[Gallery Button Error]', error);
-    await interaction.followUp({ content: 'Hubo un error al cargar otra foto.', ephemeral: true });
-  }
-};
+    await ctx.reply(await buildGalleryMessage(photo, ctx.user.id));
+  },
+  components: {
+    reroll: button({
+      async run(interaction) {
+        await interaction.deferUpdate();
+        const photo = await getRandomPhoto();
+        // `attachments: []` drops the previous photo's file; the new one comes in `files`
+        await interaction.editReply({ ...await buildGalleryMessage(photo, interaction.user.id), attachments: [] });
+      },
+    }),
+    link: button({
+      async run(interaction, [photoId]) {
+        await interaction.reply({
+          content: `Aquí tienes el enlace. Puedes copiarlo seleccionándolo:\n<${URLS.gallery(photoId)}>`,
+          flags: MessageFlags.Ephemeral,
+        });
+      },
+    }),
+  },
+});

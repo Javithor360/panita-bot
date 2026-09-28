@@ -1,32 +1,22 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES, EMOJIS } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { discordTimestamp } from '../../lib/format';
 
-export const data = new SlashCommandBuilder()
-  .setName('panita3')
-  .setDescription('Te revela la fecha de salida para Panita 3...');
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const metadata = {
-  aliases: [],
-  category: 'Diversión',
-  description: 'Te revela la fecha de salida para Panita 3.',
-  usage: 'panita3',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  // Generate a random number of days (e.g. between 1 and 1000 days)
-  const randomDays = Math.floor(Math.random() * 1000) + 1;
-  
-  // Calculate future date
-  const futureDate = new Date();
-  futureDate.setDate(futureDate.getDate() + randomDays);
-  
-  // Get Unix timestamp in seconds (Discord uses seconds, not milliseconds)
-  const unixTimestamp = Math.floor(futureDate.getTime() / 1000);
-  
-  // The format <t:TIMESTAMP:F> is Discord's full date and time format
-  await interaction.reply({
-    content: `Panitacraft 3 será lanzado oficialmente el **<t:${unixTimestamp}:F>**... <:jaimePog:723406415917613056>`
-  });
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('panita3')
+    .setDescription('Te revela la fecha de salida para Panita 3...'),
+  meta: {
+    category: CATEGORIES.fun,
+    description: 'Te revela la fecha de salida para Panita 3.',
+  },
+  async run(ctx) {
+    // A random "release date" between 1 and 1000 days from now
+    const randomDays = Math.floor(Math.random() * 1000) + 1;
+    const releaseDate = Date.now() + randomDays * DAY_MS;
+    await ctx.reply(`Panitacraft 3 será lanzado oficialmente el **${discordTimestamp(releaseDate, 'F')}**... ${EMOJIS.jaimePog}`);
+  },
+});

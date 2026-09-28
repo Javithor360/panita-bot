@@ -1,64 +1,33 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { exec } from 'child_process';
-import util from 'util';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { getRegistry } from '../../core/registry';
+import { deploySlashCommands } from '../../services/commandDeploy';
 
-const execPromise = util.promisify(exec);
-
-export const data = new SlashCommandBuilder()
-  .setName('deploy')
-  .setDescription('Ejecuta yarn deploy internamente para registrar los comandos Slash.');
-
-export const metadata = {
-  aliases: ['deploycommands'],
-  category: 'Desarrollador',
-  description: 'Ejecuta yarn deploy internamente para registrar los comandos Slash.',
-  usage: 'deploy',
-  slashOnly: false,
-  devOnly: true,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction | any) => {
-  // If it's a prefix command, there's no deferReply, but for slash there is.
-  // We'll handle both cases since slashOnly is false.
-  const isPrefix = !interaction.isCommand;
-  let replyMessage: any;
-
-  if (isPrefix) {
-    replyMessage = await interaction.reply('⏳ Ejecutando `yarn deploy`...');
-  } else {
-    await interaction.deferReply({ ephemeral: true });
-  }
-
-  try {
-    const { stdout, stderr } = await execPromise('yarn deploy');
-    
-    let response = '✅ **Comandos desplegados correctamente:**\n```\n';
-    
-    if (stdout) {
-      const out = stdout.length > 1000 ? stdout.substring(stdout.length - 1000) : stdout;
-      response += out + '\n';
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('deploy')
+    .setDescription('Registra (o actualiza) los comandos Slash del bot.')
+    .addBooleanOption(option =>
+      option.setName('guild')
+        .setDescription('Registrar solo en este servidor (instantáneo, para pruebas) en lugar de globalmente.')
+        .setRequired(false),
+    ),
+  meta: {
+    category: CATEGORIES.developer,
+    description: 'Registra los comandos Slash en Discord (globalmente por defecto; `--guild` para solo este servidor). Los alias no se registran.',
+    aliases: ['deploycommands'],
+    access: 'developer',
+  },
+  async run(ctx) {
+    await ctx.defer({ ephemeral: true });
+    const scope = ctx.options.getBoolean('guild') ? 'guild' : 'global';
+    try {
+      const { count } = await deploySlashCommands(getRegistry(), { scope, applicationId: ctx.client.application.id });
+      await ctx.reply(`✅ Se registraron **${count}** comandos Slash (${scope === 'guild' ? 'solo en este servidor' : 'globales'}).`);
+    } catch (error) {
+      console.error('[Deploy] Failed to register slash commands:', error);
+      await ctx.reply(`❌ **Error al registrar los comandos:**\n\`\`\`\n${(error as Error).message}\n\`\`\``);
     }
-    response += '```';
-
-    if (stderr && stderr.trim().length > 0) {
-      const err = stderr.length > 800 ? stderr.substring(stderr.length - 800) : stderr;
-      response += `\n⚠️ **Advertencias/Errores:**\n\`\`\`\n${err}\n\`\`\``;
-    }
-
-    if (isPrefix) {
-      await replyMessage.edit(response);
-    } else {
-      await interaction.editReply(response);
-    }
-  } catch (error: any) {
-    console.error('Error executing yarn deploy:', error);
-    const errorMsg = `❌ **Error al ejecutar yarn deploy:**\n\`\`\`\n${error.message}\n\`\`\``;
-    
-    if (isPrefix) {
-      await replyMessage.edit(errorMsg);
-    } else {
-      await interaction.editReply(errorMsg);
-    }
-  }
-};
+  },
+});

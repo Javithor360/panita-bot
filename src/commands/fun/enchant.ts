@@ -1,40 +1,23 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { toGalactic } from '../../utils/galactic';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { toGalactic } from '../../lib/galactic';
 
-export const data = new SlashCommandBuilder()
-  .setName('enchant')
-  .setDescription('Traduce tu texto al Standard Galactic Alphabet (Mesa de encantamientos).')
-  .addStringOption(option =>
-    option.setName('texto')
-      .setDescription('El texto a encantar')
-      .setRequired(true)
-  );
-
-export const metadata = {
-  aliases: ['encantar'],
-  category: 'Diversión',
-  description: 'Traduce tu texto al Standard Galactic Alphabet.',
-  usage: 'enchant <texto>',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  let text = interaction.options.getString('texto');
-  
-  // Use raw args from the prefix command adapter
-  if ('args' in interaction && Array.isArray((interaction as any).args)) {
-    const rawArgs = (interaction as any).args.join(' ');
-    if (rawArgs.length > 0) {
-      text = rawArgs;
-    }
-  }
-
-  if (!text) {
-    return interaction.reply({ content: 'Por favor, proporciona un texto para encantar.' });
-  }
-
-  const enchanted = toGalactic(text);
-  await interaction.reply({ content: enchanted });
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('enchant')
+    .setDescription('Traduce tu texto al Standard Galactic Alphabet (Mesa de encantamientos).')
+    .addStringOption(option =>
+      option.setName('texto')
+        .setDescription('El texto a encantar')
+        .setRequired(true),
+    ),
+  meta: {
+    category: CATEGORIES.fun,
+    description: 'Traduce tu texto al Standard Galactic Alphabet.',
+    aliases: ['encantar'],
+  },
+  async run(ctx) {
+    await ctx.reply(toGalactic(ctx.options.getString('texto', true)));
+  },
+});

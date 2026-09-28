@@ -1,88 +1,58 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { minieventsData } from '../../utils/minieventsData';
+import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES, COLORS } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { minieventsData } from '../../data/minievents';
+import { renderCatalogList, tezzlarAuthor } from '../../lib/embeds';
 
-export const data = new SlashCommandBuilder()
-  .setName('minievent')
-  .setDescription('Información sobre los minieventos de Tezzlar')
-  .addStringOption(option =>
-    option.setName('id')
-      .setDescription('ID del minievento o "list" para ver todos')
-      .setRequired(true)
-  );
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('minievent')
+    .setDescription('Información sobre los minieventos de Tezzlar')
+    .addStringOption(option =>
+      option.setName('id')
+        .setDescription('ID del minievento o "list" para ver todos')
+        .setRequired(true),
+    ),
+  meta: {
+    category: CATEGORIES.minecraft,
+    description: 'Muestra información detallada sobre los minieventos aleatorios.',
+    aliases: ['minieventos', 'minievents', 'me'],
+  },
+  async run(ctx) {
+    const id = ctx.options.getString('id', true).toLowerCase();
 
-export const metadata = {
-  aliases: ['minieventos', 'minievents', 'me'],
-  category: 'Minecraft',
-  description: 'Muestra información detallada sobre los minieventos aleatorios.',
-  usage: 'minievent <list|id>',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  const args = (interaction as any).args as string[] | undefined;
-  
-  let targetId = '';
-
-  if (args) {
-    if (args.length === 0) {
-      return interaction.reply({ content: '❌ Uso correcto: `!minievent <list|id>`', ephemeral: true });
+    if (id === 'list') {
+      const embed = new EmbedBuilder()
+        .setAuthor(tezzlarAuthor('Minieventos de Tezzlar'))
+        .setTitle('Lista de Minieventos Disponibles')
+        .setDescription('Estos son todos los eventos aleatorios que pueden ocurrir repentinamente. Usa `!minievent <id>` para ver más detalles sobre uno en específico.')
+        .setColor(COLORS.dark)
+        .addFields({
+          name: 'EVENTOS 🎲',
+          value: renderCatalogList(Object.values(minieventsData).map(e => ({ label: e.name, id: e.id }))),
+        });
+      return ctx.reply({ embeds: [embed] });
     }
-    targetId = args[0].toLowerCase();
-  } else {
-    targetId = interaction.options.getString('id', true).toLowerCase();
-  }
 
-  if (targetId === 'list') {
+    const event = minieventsData[id];
+    if (!event) {
+      return ctx.reply({
+        content: `❌ No se encontró ningún minievento con el ID \`${id}\`. Usa \`!minievent list\` para ver los disponibles.`,
+        ephemeral: true,
+      });
+    }
+
+    const effects = event.effects.map(effect => `⠀\\\\- ${effect}`).join('\n');
     const embed = new EmbedBuilder()
-      .setAuthor({
-        name: 'Minieventos de Tezzlar',
-        iconURL: 'https://media.discordapp.net/attachments/1032440236564824105/1513754769322414080/Picel.gif?ex=6a43e83d&is=6a4296bd&hm=2400706674437e00e7d3c1568db74b36023a1d2f0848416115937b2bf6a84f16&='
-      })
-      .setTitle('Lista de Minieventos Disponibles')
-      .setDescription('Estos son todos los eventos aleatorios que pueden ocurrir repentinamente. Usa `!minievent <id>` para ver más detalles sobre uno en específico.')
-      .setColor(0x2b2d31);
+      .setAuthor(tezzlarAuthor('Minievento Aleatorio'))
+      .setTitle(event.name)
+      .setDescription(`*${event.description}*`)
+      .setColor(event.color)
+      .addFields(
+        { name: 'DURACIÓN ⏱️', value: `>>> **➔ Tiempo activo:**\n${event.duration}` },
+        { name: 'EFECTOS ⚡', value: `>>> **➔ Consecuencias:**\n${effects}` },
+      );
 
-    let listText = '';
-    for (const key of Object.keys(minieventsData)) {
-      const event = minieventsData[key];
-      listText += `**➔ ${event.name}**\n⠀\\- \`ID:\` ${event.id}\n\n`;
-    }
-
-    embed.addFields([{ name: 'EVENTOS 🎲', value: listText.trim() }]);
-
-    return interaction.reply({ embeds: [embed] });
-  }
-
-  const eventData = minieventsData[targetId];
-
-  if (!eventData) {
-    return interaction.reply({ content: `❌ No se encontró ningún minievento con el ID \`${targetId}\`. Usa \`!minievent list\` para ver los disponibles.`, ephemeral: true });
-  }
-
-  const effectsList = eventData.effects.map(eff => `⠀\\\\- ${eff}`).join('\n');
-
-  const embed = new EmbedBuilder()
-    .setAuthor({
-      name: 'Minievento Aleatorio',
-      iconURL: 'https://media.discordapp.net/attachments/1032440236564824105/1513754769322414080/Picel.gif?ex=6a43e83d&is=6a4296bd&hm=2400706674437e00e7d3c1568db74b36023a1d2f0848416115937b2bf6a84f16&='
-    })
-    .setTitle(eventData.name)
-    .setDescription(`*${eventData.description}*`)
-    .setColor(eventData.color)
-    .addFields([
-      {
-        name: 'DURACIÓN ⏱️',
-        value: `>>> **➔ Tiempo activo:**\n${eventData.duration}`,
-        inline: false
-      },
-      {
-        name: 'EFECTOS ⚡',
-        value: `>>> **➔ Consecuencias:**\n${effectsList}`,
-        inline: false
-      }
-    ]);
-
-  await interaction.reply({ embeds: [embed] });
-};
+    await ctx.reply({ embeds: [embed] });
+  },
+});

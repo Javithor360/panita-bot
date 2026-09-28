@@ -1,75 +1,54 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { recipesData } from '../../utils/recipesData';
+import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES, COLORS } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { recipesData } from '../../data/recipes';
+import { renderCatalogList, tezzlarAuthor } from '../../lib/embeds';
 
-export const data = new SlashCommandBuilder()
-  .setName('recipes')
-  .setDescription('Muestra los crafteos y recetas especiales de Tezzlar')
-  .addStringOption(option =>
-    option.setName('id')
-      .setDescription('ID de la receta o "list" para ver todas')
-      .setRequired(true)
-  );
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('recipes')
+    .setDescription('Muestra los crafteos y recetas especiales de Tezzlar')
+    .addStringOption(option =>
+      option.setName('id')
+        .setDescription('ID de la receta o "list" para ver todas')
+        .setRequired(true),
+    ),
+  meta: {
+    category: CATEGORIES.minecraft,
+    description: 'Muestra información e imágenes sobre las recetas y crafteos custom.',
+    aliases: ['recetas', 'crafteos', 'crafts'],
+  },
+  async run(ctx) {
+    const id = ctx.options.getString('id', true).toLowerCase();
 
-export const metadata = {
-  aliases: ['recetas', 'crafteos', 'crafts'],
-  category: 'Minecraft',
-  description: 'Muestra información e imágenes sobre las recetas y crafteos custom.',
-  usage: 'recipes <list|id>',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  const args = (interaction as any).args as string[] | undefined;
-  
-  let targetId = '';
-
-  if (args) {
-    if (args.length === 0) {
-      return interaction.reply({ content: '❌ Uso correcto: `!recipes <list|id>`', ephemeral: true });
+    if (id === 'list') {
+      const embed = new EmbedBuilder()
+        .setAuthor(tezzlarAuthor('Recetario de Tezzlar'))
+        .setTitle('Lista de Categorías de Crafteo')
+        .setDescription('Estos son los diferentes tomos de crafteos y recetas modificadas. Usa `!recipes <id>` para ver los detalles y las imágenes guía de cada categoría.')
+        .setColor(COLORS.dark)
+        .addFields({
+          name: 'RECETAS DISPONIBLES 📚',
+          value: renderCatalogList(Object.values(recipesData).map(r => ({ label: r.title, id: r.id }))),
+        });
+      return ctx.reply({ embeds: [embed] });
     }
-    targetId = args[0].toLowerCase();
-  } else {
-    targetId = interaction.options.getString('id', true).toLowerCase();
-  }
 
-  if (targetId === 'list') {
+    const recipe = recipesData[id];
+    if (!recipe) {
+      return ctx.reply({
+        content: `❌ No se encontró ninguna receta con el ID \`${id}\`. Usa \`!recipes list\` para ver las disponibles.`,
+        ephemeral: true,
+      });
+    }
+
     const embed = new EmbedBuilder()
-      .setAuthor({
-        name: 'Recetario de Tezzlar',
-        iconURL: 'https://media.discordapp.net/attachments/1032440236564824105/1513754769322414080/Picel.gif?ex=6a43e83d&is=6a4296bd&hm=2400706674437e00e7d3c1568db74b36023a1d2f0848416115937b2bf6a84f16&='
-      })
-      .setTitle('Lista de Categorías de Crafteo')
-      .setDescription('Estos son los diferentes tomos de crafteos y recetas modificadas. Usa `!recipes <id>` para ver los detalles y las imágenes guía de cada categoría.')
-      .setColor(0x2b2d31);
+      .setAuthor(tezzlarAuthor('Recetario de Tezzlar'))
+      .setTitle(recipe.title)
+      .setDescription(recipe.description)
+      .setImage(recipe.imageUrl)
+      .setColor(recipe.color);
 
-    let listText = '';
-    for (const key of Object.keys(recipesData)) {
-      const recipe = recipesData[key];
-      listText += `**➔ ${recipe.title}**\n⠀\\- \`ID:\` ${recipe.id}\n\n`;
-    }
-
-    embed.addFields([{ name: 'RECETAS DISPONIBLES 📚', value: listText.trim() }]);
-
-    return interaction.reply({ embeds: [embed] });
-  }
-
-  const recipe = recipesData[targetId];
-
-  if (!recipe) {
-    return interaction.reply({ content: `❌ No se encontró ninguna receta con el ID \`${targetId}\`. Usa \`!recipes list\` para ver las disponibles.`, ephemeral: true });
-  }
-
-  const embed = new EmbedBuilder()
-    .setAuthor({
-      name: 'Recetario de Tezzlar',
-      iconURL: 'https://media.discordapp.net/attachments/1032440236564824105/1513754769322414080/Picel.gif?ex=6a43e83d&is=6a4296bd&hm=2400706674437e00e7d3c1568db74b36023a1d2f0848416115937b2bf6a84f16&='
-    })
-    .setTitle(recipe.title)
-    .setDescription(recipe.description)
-    .setImage(recipe.imageUrl)
-    .setColor(recipe.color);
-
-  await interaction.reply({ embeds: [embed] });
-};
+    await ctx.reply({ embeds: [embed] });
+  },
+});

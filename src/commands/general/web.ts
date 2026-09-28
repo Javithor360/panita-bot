@@ -1,21 +1,17 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, Message } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES, URLS } from '../../config/constants';
+import { defineCommand } from '../../core/command';
 
-export const data = new SlashCommandBuilder()
-  .setName('web')
-  .setDescription('Muestra el enlace para acceder al Panel Web.');
-
-export const metadata = {
-  aliases: ['pagina', 'panel'],
-  category: 'General',
-  description: 'Comparte el enlace directo al Panel Web del servidor.',
-  usage: 'web',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.reply({
-    content: 'Visita nuestro sitio web oficial: <https://www.panitacraft.com/>'
-  });
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('web')
+    .setDescription('Muestra el enlace para acceder al Panel Web.'),
+  meta: {
+    category: CATEGORIES.general,
+    description: 'Comparte el enlace directo al Panel Web del servidor.',
+    aliases: ['pagina', 'panel'],
+  },
+  async run(ctx) {
+    await ctx.reply(`Visita nuestro sitio web oficial: <${URLS.web}>`);
+  },
+});

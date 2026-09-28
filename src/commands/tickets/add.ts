@@ -1,68 +1,32 @@
-import { 
-  ChatInputCommandInteraction, 
-  SlashCommandBuilder, 
-  PermissionsBitField,
-  TextChannel
-} from 'discord.js';
-import { prisma } from '../../lib/prisma';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { TICKET_MEMBER_OVERWRITE } from '../../features/tickets/permissions';
+import { requireTicketChannel } from '../../features/tickets/context';
 
-export const data = new SlashCommandBuilder()
-  .setName('add')
-  .setDescription('Añade a un usuario al ticket actual')
-  .addUserOption(opt => opt.setName('user').setDescription('Usuario a añadir').setRequired(true));
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('add')
+    .setDescription('Añade a un usuario al ticket actual')
+    .addUserOption(opt => opt.setName('user').setDescription('Usuario a añadir').setRequired(true)),
+  meta: {
+    category: CATEGORIES.tickets,
+    description: 'Añade a un usuario al ticket actual.',
+    access: 'staff',
+  },
+  async run(ctx) {
+    await ctx.defer();
+    const { ticket, channel } = await requireTicketChannel(ctx);
+    const user = ctx.options.getUser('user', true);
 
-export const metadata = {
-  category: 'Tickets',
-  description: 'Añade a un usuario al ticket actual.',
-  usage: 'add <usuario>',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: true
-};
+    if (user.id === ticket.creator_id) {
+      return ctx.reply(`❌ El usuario <@${user.id}> es el creador del ticket y ya está en él.`);
+    }
+    if (channel.permissionOverwrites.cache.get(user.id)?.allow.has('ViewChannel')) {
+      return ctx.reply(`❌ El usuario <@${user.id}> ya está en el ticket.`);
+    }
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply();
-  const ticket = await prisma.ticket.findUnique({
-    where: { channel_id: interaction.channelId }
-  });
-
-  if (!ticket) {
-    return interaction.editReply({ content: '❌ Este canal no pertenece a un ticket.' });
-  }
-
-  const channel = interaction.channel as TextChannel;
-  const user = interaction.options.getUser('user');
-  
-  if (!user || !user.id) {
-    return interaction.editReply('❌ Debes mencionar a un usuario válido. Uso correcto: `!add <@usuario>`');
-  }
-
-  const fetchedUser = await interaction.client.users.fetch(user.id).catch(() => null);
-  if (!fetchedUser) {
-    return interaction.editReply('❌ No se encontró ningún usuario con ese nombre o ID en Discord.');
-  }
-
-  if (fetchedUser.id === ticket.creator_id) {
-    return interaction.editReply(`❌ El usuario <@${fetchedUser.id}> es el creador del ticket y ya está en él.`);
-  }
-
-  const overwrite = channel.permissionOverwrites.cache.get(fetchedUser.id);
-  if (overwrite && overwrite.allow.has(PermissionsBitField.Flags.ViewChannel)) {
-    return interaction.editReply(`❌ El usuario <@${fetchedUser.id}> ya está en el ticket.`);
-  }
-  
-  await channel.permissionOverwrites.create(fetchedUser.id, {
-    ViewChannel: true,
-    SendMessages: true,
-    ReadMessageHistory: true,
-    AttachFiles: true,
-    EmbedLinks: true,
-    UseExternalEmojis: true,
-    UseExternalStickers: true,
-    AddReactions: true,
-    MentionEveryone: true,
-    PinMessages: true
-  });
-  
-  return interaction.editReply(`✅ Se ha añadido a <@${fetchedUser.id}> a este ticket.`);
-};
+    await channel.permissionOverwrites.create(user.id, TICKET_MEMBER_OVERWRITE);
+    await ctx.reply(`✅ Se ha añadido a <@${user.id}> a este ticket.`);
+  },
+});
