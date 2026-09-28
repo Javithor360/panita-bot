@@ -3,7 +3,6 @@ import { PREFIX } from '../config/constants';
 import { accessDenial } from '../core/access';
 import { createPrefixContext } from '../core/context';
 import { SLASH_ONLY_ERROR, userMessageFor } from '../core/errors';
-import { runLegacyPrefix } from '../core/legacy';
 import { parsePrefixArgs } from '../core/prefixParser';
 import type { CommandRegistry } from '../core/registry';
 import { formatParseError } from '../core/usage';
@@ -20,18 +19,7 @@ export const createMessageHandler = (registry: CommandRegistry) => async (messag
   const name = head[1].toLowerCase();
   const rawArgs = body.slice(head[0].length);
   const command = registry.resolve(name);
-
-  if (!command) {
-    const legacy = registry.legacy.get(name);
-    if (!legacy) return;
-    const args = rawArgs.trim().split(/ +/).filter(Boolean);
-    try {
-      await runLegacyPrefix(legacy, message, name, args);
-    } catch (error) {
-      await message.reply(userMessageFor(error, name, 'Prefix')).catch(() => {});
-    }
-    return;
-  }
+  if (!command) return;
 
   const commandName = command.data.name;
   const member = message.member ?? await message.guild.members.fetch(message.author.id).catch(() => null);

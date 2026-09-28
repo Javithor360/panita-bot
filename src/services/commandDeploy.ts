@@ -8,10 +8,8 @@ export interface DeployResult {
 }
 
 /** Slash command definitions for every command. Aliases are prefix-only and never registered. */
-export const buildSlashPayload = (registry: CommandRegistry): RESTPostAPIChatInputApplicationCommandsJSONBody[] => [
-  ...registry.commands.map(command => command.data.toJSON()),
-  ...[...new Set(registry.legacy.values())].map(command => command.data.toJSON()),
-];
+export const buildSlashPayload = (registry: CommandRegistry): RESTPostAPIChatInputApplicationCommandsJSONBody[] =>
+  registry.commands.map(command => command.data.toJSON());
 
 const resolveApplicationId = async (rest: REST) =>
   env.CLIENT_ID ?? ((await rest.get(Routes.currentApplication())) as { id: string }).id;

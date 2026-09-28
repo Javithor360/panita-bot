@@ -10,28 +10,19 @@ import type { ComponentHandler } from '../core/command';
 import { SlashContext } from '../core/context';
 import { decodeCustomId } from '../core/customId';
 import { safeReply, userMessageFor } from '../core/errors';
-import { routeLegacyComponent, runLegacySlash } from '../core/legacy';
 import type { CommandRegistry } from '../core/registry';
 
 type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
 
 const NOT_OWNER = '❌ Solo la persona que ejecutó el comando puede usar esto.';
 const EXPIRED = 'Este componente ya no está disponible.';
+const EXPIRED_COMMAND = 'Este comando ya no existe.';
 const GUILD_ONLY = '❌ Este comando solo se puede usar dentro del servidor.';
 
 const handleChatInput = async (registry: CommandRegistry, interaction: ChatInputCommandInteraction) => {
+  // Also resolves aliases, in case Discord still has old alias slash commands registered
   const command = registry.resolve(interaction.commandName);
-
-  if (!command) {
-    const legacy = registry.legacy.get(interaction.commandName);
-    if (!legacy) return;
-    try {
-      await runLegacySlash(legacy, interaction);
-    } catch (error) {
-      await safeReply(interaction, userMessageFor(error, interaction.commandName, 'Slash'));
-    }
-    return;
-  }
+  if (!command) return safeReply(interaction, EXPIRED_COMMAND);
 
   if (!interaction.inCachedGuild()) return safeReply(interaction, GUILD_ONLY);
 
@@ -73,14 +64,7 @@ const handleComponent = async (registry: CommandRegistry, interaction: Component
   const found = findComponent(registry, interaction.customId);
   const handler = found?.command?.components?.[found.action];
 
-  if (!found?.command || !handler || !matchesKind(handler, interaction)) {
-    try {
-      if (await routeLegacyComponent(interaction, registry.legacy)) return;
-    } catch (error) {
-      return safeReply(interaction, userMessageFor(error, interaction.customId, 'Component'));
-    }
-    return safeReply(interaction, EXPIRED);
-  }
+  if (!found?.command || !handler || !matchesKind(handler, interaction)) return safeReply(interaction, EXPIRED);
 
   if (found.owner && interaction.user.id !== found.owner) return safeReply(interaction, NOT_OWNER);
 
