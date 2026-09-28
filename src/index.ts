@@ -1,8 +1,9 @@
 import { env } from './config/env';
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
-import { prisma } from './lib/prisma';
-import fs from 'fs';
-import path from 'path';
+import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { getRegistry } from './core/registry';
+import { installProcessHandlers } from './core/errors';
+import { createInteractionHandler } from './handlers/interactionCreate';
+import { createMessageHandler } from './handlers/messageCreate';
 import { readyEvent } from './events/ready';
 import { userUpdateEvent } from './events/userUpdate';
 import { guildMemberAddEvent } from './events/guildMemberAdd';
@@ -11,7 +12,6 @@ import { roleDeleteEvent } from './events/roleEvents';
 import { initPostgresSync } from './events/postgresSync';
 import { keepAlive } from './server';
 
-// Initialize Discord Client with necessary intents
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -21,250 +21,24 @@ const client = new Client({
   ],
 });
 
-// Setup dynamic command registry
-const commands = new Collection<string, any>();
-const commandsPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(commandsPath);
+installProcessHandlers(client);
 
-for (const folder of commandFolders) {
-  const folderPath = path.join(commandsPath, folder);
-  if (!fs.statSync(folderPath).isDirectory()) continue;
+const registry = getRegistry();
 
-  const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
-  
-  for (const file of commandFiles) {
-    const command = require(path.join(folderPath, file));
-  if ('data' in command && 'execute' in command) {
-    commands.set(command.data.name, command);
-    
-    // Register aliases in the collection
-    if (command.metadata?.aliases && Array.isArray(command.metadata.aliases)) {
-      for (const alias of command.metadata.aliases) {
-        commands.set(alias, command);
-      }
-    }
-    }
-  }
-}
-
-// Register Events
-client.once('ready', (c) => {
-  readyEvent(c);
+client.once(Events.ClientReady, c => {
+  readyEvent(c, registry);
   initPostgresSync(client);
-  keepAlive(); // Initialize web server to keep Render awake
-});
-client.on('userUpdate', (oldUser, newUser) => userUpdateEvent(oldUser, newUser));
-client.on('guildMemberAdd', (member) => guildMemberAddEvent(member));
-client.on('guildMemberUpdate', (oldMember, newMember) => guildMemberUpdateEvent(oldMember, newMember));
-client.on('roleDelete', (role) => roleDeleteEvent(role));
-
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const command = commands.get(interaction.commandName);
-  if (!command) return;
-
-  if (command.metadata?.devOnly && interaction.user.id !== process.env.DEVELOPER_ID) {
-    return interaction.reply({ content: '❌ No estás autorizado para usar este comando.', ephemeral: true });
-  }
-
-  if (command.metadata?.staffOnly) {
-    const staffRoleId = process.env.STAFF_ROLE_ID;
-    const member = interaction.member as import('discord.js').GuildMember;
-    if (!staffRoleId || !member?.roles.cache.has(staffRoleId)) {
-      return interaction.reply({ content: '❌ No tienes permisos de Staff para usar este comando.', ephemeral: true });
-    }
-  }
-
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: '¡Hubo un error al ejecutar este comando!', ephemeral: true });
-    } else {
-      await interaction.reply({ content: '¡Hubo un error al ejecutar este comando!', ephemeral: true });
-    }
-  }
+  keepAlive();
 });
 
-// UI Component interactions listener (Buttons, Modals, Select Menus)
-client.on('interactionCreate', async (interaction) => {
-  if (interaction.isButton()) {
-    // We dynamically route the button based on its prefix or origin
-    // For now, we know the activate button belongs to the 'register' command
-    if (interaction.customId.startsWith('btn_activate')) {
-      const command = commands.get('register');
-      if (command && command.executeButton) {
-        await command.executeButton(interaction);
-      }
-    } else if (interaction.customId.startsWith('btn_gallery_')) {
-      const command = commands.get('gallery');
-      if (command && command.executeButton) {
-        await command.executeButton(interaction);
-      }
-    } else if (interaction.customId.startsWith('btn_ticket_')) {
-      const command = commands.get('ticket');
-      if (command && command.executeButton) {
-        await command.executeButton(interaction);
-      }
-    }
-  } else if (interaction.isModalSubmit()) {
-    if (interaction.customId.startsWith('modal_activate')) {
-      const command = commands.get('register');
-      if (command && command.executeModal) {
-        await command.executeModal(interaction);
-      }
-    } else if (interaction.customId.startsWith('modal_ticket_')) {
-      const command = commands.get('ticket');
-      if (command && command.executeModal) {
-        await command.executeModal(interaction);
-      }
-    }
-  } else if (interaction.isStringSelectMenu()) {
-    if (interaction.customId.startsWith('select_skin')) {
-      const command = commands.get('skin');
-      if (command && command.executeStringSelect) {
-        await command.executeStringSelect(interaction);
-      }
-    }
-  }
+client.on(Events.UserUpdate, userUpdateEvent);
+client.on(Events.GuildMemberAdd, guildMemberAddEvent);
+client.on(Events.GuildMemberUpdate, guildMemberUpdateEvent);
+client.on(Events.GuildRoleDelete, roleDeleteEvent);
+client.on(Events.InteractionCreate, createInteractionHandler(registry));
+client.on(Events.MessageCreate, createMessageHandler(registry));
+
+client.login(env.DISCORD_TOKEN).catch(error => {
+  console.error('[Client] Login failed:', error);
+  process.exit(1);
 });
-
-// Text commands listener
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith('!')) return;
-
-  const args = message.content.slice(1).trim().split(/ +/);
-  const commandName = args.shift()?.toLowerCase();
-  
-  if (!commandName) return;
-
-  const command = commands.get(commandName);
-  if (!command) return;
-
-  if (command.metadata?.slashOnly) {
-    return message.reply('❌ Este comando es interactivo y solo se puede usar como **Slash Command** (ejemplo: `/' + commandName + '`).');
-  }
-
-  if (command.metadata?.devOnly && message.author.id !== process.env.DEVELOPER_ID) {
-    return message.reply('❌ No estás autorizado para usar este comando.');
-  }
-
-  if (command.metadata?.staffOnly) {
-    const staffRoleId = process.env.STAFF_ROLE_ID;
-    if (!staffRoleId || !message.member?.roles.cache.has(staffRoleId)) {
-      return message.reply('❌ No tienes permisos de Staff para usar este comando.');
-    }
-  }
-
-  // Create an adapter to mimic ChatInputCommandInteraction for simple text commands
-  if (!command.metadata?.slashOnly && command.execute) {
-    let sentMessage: import('discord.js').Message | null = null;
-
-    const interactionAdapter = {
-      isChatInputCommand: () => true,
-      user: message.author,
-      member: message.member,
-      guild: message.guild,
-      client: message.client,
-      channel: message.channel,
-      channelId: message.channelId,
-      createdTimestamp: message.createdTimestamp,
-      options: {
-        getSubcommandGroup: () => {
-          // If there's a group, it's args[0], and subcommand is args[1]
-          if (args.length >= 2 && ['config', 'panel'].includes(args[0]?.toLowerCase())) return args[0]?.toLowerCase();
-          return null;
-        },
-        getSubcommand: () => {
-          if (args.length >= 2 && ['config', 'panel'].includes(args[0]?.toLowerCase())) return args[1]?.toLowerCase();
-          return args[0]?.toLowerCase() || null;
-        },
-        getString: (name?: string) => {
-          // Adapter básico para parsear los argumentos
-          if (name === 'state' || name === 'text') {
-            return args.slice(1).join(' ') || null;
-          }
-          if (name === 'comando') {
-            return args[0] || null;
-          }
-          if (args.length > 1) {
-            return args.slice(1).join(' ') || null;
-          }
-          return args[0] || null;
-        },
-        getUser: (name?: string) => {
-          const mention = args.find(a => a.startsWith('<@') && a.endsWith('>'));
-          if (mention) {
-            const id = mention.replace(/[<@!>]/g, '');
-            return message.guild?.members.cache.get(id)?.user || { id };
-          }
-          const lastArg = args[args.length - 1];
-          if (!lastArg) return null;
-
-          const isSnowflake = /^\d{17,20}$/.test(lastArg);
-          if (isSnowflake) {
-            return message.guild?.members.cache.get(lastArg)?.user || { id: lastArg };
-          }
-
-          const member = message.guild?.members.cache.find(m => 
-            m.user.username.toLowerCase() === lastArg.toLowerCase() ||
-            (m.user.globalName && m.user.globalName.toLowerCase() === lastArg.toLowerCase()) ||
-            (m.nickname && m.nickname.toLowerCase() === lastArg.toLowerCase())
-          );
-          return member?.user || null;
-        },
-        getRole: (name?: string) => {
-          const mention = args.find(a => a.startsWith('<@&') && a.endsWith('>'));
-          if (mention) {
-            const id = mention.replace(/[<@&>]/g, '');
-            return message.guild?.roles.cache.get(id) || null;
-          }
-          const lastArg = args[args.length - 1];
-          if (!lastArg) return null;
-          const role = message.guild?.roles.cache.find(r => r.id === lastArg || r.name.toLowerCase() === lastArg.toLowerCase() || r.name.toLowerCase() === lastArg.replace('@', '').toLowerCase());
-          return role || null;
-        },
-        getChannel: (name?: string) => {
-          const mention = args.find(a => a.startsWith('<#') && a.endsWith('>'));
-          if (mention) {
-            const id = mention.replace(/[<#>]/g, '');
-            return message.guild?.channels.cache.get(id) || null;
-          }
-          const lastArg = args[args.length - 1];
-          if (!lastArg) return null;
-          const channel = message.guild?.channels.cache.find(c => c.id === lastArg || c.name.toLowerCase() === lastArg.toLowerCase() || c.name.toLowerCase() === lastArg.replace('#', '').toLowerCase());
-          return channel || null;
-        },
-        getInteger: (name?: string) => {
-          const num = parseInt(args[args.length - 1]);
-          return isNaN(num) ? null : num;
-        }
-      },
-      deferReply: async () => { /* No-op for text commands */ },
-      reply: async (opts: any) => {
-        sentMessage = await message.reply(opts);
-        return sentMessage;
-      },
-      fetchReply: async () => sentMessage,
-      editReply: async (opts: any) => {
-        if (sentMessage) return await sentMessage.edit(opts);
-        return await message.reply(opts);
-      },
-      args: args, // Expose raw args for advanced commands
-      message: message // Expose original message to allow commands to interact with it
-    };
-
-    try {
-      await command.execute(interactionAdapter as unknown as import('discord.js').ChatInputCommandInteraction);
-    } catch (error) {
-      console.error('[Adapter Error]', error);
-      await message.reply('¡Ocurrió un error al intentar ejecutar ese comando!');
-    }
-  }
-});
-
-// Start the bot
-client.login(env.DISCORD_TOKEN).catch(console.error);

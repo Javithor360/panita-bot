@@ -59,6 +59,11 @@ export interface Command {
   run(ctx: CommandContext): Promise<unknown>;
   /** Component handlers keyed by action. Their custom IDs use the command name as namespace. */
   components?: Record<string, ComponentHandler>;
+  /**
+   * Maps custom IDs from before the `namespace:action` scheme to one of `components`.
+   * Needed for components that live on in Discord (e.g. ticket panels posted long ago).
+   */
+  legacyCustomId?(customId: string): { action: string; args: string[] } | null;
 }
 
 export const defineCommand = <C extends Command>(command: C): C => command;
