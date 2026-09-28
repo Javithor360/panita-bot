@@ -11,7 +11,8 @@
     "build": "tsc",
     "postinstall": "prisma generate",
     "test": "node --test -r ts-node/register/transpile-only test/*.test.ts",
-    "deploy:prod": "node dist/scripts/deploy-commands.js"
+    "deploy:prod": "node dist/scripts/deploy-commands.js",
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
