@@ -14,7 +14,8 @@ import { CATEGORIES, COLORS, URLS } from '../../config/constants';
 import { button, defineCommand, modal } from '../../core/command';
 import { encodeCustomId } from '../../core/customId';
 import { avatarUrlOf, isAltAccount } from '../../lib/discord';
-import { activateAccount, ensureUser, profileOf, syncProfile } from '../../services/users';
+import { isValidIgn } from '../../lib/minecraft';
+import { activateAccount, ensureUser, IgnTakenError, profileOf, syncProfile } from '../../services/users';
 
 const NAME = 'register';
 const SPECIAL_CHARACTER = /[!@#$%^&*(),.?":{}|<>_\-+=]/;
@@ -22,7 +23,9 @@ const SPECIAL_CHARACTER = /[!@#$%^&*(),.?":{}|<>_\-+=]/;
 const MESSAGES = {
   alt: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
   alreadyActive: `¡Tu cuenta ya está activada! Puedes iniciar sesión en <${URLS.login}>`,
-  passwordMismatch: 'Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.',
+  invalidIgn: 'El IGN no es válido. Debe tener entre 3 y 16 caracteres y solo puede contener letras, números y guiones bajos (`_`).',
+  ignTaken: (ign: string) => `❌ El IGN \`${ign}\` ya está registrado por otra cuenta. Si crees que es un error, contacta al Staff.`,
+  passwordMismatch:'Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.',
   passwordSpecial: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.',
   failure: 'Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.',
   success: (ign: string) => `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\`.\n\nYa puedes iniciar sesión en: <${URLS.login}>`,
@@ -79,7 +82,7 @@ export default defineCommand({
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
-        .setCustomId(ctx.customId('activate'))
+        .setCustomId(ctx.customId('activate', [], { owned: true }))
         .setLabel('Comenzar Activación')
         .setStyle(ButtonStyle.Success)
         .setEmoji('🚀'),
@@ -98,14 +101,22 @@ export default defineCommand({
         const confirmPassword = interaction.fields.getTextInputValue('input_confirm_password');
         const reply = (content: string) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
+        if (!isValidIgn(ign)) return reply(MESSAGES.invalidIgn);
         if (password !== confirmPassword) return reply(MESSAGES.passwordMismatch);
         if (!SPECIAL_CHARACTER.test(password)) return reply(MESSAGES.passwordSpecial);
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        // Re-validate: the state may have changed since the command was run
+        if (!interaction.inCachedGuild() || isAltAccount(interaction.member)) return interaction.editReply(MESSAGES.alt);
+        const { user } = await ensureUser(profileOf(interaction.user, interaction.member.joinedAt));
+        if (user.enabled) return interaction.editReply(MESSAGES.alreadyActive);
+
         try {
           await activateAccount(interaction.user.id, ign, password);
           await interaction.editReply(MESSAGES.success(ign));
         } catch (error) {
+          if (error instanceof IgnTakenError) return interaction.editReply(MESSAGES.ignTaken(ign));
           console.error('[Activation Error]', error);
           await interaction.editReply(MESSAGES.failure);
         }
