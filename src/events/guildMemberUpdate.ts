@@ -1,6 +1,6 @@
 import { GuildMember, PartialGuildMember } from 'discord.js';
 import { prisma } from '../lib/prisma';
-import { isSyncLocked } from '../utils/syncLock';
+import { isSyncLocked } from '../lib/syncLock';
 
 export const guildMemberUpdateEvent = async (oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) => {
   if (process.env.GUILD_ID && newMember.guild.id !== process.env.GUILD_ID) return;

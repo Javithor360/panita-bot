@@ -1,7 +1,7 @@
 import { Client } from 'discord.js';
 import { Client as PgClient } from 'pg';
 import { PrismaClient } from '@prisma/client';
-import { acquireSyncLock, releaseSyncLock, isGlobalSyncLocked } from '../utils/syncLock';
+import { acquireSyncLock, releaseSyncLock, isGlobalSyncLocked } from '../lib/syncLock';
 
 const prisma = new PrismaClient();
 

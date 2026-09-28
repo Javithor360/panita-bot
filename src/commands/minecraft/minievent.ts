@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { minieventsData } from '../../utils/minieventsData';
+import { minieventsData } from '../../data/minievents';
 
 export const data = new SlashCommandBuilder()
   .setName('minievent')

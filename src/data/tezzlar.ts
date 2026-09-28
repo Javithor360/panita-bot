@@ -1,5 +1,7 @@
+import type { APIEmbedField } from 'discord.js';
+
 export interface TezzlarDayData {
-  fields: any[];
+  fields: APIEmbedField[];
   image?: string;
 }
 

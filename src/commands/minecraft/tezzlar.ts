@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { tezzlarDays } from '../../utils/tezzlarData';
+import { tezzlarDays } from '../../data/tezzlar';
 
 export const data = new SlashCommandBuilder()
   .setName('tezzlar')

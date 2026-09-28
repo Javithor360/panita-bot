@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { fromGalactic } from '../../utils/galactic';
+import { fromGalactic } from '../../lib/galactic';
 
 export const data = new SlashCommandBuilder()
   .setName('disenchant')

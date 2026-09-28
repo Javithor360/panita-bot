@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { recipesData } from '../../utils/recipesData';
+import { recipesData } from '../../data/recipes';
 
 export const data = new SlashCommandBuilder()
   .setName('recipes')

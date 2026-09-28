@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { comandosList } from '../../utils/comandosData';
+import { serverCommands } from '../../data/serverCommands';
 
 export const data = new SlashCommandBuilder()
   .setName('commands')
@@ -21,12 +21,12 @@ export const execute = async (interaction: ChatInputCommandInteraction | any) =>
     .setColor(0x00bfff)
     .setThumbnail('https://media.discordapp.net/attachments/1032440236564824105/1519191750948819025/corazonestezzlar.png?ex=6a43e952&is=6a4297d2&hm=aa4cabc21f3ea3d19283a2e0dadb950a762861b92f6bf42879d75a75640225c7&=&format=webp&quality=lossless&width=960&height=960');
   
-  if (comandosList.length === 0) {
+  if (serverCommands.length === 0) {
     embed.setDescription('Aún no hay comandos registrados en la base de datos.');
   } else {
     // Generate the description string by mapping the list
-    const descriptionText = comandosList
-      .map(c => `→ \`${c.comando}\` - ${c.descripcion}`)
+    const descriptionText = serverCommands
+      .map(c => `→ \`${c.command}\` - ${c.description}`)
       .join('\n\n');
       
     embed.setDescription(descriptionText);

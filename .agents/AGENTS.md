@@ -53,8 +53,8 @@ export default defineCommand({
 });
 ```
 
-## Formato de Tezzlar Days (`src/utils/tezzlarData.ts`)
-Al momento de agregar información para los días de Tezzlar en el archivo `tezzlarData.ts`, se DEBEN seguir estrictamente las siguientes reglas de formato para mantener una estética consistente en los Embeds de Discord:
+## Formato de Tezzlar Days (`src/data/tezzlar.ts`)
+Al momento de agregar información para los días de Tezzlar en el archivo `tezzlar.ts`, se DEBEN seguir estrictamente las siguientes reglas de formato para mantener una estética consistente en los Embeds de Discord:
 
 1. **Títulos de Secciones en Mayúscula:**
    Los `name` de cada `field` deben estar siempre en mayúscula y con su respectivo emoji:
