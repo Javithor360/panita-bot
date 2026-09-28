@@ -1,57 +1,29 @@
-import { 
-  ChatInputCommandInteraction, 
-  SlashCommandBuilder, 
-  TextChannel,
-  PermissionsBitField
-} from 'discord.js';
-import { prisma } from '../../lib/prisma';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { requireTicketChannel } from '../../features/tickets/context';
 
-export const data = new SlashCommandBuilder()
-  .setName('remove')
-  .setDescription('Remueve a un usuario del ticket actual')
-  .addUserOption(opt => opt.setName('user').setDescription('Usuario a remover').setRequired(true));
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('remove')
+    .setDescription('Remueve a un usuario del ticket actual')
+    .addUserOption(opt => opt.setName('user').setDescription('Usuario a remover').setRequired(true)),
+  meta: {
+    category: CATEGORIES.tickets,
+    description: 'Remueve a un usuario del ticket actual.',
+    access: 'staff',
+  },
+  async run(ctx) {
+    await ctx.defer();
+    const { ticket, channel } = await requireTicketChannel(ctx);
+    const user = ctx.options.getUser('user', true);
 
-export const metadata = {
-  category: 'Tickets',
-  description: 'Remueve a un usuario del ticket actual.',
-  usage: 'remove <usuario>',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: true
-};
+    if (user.id === ticket.creator_id) return ctx.reply('❌ No puedes remover al creador del ticket.');
+    if (!channel.permissionOverwrites.cache.get(user.id)?.allow.has('ViewChannel')) {
+      return ctx.reply(`❌ El usuario <@${user.id}> no se encuentra en el ticket.`);
+    }
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply();
-  const ticket = await prisma.ticket.findUnique({
-    where: { channel_id: interaction.channelId }
-  });
-
-  if (!ticket) {
-    return interaction.editReply({ content: '❌ Este canal no pertenece a un ticket.' });
-  }
-
-  const channel = interaction.channel as TextChannel;
-  const user = interaction.options.getUser('user');
-  
-  if (!user || !user.id) {
-    return interaction.editReply('❌ Debes mencionar a un usuario válido. Uso correcto: `!remove <@usuario>`');
-  }
-
-  const fetchedUser = await interaction.client.users.fetch(user.id).catch(() => null);
-  if (!fetchedUser) {
-    return interaction.editReply('❌ No se encontró ningún usuario con ese nombre o ID en Discord.');
-  }
-
-  if (fetchedUser.id === ticket.creator_id) {
-    return interaction.editReply(`❌ No puedes remover al creador del ticket.`);
-  }
-
-  const overwrite = channel.permissionOverwrites.cache.get(fetchedUser.id);
-  if (!overwrite || !overwrite.allow.has(PermissionsBitField.Flags.ViewChannel)) {
-    return interaction.editReply(`❌ El usuario <@${fetchedUser.id}> no se encuentra en el ticket.`);
-  }
-  
-  await channel.permissionOverwrites.delete(fetchedUser.id);
-  
-  return interaction.editReply(`✅ Se ha removido a <@${fetchedUser.id}> de este ticket.`);
-};
+    await channel.permissionOverwrites.delete(user.id);
+    await ctx.reply(`✅ Se ha removido a <@${user.id}> de este ticket.`);
+  },
+});

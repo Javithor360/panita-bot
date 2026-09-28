@@ -1,685 +1,210 @@
-import { 
-  ChatInputCommandInteraction, 
-  SlashCommandBuilder, 
-  ButtonInteraction, 
-  ModalSubmitInteraction,
-  PermissionsBitField,
-  ChannelType,
+import {
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
+  ChannelType,
   EmbedBuilder,
   ModalBuilder,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
   TextInputBuilder,
   TextInputStyle,
-  TextChannel,
-  AttachmentBuilder,
-  OverwriteResolvable,
-  Message,
-  ModalActionRowComponentBuilder
+  type SlashCommandStringOption,
+  type ModalActionRowComponentBuilder,
 } from 'discord.js';
-import { prisma } from '../../lib/prisma';
-import * as discordTranscripts from 'discord-html-transcripts';
+import { CATEGORIES, COLORS } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import type { CommandContext } from '../../core/context';
+import { UserError } from '../../core/errors';
+import { panelModalId, TICKET_NAMESPACE } from '../../features/tickets/embeds';
+import { legacyTicketCustomId, ticketComponents } from '../../features/tickets/components';
+import { deletePanelMessage, sendPanel } from '../../features/tickets/panel';
+import { deletePanel, getPanel, listPanels, updatePanel, type PanelConfigUpdate } from '../../services/tickets';
 
-export const data = new SlashCommandBuilder()
-  .setName('ticket')
-  .setDescription('Proveedor del sistema de tickets')
-  .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageChannels)
-  .addSubcommandGroup(group => group
-    .setName('panel')
-    .setDescription('Administrar paneles de tickets')
-    .addSubcommand(sub => sub
-      .setName('create')
-      .setDescription('Crea un panel de tickets')
-      .addChannelOption(opt => opt.setName('canal').setDescription('Canal donde se enviará el panel').addChannelTypes(ChannelType.GuildText))
-    )
-    .addSubcommand(sub => sub
-      .setName('resend')
-      .setDescription('Reenvía un panel existente a un canal específico')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
-      .addChannelOption(opt => opt.setName('canal').setDescription('Canal destino').addChannelTypes(ChannelType.GuildText).setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('delete')
-      .setDescription('Elimina un panel de tickets existente')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('list')
-      .setDescription('Lista todos los paneles de tickets en este servidor')
-    )
-    .addSubcommand(sub => sub
-      .setName('info')
-      .setDescription('Muestra la información de un panel')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
-    )
-  )
-  .addSubcommandGroup(group => group
-    .setName('config')
-    .setDescription('Configura un panel existente')
-    .addSubcommand(sub => sub
-      .setName('staff_role')
-      .setDescription('Define el rol de staff para un panel')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel (o channel ID)').setRequired(true))
-      .addRoleOption(opt => opt.setName('role').setDescription('Rol de staff').setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('category')
-      .setDescription('Define la categoría donde se crearán los tickets')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
-      .addChannelOption(opt => opt.setName('category').setDescription('Categoría').addChannelTypes(ChannelType.GuildCategory).setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('counter')
-      .setDescription('Ajusta el número de contador de tickets')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
-      .addIntegerOption(opt => opt.setName('number').setDescription('Número inicial').setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('show_id_in_name')
-      .setDescription('Alternar si se muestra el ID del panel en el nombre del ticket')
-      .addStringOption(opt => opt.setName('panel_id').setDescription('ID del panel').setRequired(true))
-      .addBooleanOption(opt => opt.setName('show').setDescription('Mostrar u ocultar (true/false)').setRequired(true))
-    )
-  );
+const PANEL_NOT_FOUND = '❌ No se encontró ningún panel con ese ID.';
 
-export const metadata = {
-  category: 'Tickets',
-  description: 'Sistema de tickets oficial.',
-  usage: 'ticket <panel|config>',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: true
+const panelIdOption = (description = 'ID del panel') =>
+  (option: SlashCommandStringOption) => option.setName('panel_id').setDescription(description).setRequired(true);
+
+const input = (id: string, label: string, style: TextInputStyle, required: boolean, placeholder?: string) => {
+  const field = new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(style).setRequired(required);
+  if (placeholder) field.setPlaceholder(placeholder);
+  return new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(field);
 };
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  const subcommandGroup = interaction.options.getSubcommandGroup();
-  const subcommand = interaction.options.getSubcommand();
-  const args = (interaction as any).args as string[] | undefined;
-  const isPrefix = !!args;
-
-  if (isPrefix) {
-    if (!subcommandGroup && !subcommand) {
-      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket panel <resend|delete|list|info>`\n`!ticket config <staff_role|category|counter|show_id_in_name>`');
-    }
-    if (subcommandGroup === 'panel' && !subcommand) {
-      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket panel <resend|delete|list|info>`');
-    }
-    if (subcommandGroup === 'config' && !subcommand) {
-      return interaction.reply('**ℹ️ Uso Correcto**\n`!ticket config <staff_role|category|counter|show_id_in_name>`');
-    }
-  }
-
-  if (subcommandGroup === 'panel') {
-    if (subcommand === 'create') {
-      if (isPrefix) {
-        return interaction.reply('❌ Este comando abre un formulario interactivo y solo se puede ejecutar mediante **Slash Command** (ej: `/ticket panel create`).');
-      }
-      const indoleInput = new TextInputBuilder({
-        custom_id: 'indole',
-        label: 'Identificador único',
-        style: TextInputStyle.Short,
-        required: true,
-        placeholder: 'ej. soporte, reportes, dudas'
-      });
-
-      const titleInput = new TextInputBuilder({
-        custom_id: 'title',
-        label: 'Título del Panel',
-        style: TextInputStyle.Short,
-        required: true
-      });
-
-      const descInput = new TextInputBuilder({
-        custom_id: 'description',
-        label: 'Descripción del Panel',
-        style: TextInputStyle.Paragraph,
-        required: false
-      });
-
-      const targetChannel = interaction.options.getChannel('canal') || interaction.channel;
-      const targetChannelId = targetChannel?.id || 'none';
-
-      const modal = new ModalBuilder({
-        custom_id: `modal_ticket_create_${targetChannelId}`,
-        title: 'Crear Panel de Tickets',
-        components: [
-          new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(indoleInput),
-          new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(titleInput),
-          new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(descInput)
-        ]
-      });
-
-      await interaction.showModal(modal);
-      return;
-    }
-
-    if (subcommand === 'delete') {
-      const panelId = isPrefix ? args[2] : interaction.options.getString('panel_id');
-      if (!panelId) return interaction.reply('❌ Debes especificar el ID del panel (ej: `!ticket panel delete soporte`).');
-      
-      await interaction.deferReply();
-      const panel = await prisma.ticketPanel.findUnique({ where: { id: panelId } });
-      if (!panel) {
-        return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
-      }
-      
-      try {
-        const channel = await interaction.client.channels.fetch(panel.channel_id) as TextChannel;
-        if (channel) {
-          const msg = await channel.messages.fetch(panel.message_id).catch(() => null);
-          if (msg) await msg.delete();
-        }
-      } catch (e) {}
-
-      await prisma.ticketPanel.delete({ where: { id: panel.id } });
-      return interaction.editReply(`✅ Panel **${panel.id}** eliminado.`);
-    }
-
-    if (subcommand === 'resend') {
-      const panelId = isPrefix ? args[2] : interaction.options.getString('panel_id');
-      if (!panelId) return interaction.reply('❌ Debes especificar el ID del panel (ej: `!ticket panel resend soporte #canal`).');
-      const canal = interaction.options.getChannel('canal') as TextChannel;
-      if (!canal || !canal.id) return interaction.reply('❌ Debes mencionar un canal válido.');
-
-      await interaction.deferReply();
-      
-      const panel = await prisma.ticketPanel.findUnique({ where: { id: panelId } });
-      if (!panel) return interaction.editReply('❌ No se encontró ningún panel con ese ID/índole.');
-
-      try {
-        const oldChannel = await interaction.client.channels.fetch(panel.channel_id) as TextChannel;
-        if (oldChannel) {
-          const oldMsg = await oldChannel.messages.fetch(panel.message_id).catch(() => null);
-          if (oldMsg) await oldMsg.delete();
-        }
-      } catch (e) {}
-
-      const embed = new EmbedBuilder()
-        .setTitle(panel.title)
-        .setDescription(panel.description)
-        .setColor('#1ec45b');
-
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`btn_ticket_create_${panel.id}`)
-          .setLabel('Crear Ticket')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('📩')
-      );
-
-      const msg = await canal.send({
-        embeds: [embed],
-        components: [row]
-      });
-
-      await prisma.ticketPanel.update({
-        where: { id: panel.id },
-        data: { channel_id: canal.id, message_id: msg.id }
-      });
-
-      return interaction.editReply(`✅ Panel reenviado a <#${canal.id}>.`);
-    }
-
-    if (subcommand === 'list') {
-      await interaction.deferReply();
-      const panels = await prisma.ticketPanel.findMany({
-        where: { guild_id: interaction.guildId! }
-      });
-
-      if (panels.length === 0) {
-        return interaction.editReply('❌ No hay ningún panel de tickets configurado en este servidor.');
-      }
-
-      const listText = panels.map(p => `- \`${p.id}\``).join('\n');
-      const embed = new EmbedBuilder()
-        .setTitle('Paneles de Tickets Existentes')
-        .setColor('#1ec45b')
-        .setDescription(listText)
-        .setFooter({ text: `Total: ${panels.length} panel(es)` });
-      return interaction.editReply({ embeds: [embed] });
-    }
-
-    if (subcommand === 'info') {
-      const panelId = isPrefix ? args[2] : interaction.options.getString('panel_id');
-      if (!panelId) return interaction.reply('❌ Debes especificar el ID del panel (ej: `!ticket panel info soporte`).');
-
-      await interaction.deferReply();
-      const p = await prisma.ticketPanel.findUnique({ where: { id: panelId } });
-      if (!p) return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
-      
-      const roleStr = p.staff_role_id ? `<@&${p.staff_role_id}>` : 'Sin configurar';
-      let catStr = 'Sin configurar';
-      if (p.category_id) {
-        const cat = interaction.client.channels.cache.get(p.category_id) || await interaction.client.channels.fetch(p.category_id).catch(() => null);
-        catStr = cat && 'name' in cat ? `\`${cat.name}\`` : `\`${p.category_id}\``;
-      }
-      const channelStr = `<#${p.channel_id}>`;
-
-      const embed = new EmbedBuilder()
-        .setTitle('Información de Panel')
-        .setColor('#1ec45b')
-        .addFields(
-          { name: 'ID', value: `\`${p.id}\``, inline: false },
-          { name: 'Título', value: p.title, inline: false },
-          { name: 'Descripción', value: p.description || 'Sin configurar', inline: false },
-          { name: 'Rol Staff', value: roleStr, inline: true },
-          { name: 'Canal del Panel', value: channelStr, inline: true },
-          { name: 'Categoría', value: catStr, inline: true }
-        )
-        .setFooter({ text: `Se han creado ${p.ticket_counter} tickets en este panel` });
-        
-      return interaction.editReply({ embeds: [embed] });
-    }
-  }
-
-  if (subcommandGroup === 'config') {
-    const panelQueryId = isPrefix ? args[2] : interaction.options.getString('panel_id');
-    if (!panelQueryId) return interaction.reply('❌ Debes especificar el ID del panel (ej: `!ticket config <subcomando> <panel_id> <valor>`).');
-
-    if (subcommand === 'staff_role') {
-      const role = interaction.options.getRole('role');
-      if (!role || !role.id) return interaction.reply('❌ Debes mencionar un rol válido.');
-
-      await interaction.deferReply();
-      let panel = await prisma.ticketPanel.findFirst({ where: { id: panelQueryId } });
-      if (!panel) return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
-
-      await prisma.ticketPanel.update({
-        where: { id: panel.id },
-        data: { staff_role_id: role.id }
-      });
-      return interaction.editReply({
-        content: `✅ El rol de staff para el panel **${panel.id}** ha sido configurado a <@&${role.id}>.`,
-        allowedMentions: { roles: [] }
-      });
-    }
-
-    if (subcommand === 'category') {
-      const category = interaction.options.getChannel('category');
-      if (!category || !category.id) return interaction.reply('❌ Debes mencionar una categoría válida.');
-
-      await interaction.deferReply();
-      let panel = await prisma.ticketPanel.findFirst({ where: { id: panelQueryId } });
-      if (!panel) return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
-
-      await prisma.ticketPanel.update({
-        where: { id: panel.id },
-        data: { category_id: category.id }
-      });
-      return interaction.editReply(`✅ Los tickets para el panel **${panel.id}** se crearán en la categoría \`${(category as any).name || category.id}\`.`);
-    }
-
-    if (subcommand === 'counter') {
-      const number = interaction.options.getInteger('number');
-      if (number === null) return interaction.reply('❌ Debes especificar un número válido.');
-
-      await interaction.deferReply();
-      let panel = await prisma.ticketPanel.findFirst({ where: { id: panelQueryId } });
-      if (!panel) return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
-
-      await prisma.ticketPanel.update({
-        where: { id: panel.id },
-        data: { ticket_counter: number }
-      });
-      return interaction.editReply(`✅ El contador del panel **${panel.id}** ha sido seteado a ${number}.`);
-    }
-
-    if (subcommand === 'show_id_in_name') {
-      let show: boolean | null = null;
-      if (isPrefix) {
-        if (args[3] === 'true') show = true;
-        else if (args[3] === 'false') show = false;
-      } else {
-        show = interaction.options.getBoolean('show');
-      }
-      if (show === null) return interaction.reply('❌ Debes especificar true o false (ej: `!ticket config show_id_in_name soporte false`).');
-
-      await interaction.deferReply();
-      let panel = await prisma.ticketPanel.findFirst({ where: { id: panelQueryId } });
-      if (!panel) return interaction.editReply('❌ No se encontró ningún panel con ese ID.');
-
-      await prisma.ticketPanel.update({
-        where: { id: panel.id },
-        data: { show_panel_id_in_name: show }
-      });
-      return interaction.editReply(`✅ Mostrar ID en el nombre del canal para el panel **${panel.id}** ha sido seteado a \`${show}\`.`);
-    }
-  }
+const requirePanel = async (panelId: string) => {
+  const panel = await getPanel(panelId);
+  if (!panel) throw new UserError(PANEL_NOT_FOUND);
+  return panel;
 };
 
-export const executeModal = async (interaction: ModalSubmitInteraction) => {
-  if (interaction.customId.startsWith('modal_ticket_create_')) {
-    await interaction.deferReply();
+/** Shared flow for the `config` subcommands. */
+const configurePanel = async (ctx: CommandContext, data: PanelConfigUpdate, message: (panelId: string) => string) => {
+  await ctx.defer();
+  const panel = await updatePanel(ctx.options.getString('panel_id', true), data);
+  if (!panel) return ctx.reply(PANEL_NOT_FOUND);
+  await ctx.reply({ content: message(panel.id), allowedMentions: { roles: [] } });
+};
 
-    const targetChannelId = interaction.customId.replace('modal_ticket_create_', '');
-    const channelId = targetChannelId === 'none' ? interaction.channelId : targetChannelId;
+const subcommands: Record<string, (ctx: CommandContext) => Promise<unknown>> = {
+  async 'panel create'(ctx) {
+    const target = ctx.options.getChannel('canal') ?? ctx.channel;
+    await ctx.showModal(
+      new ModalBuilder()
+        .setCustomId(panelModalId(target?.id ?? ctx.channel?.id ?? 'none'))
+        .setTitle('Crear Panel de Tickets')
+        .addComponents(
+          input('indole', 'Identificador único', TextInputStyle.Short, true, 'ej. soporte, reportes, dudas'),
+          input('title', 'Título del Panel', TextInputStyle.Short, true),
+          input('description', 'Descripción del Panel', TextInputStyle.Paragraph, false),
+        ),
+    );
+  },
 
-    const title = interaction.fields.getTextInputValue('title');
-    let description = 'Para crear un ticket, pulsa el botón de abajo.';
-    let indole = interaction.fields.getTextInputValue('indole');
-    try { description = interaction.fields.getTextInputValue('description') || description; } catch (e) {}
+  async 'panel delete'(ctx) {
+    await ctx.defer();
+    const panel = await requirePanel(ctx.options.getString('panel_id', true));
+    await deletePanelMessage(ctx.client, panel);
+    await deletePanel(panel.id);
+    await ctx.reply(`✅ Panel **${panel.id}** eliminado.`);
+  },
 
-    if (!channelId || !interaction.guildId) {
-      return interaction.editReply('❌ No se puede crear el panel en ese canal.');
-    }
+  async 'panel resend'(ctx) {
+    const channel = ctx.options.getChannel('canal', true);
+    if (channel.type !== ChannelType.GuildText) throw new UserError('❌ Debes mencionar un canal de texto válido.');
 
-    const existingPanel = await prisma.ticketPanel.findUnique({ where: { id: indole } });
-    if (existingPanel) {
-      return interaction.editReply(`❌ Ya existe un panel con la índole/ID **${indole}**. Por favor elige otro o elimínalo primero.`);
-    }
+    await ctx.defer();
+    const panel = await requirePanel(ctx.options.getString('panel_id', true));
+    await deletePanelMessage(ctx.client, panel);
+    const message = await sendPanel(channel, panel);
+    await updatePanel(panel.id, { channel_id: channel.id, message_id: message.id });
+    await ctx.reply(`✅ Panel reenviado a <#${channel.id}>.`);
+  },
 
-    const panel = await prisma.ticketPanel.create({
-      data: {
-        id: indole,
-        guild_id: interaction.guildId!,
-        channel_id: channelId,
-        message_id: 'temp',
-        title,
-        description
-      }
-    });
+  async 'panel list'(ctx) {
+    await ctx.defer();
+    const panels = await listPanels(ctx.guild.id);
+    if (panels.length === 0) return ctx.reply('❌ No hay ningún panel de tickets configurado en este servidor.');
 
     const embed = new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(description)
-      .setColor('#1ec45b');
+      .setTitle('Paneles de Tickets Existentes')
+      .setColor(COLORS.tickets)
+      .setDescription(panels.map(p => `- \`${p.id}\``).join('\n'))
+      .setFooter({ text: `Total: ${panels.length} panel(es)` });
+    await ctx.reply({ embeds: [embed] });
+  },
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`btn_ticket_create_${panel.id}`)
-        .setLabel('Crear Ticket')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('📩')
-    );
+  async 'panel info'(ctx) {
+    await ctx.defer();
+    const panel = await requirePanel(ctx.options.getString('panel_id', true));
 
-    const channel = await interaction.client.channels.fetch(channelId) as TextChannel;
-    const msg = await channel.send({
-      embeds: [embed],
-      components: [row]
-    });
+    let category = 'Sin configurar';
+    if (panel.category_id) {
+      const channel = ctx.guild.channels.cache.get(panel.category_id)
+        ?? await ctx.guild.channels.fetch(panel.category_id).catch(() => null);
+      category = `\`${channel?.name ?? panel.category_id}\``;
+    }
 
-    await prisma.ticketPanel.update({
-      where: { id: panel.id },
-      data: { message_id: msg.id }
-    });
+    const embed = new EmbedBuilder()
+      .setTitle('Información de Panel')
+      .setColor(COLORS.tickets)
+      .addFields(
+        { name: 'ID', value: `\`${panel.id}\`` },
+        { name: 'Título', value: panel.title },
+        { name: 'Descripción', value: panel.description || 'Sin configurar' },
+        { name: 'Rol Staff', value: panel.staff_role_id ? `<@&${panel.staff_role_id}>` : 'Sin configurar', inline: true },
+        { name: 'Canal del Panel', value: `<#${panel.channel_id}>`, inline: true },
+        { name: 'Categoría', value: category, inline: true },
+      )
+      .setFooter({ text: `Se han creado ${panel.ticket_counter} tickets en este panel` });
+    await ctx.reply({ embeds: [embed] });
+  },
 
-    await interaction.editReply(`✅ Panel creado con éxito! ID del panel: \`${panel.id}\``);
-  }
+  'config staff_role'(ctx) {
+    const role = ctx.options.getRole('role', true);
+    return configurePanel(ctx, { staff_role_id: role.id },
+      id => `✅ El rol de staff para el panel **${id}** ha sido configurado a <@&${role.id}>.`);
+  },
+
+  'config category'(ctx) {
+    const category = ctx.options.getChannel('category', true);
+    if (category.type !== ChannelType.GuildCategory) throw new UserError('❌ Debes indicar una categoría válida.');
+    return configurePanel(ctx, { category_id: category.id },
+      id => `✅ Los tickets para el panel **${id}** se crearán en la categoría \`${category.name}\`.`);
+  },
+
+  'config counter'(ctx) {
+    const number = ctx.options.getInteger('number', true);
+    return configurePanel(ctx, { ticket_counter: number },
+      id => `✅ El contador del panel **${id}** ha sido seteado a ${number}.`);
+  },
+
+  'config show_id_in_name'(ctx) {
+    const show = ctx.options.getBoolean('show', true);
+    return configurePanel(ctx, { show_panel_id_in_name: show },
+      id => `✅ Mostrar ID en el nombre del canal para el panel **${id}** ha sido seteado a \`${show}\`.`);
+  },
 };
 
-export const executeButton = async (interaction: ButtonInteraction) => {
-  if (interaction.customId.startsWith('btn_ticket_create_')) {
-    await interaction.deferReply({ ephemeral: true });
-    
-    const existingTicket = await prisma.ticket.findFirst({
-      where: { 
-        creator_id: interaction.user.id,
-        status: 'OPEN',
-        panel: {
-          guild_id: interaction.guildId!
-        }
-      }
-    });
-
-    if (existingTicket) {
-      return interaction.editReply(`Parece que ya tienes un ticket abierto en <#${existingTicket.channel_id}>, para abrir uno nuevo primero debes cerrar el ya existente.`);
-    }
-
-    const panelId = interaction.customId.replace('btn_ticket_create_', '');
-    const panel = await prisma.ticketPanel.findUnique({ where: { id: panelId } });
-
-    if (!panel) {
-      return interaction.editReply('❌ No se encontró el panel de tickets.');
-    }
-
-    const updatedPanel = await prisma.ticketPanel.update({
-      where: { id: panel.id },
-      data: { ticket_counter: { increment: 1 } }
-    });
-
-    const ticketNumber = updatedPanel.ticket_counter.toString().padStart(4, '0');
-    let channelName = updatedPanel.show_panel_id_in_name ? `ticket-${panel.id}-${ticketNumber}` : `ticket-${ticketNumber}`;
-
-    const commonPermissions = [
-      PermissionsBitField.Flags.ViewChannel,
-      PermissionsBitField.Flags.SendMessages,
-      PermissionsBitField.Flags.ReadMessageHistory,
-      PermissionsBitField.Flags.AttachFiles,
-      PermissionsBitField.Flags.EmbedLinks,
-      PermissionsBitField.Flags.UseExternalEmojis,
-      PermissionsBitField.Flags.UseExternalStickers,
-      PermissionsBitField.Flags.AddReactions,
-      PermissionsBitField.Flags.MentionEveryone,
-      PermissionsBitField.Flags.PinMessages
-    ];
-
-    const permissionOverwrites: OverwriteResolvable[] = [
-      {
-        id: interaction.guildId!,
-        deny: [PermissionsBitField.Flags.ViewChannel],
-      },
-      {
-        id: interaction.user.id,
-        allow: commonPermissions,
-      },
-      {
-        id: interaction.client.user!.id,
-        allow: [...commonPermissions, PermissionsBitField.Flags.ManageChannels],
-      }
-    ];
-
-    if (panel.staff_role_id) {
-      permissionOverwrites.push({
-        id: panel.staff_role_id,
-        allow: commonPermissions,
-      });
-    }
-
-    try {
-      const ticketChannel = await interaction.guild!.channels.create({
-        name: channelName,
-        type: ChannelType.GuildText,
-        parent: panel.category_id || undefined,
-        permissionOverwrites
-      });
-
-      const dbTicket = await prisma.ticket.create({
-        data: {
-          channel_id: ticketChannel.id,
-          panel_id: panel.id,
-          creator_id: interaction.user.id
-        }
-      });
-
-      const welcomeEmbed = new EmbedBuilder()
-        .setDescription(`Soporte estará contigo en breve.\nSi quieres salir, pulsa el botón de **Cerrar**.`)
-        .setColor('#1ec45b');
-
-      const closeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId('btn_ticket_close_prompt')
-          .setLabel('Cerrar')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('🔒')
-      );
-
-      const staffPing = panel.staff_role_id ? `<@&${panel.staff_role_id}>` : '';
-      const anchorMessage = await ticketChannel.send({
-        content: `¡Bienvenidos, <@${interaction.user.id}>${staffPing ? ` y ${staffPing}` : ''}!`,
-        embeds: [welcomeEmbed],
-        components: [closeRow]
-      });
-      
-      await anchorMessage.pin();
-      
-      // Borrar el mensaje de sistema de anclaje
-      setTimeout(async () => {
-        try {
-          const sysMsgs = await ticketChannel.messages.fetch({ limit: 5 });
-          const pinMsg = sysMsgs.find(m => m.type === 6); // 6 is ChannelPinnedMessage
-          if (pinMsg) await pinMsg.delete();
-        } catch (e) {}
-      }, 1000);
-
-      await interaction.editReply(`✅ Tu ticket ha sido creado: <#${ticketChannel.id}>`);
-
-    } catch (error) {
-      console.error(error);
-      await interaction.editReply('❌ Hubo un error al crear tu canal de ticket.');
-    }
-  }
-
-  else if (interaction.customId === 'btn_ticket_close_prompt') {
-    const ticket = await prisma.ticket.findUnique({
-      where: { channel_id: interaction.channelId }
-    });
-
-    if (!ticket || ticket.status === 'CLOSED') {
-      return interaction.reply({ content: '❌ Este ticket ya está cerrado o es inválido.', ephemeral: true });
-    }
-
-    const panel = await prisma.ticketPanel.findUnique({ where: { id: ticket.panel_id } });
-    const isStaff = panel?.staff_role_id ? (interaction.member?.roles as any).cache.has(panel.staff_role_id) : false;
-    const isCreator = interaction.user.id === ticket.creator_id;
-    const isAdmin = (interaction.member?.permissions as Readonly<PermissionsBitField>).has(PermissionsBitField.Flags.Administrator);
-
-    if (!isStaff && !isCreator && !isAdmin) {
-      return interaction.reply({ content: '❌ Solo el creador del ticket o un staff puede cerrarlo.', ephemeral: true });
-    }
-
-    const confirmRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('btn_ticket_close_confirm').setLabel('Cerrar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('btn_ticket_close_cancel').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
-    );
-
-    await interaction.reply({
-      content: '¿Estás seguro de que quieres cerrar este ticket?',
-      components: [confirmRow]
-    });
-  }
-
-  else if (interaction.customId === 'btn_ticket_close_confirm') {
-    await interaction.deferUpdate();
-    
-    const ticket = await prisma.ticket.findUnique({
-      where: { channel_id: interaction.channelId }
-    });
-
-    if (!ticket) return;
-
-    await prisma.ticket.update({
-      where: { id: ticket.id },
-      data: { status: 'CLOSED' }
-    });
-
-    const channel = interaction.channel as TextChannel;
-    
-    // Renombrar el canal a closed- (sin await para evitar bloqueos por rate limit de Discord)
-    const newName = channel.name.replace(/^ticket-/, 'closed-');
-    channel.setName(newName).catch(console.error);
-    
-    // Remover al creador y a todos los usuarios añadidos con !add
-    const overwrites = channel.permissionOverwrites.cache;
-    for (const [id, overwrite] of overwrites) {
-      // overwrite.type === 1 corresponde a miembros (usuarios)
-      if (overwrite.type === 1 && id !== interaction.client.user!.id) {
-        channel.permissionOverwrites.delete(id).catch(() => {});
-      }
-    }
-
-    await interaction.message.delete().catch(() => {});
-
-    const closedEmbed = new EmbedBuilder()
-      .setDescription(`Ticket cerrado por <@${interaction.user.id}>`)
-      .setColor('#fee75c');
-
-    await channel.send({ embeds: [closedEmbed] });
-
-    const controlsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('btn_ticket_transcript').setLabel('Transcripción').setStyle(ButtonStyle.Secondary).setEmoji('📄'),
-      new ButtonBuilder().setCustomId('btn_ticket_reopen').setLabel('Reabrir').setStyle(ButtonStyle.Secondary).setEmoji('🔓'),
-      new ButtonBuilder().setCustomId('btn_ticket_delete').setLabel('Eliminar').setStyle(ButtonStyle.Secondary).setEmoji('⛔')
-    );
-
-    await channel.send({
-      content: 'Controles de ticket para el equipo de soporte:',
-      components: [controlsRow]
-    });
-  }
-
-  else if (interaction.customId === 'btn_ticket_close_cancel') {
-    await interaction.message.delete().catch(() => {});
-  }
-
-  else if (interaction.customId === 'btn_ticket_reopen') {
-    await interaction.deferUpdate();
-
-    const ticket = await prisma.ticket.findUnique({
-      where: { channel_id: interaction.channelId }
-    });
-
-    if (!ticket) return;
-
-    await prisma.ticket.update({
-      where: { id: ticket.id },
-      data: { status: 'OPEN' }
-    });
-
-    const channel = interaction.channel as TextChannel;
-    
-    // Renombrar de closed- a ticket- (sin await para evitar bloqueos por rate limit)
-    const newName = channel.name.replace(/^closed-/, 'ticket-');
-    channel.setName(newName).catch(console.error);
-
-    await channel.permissionOverwrites.edit(ticket.creator_id, {
-      ViewChannel: true,
-      SendMessages: true,
-      ReadMessageHistory: true,
-      AttachFiles: true,
-      EmbedLinks: true,
-      UseExternalEmojis: true,
-      UseExternalStickers: true,
-      AddReactions: true,
-      MentionEveryone: true,
-      PinMessages: true
-    }).catch(console.error);
-
-    await interaction.message.delete().catch(() => {});
-
-    const openedEmbed = new EmbedBuilder()
-      .setDescription(`Ticket reabierto por <@${interaction.user.id}>`)
-      .setColor('#57F287');
-
-    await channel.send({ embeds: [openedEmbed] });
-  }
-
-  else if (interaction.customId === 'btn_ticket_delete') {
-    const channel = interaction.channel as TextChannel;
-    await interaction.reply('Eliminando canal en unos segundos...');
-    setTimeout(async () => {
-      await channel.delete().catch(() => {});
-    }, 3000);
-  }
-
-  else if (interaction.customId === 'btn_ticket_transcript') {
-    await interaction.deferReply({ ephemeral: true });
-    
-    const channel = interaction.channel as TextChannel;
-    
-    try {
-      const attachment = await discordTranscripts.createTranscript(channel, {
-        limit: -1, 
-        returnType: discordTranscripts.ExportReturnType.Attachment,
-        filename: `${channel.name}-transcripcion.html`,
-        saveImages: true, 
-        poweredBy: false
-      });
-
-      await interaction.editReply({ content: 'Aquí tienes la transcripción del ticket:', files: [attachment] });
-    } catch (e) {
-      console.error('Error generating transcript:', e);
-      await interaction.editReply('❌ Hubo un error al generar la transcripción.');
-    }
-  }
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName(TICKET_NAMESPACE)
+    .setDescription('Proveedor del sistema de tickets')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+    .addSubcommandGroup(group => group
+      .setName('panel')
+      .setDescription('Administrar paneles de tickets')
+      .addSubcommand(sub => sub
+        .setName('create')
+        .setDescription('Crea un panel de tickets')
+        .addChannelOption(opt => opt.setName('canal').setDescription('Canal donde se enviará el panel').addChannelTypes(ChannelType.GuildText)))
+      .addSubcommand(sub => sub
+        .setName('resend')
+        .setDescription('Reenvía un panel existente a un canal específico')
+        .addStringOption(panelIdOption())
+        .addChannelOption(opt => opt.setName('canal').setDescription('Canal destino').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+      .addSubcommand(sub => sub
+        .setName('delete')
+        .setDescription('Elimina un panel de tickets existente')
+        .addStringOption(panelIdOption()))
+      .addSubcommand(sub => sub
+        .setName('list')
+        .setDescription('Lista todos los paneles de tickets en este servidor'))
+      .addSubcommand(sub => sub
+        .setName('info')
+        .setDescription('Muestra la información de un panel')
+        .addStringOption(panelIdOption())))
+    .addSubcommandGroup(group => group
+      .setName('config')
+      .setDescription('Configura un panel existente')
+      .addSubcommand(sub => sub
+        .setName('staff_role')
+        .setDescription('Define el rol de staff para un panel')
+        .addStringOption(panelIdOption())
+        .addRoleOption(opt => opt.setName('role').setDescription('Rol de staff').setRequired(true)))
+      .addSubcommand(sub => sub
+        .setName('category')
+        .setDescription('Define la categoría donde se crearán los tickets')
+        .addStringOption(panelIdOption())
+        .addChannelOption(opt => opt.setName('category').setDescription('Categoría').addChannelTypes(ChannelType.GuildCategory).setRequired(true)))
+      .addSubcommand(sub => sub
+        .setName('counter')
+        .setDescription('Ajusta el número de contador de tickets')
+        .addStringOption(panelIdOption())
+        .addIntegerOption(opt => opt.setName('number').setDescription('Número inicial').setRequired(true)))
+      .addSubcommand(sub => sub
+        .setName('show_id_in_name')
+        .setDescription('Alternar si se muestra el ID del panel en el nombre del ticket')
+        .addStringOption(panelIdOption())
+        .addBooleanOption(opt => opt.setName('show').setDescription('Mostrar u ocultar (true/false)').setRequired(true)))),
+  meta: {
+    category: CATEGORIES.tickets,
+    description: 'Sistema de tickets oficial: paneles y su configuración.',
+    access: 'staff',
+  },
+  async run(ctx) {
+    const handler = subcommands[`${ctx.options.getSubcommandGroup()} ${ctx.options.getSubcommand()}`];
+    if (!handler) throw new UserError('❌ Subcomando inválido.');
+    await handler(ctx);
+  },
+  components: ticketComponents,
+  legacyCustomId: legacyTicketCustomId,
+});

@@ -1,4 +1,4 @@
-import { PermissionsBitField } from 'discord.js';
+import type { PermissionsString } from 'discord.js';
 
 /** Prefix for classic text commands. */
 export const PREFIX = '!';
@@ -66,14 +66,14 @@ export const CATEGORY_ORDER: readonly Category[] = Object.values(CATEGORIES);
 
 /** Permissions granted to every participant of a ticket channel (creator, added users, staff). */
 export const TICKET_MEMBER_PERMISSIONS = [
-  PermissionsBitField.Flags.ViewChannel,
-  PermissionsBitField.Flags.SendMessages,
-  PermissionsBitField.Flags.ReadMessageHistory,
-  PermissionsBitField.Flags.AttachFiles,
-  PermissionsBitField.Flags.EmbedLinks,
-  PermissionsBitField.Flags.UseExternalEmojis,
-  PermissionsBitField.Flags.UseExternalStickers,
-  PermissionsBitField.Flags.AddReactions,
-  PermissionsBitField.Flags.MentionEveryone,
-  PermissionsBitField.Flags.PinMessages,
-] as const;
+  'ViewChannel',
+  'SendMessages',
+  'ReadMessageHistory',
+  'AttachFiles',
+  'EmbedLinks',
+  'UseExternalEmojis',
+  'UseExternalStickers',
+  'AddReactions',
+  'MentionEveryone',
+  'PinMessages',
+] as const satisfies readonly PermissionsString[];

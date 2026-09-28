@@ -1,46 +1,24 @@
-import { 
-  ChatInputCommandInteraction, 
-  SlashCommandBuilder, 
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
-} from 'discord.js';
-import { prisma } from '../../lib/prisma';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { buildCloseConfirm } from '../../features/tickets/embeds';
+import { findTicketByChannel, TICKET_STATUS } from '../../services/tickets';
 
-export const data = new SlashCommandBuilder()
-  .setName('close')
-  .setDescription('Cierra forzosamente el ticket actual');
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('close')
+    .setDescription('Cierra forzosamente el ticket actual'),
+  meta: {
+    category: CATEGORIES.tickets,
+    description: 'Cierra el ticket actual de forma segura (pide confirmación).',
+    access: 'staff',
+  },
+  async run(ctx) {
+    await ctx.defer();
+    const ticket = ctx.channel ? await findTicketByChannel(ctx.channel.id) : null;
+    if (!ticket) return ctx.reply('❌ Este canal no pertenece a un ticket.');
+    if (ticket.status === TICKET_STATUS.closed) return ctx.reply('❌ Este ticket ya está cerrado.');
 
-export const metadata = {
-  category: 'Tickets',
-  description: 'Cierra el ticket actual de forma segura.',
-  usage: 'close',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: true
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply();
-  const ticket = await prisma.ticket.findUnique({
-    where: { channel_id: interaction.channelId }
-  });
-
-  if (!ticket) {
-    return interaction.editReply({ content: '❌ Este canal no pertenece a un ticket.' });
-  }
-
-  if (ticket.status === 'CLOSED') {
-    return interaction.editReply('❌ Este ticket ya está cerrado.');
-  }
-  
-  const confirmRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('btn_ticket_close_confirm').setLabel('Cerrar').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('btn_ticket_close_cancel').setLabel('Cancelar').setStyle(ButtonStyle.Secondary)
-  );
-
-  return interaction.editReply({
-    content: '¿Estás seguro de que quieres cerrar este ticket?',
-    components: [confirmRow]
-  });
-};
+    await ctx.reply(buildCloseConfirm());
+  },
+});
