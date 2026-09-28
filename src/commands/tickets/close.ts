@@ -19,6 +19,6 @@ export default defineCommand({
     if (!ticket) return ctx.reply('❌ Este canal no pertenece a un ticket.');
     if (ticket.status === TICKET_STATUS.closed) return ctx.reply('❌ Este ticket ya está cerrado.');
 
-    await ctx.reply(buildCloseConfirm());
+    await ctx.reply(buildCloseConfirm(ctx.user.id));
   },
 });

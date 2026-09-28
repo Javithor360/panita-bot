@@ -45,6 +45,26 @@ const removePinNotice = (channel: TextChannel) =>
     await notice?.delete().catch(() => {});
   }, PIN_NOTICE_CLEANUP_DELAY_MS);
 
+const NOT_ALLOWED_CLOSE = '❌ Solo el creador del ticket o un staff puede cerrarlo.';
+const NOT_ALLOWED_STAFF = '❌ Solo el equipo de soporte puede usar estos controles.';
+
+/** Guard: the ticket's creator or its panel staff. */
+const creatorOrStaff = async (interaction: ButtonInteraction) => {
+  if (!interaction.inCachedGuild()) return NOT_ALLOWED_CLOSE;
+  const ticket = await findTicketByChannel(interaction.channelId);
+  if (!ticket) return null; // the handler reports the invalid ticket
+  const allowed = interaction.user.id === ticket.creator_id || canManageTicket(interaction.member, ticket.panel);
+  return allowed ? null : NOT_ALLOWED_CLOSE;
+};
+
+/** Guard: panel staff or administrators only (closed-ticket controls). */
+const staffOnly = async (interaction: ButtonInteraction) => {
+  if (!interaction.inCachedGuild()) return NOT_ALLOWED_STAFF;
+  const ticket = await findTicketByChannel(interaction.channelId);
+  if (!ticket) return null;
+  return canManageTicket(interaction.member, ticket.panel) ? null : NOT_ALLOWED_STAFF;
+};
+
 const createTicketChannel = button({
   async run(rawInteraction, [panelId]) {
     const interaction = cachedGuildOf(rawInteraction);
@@ -89,23 +109,18 @@ const createTicketChannel = button({
 });
 
 const closePrompt = button({
-  async run(rawInteraction) {
-    const interaction = cachedGuildOf(rawInteraction);
+  guard: creatorOrStaff,
+  async run(interaction) {
     const ticket = await findTicketByChannel(interaction.channelId);
     if (!ticket || ticket.status === TICKET_STATUS.closed) {
       return interaction.reply({ content: '❌ Este ticket ya está cerrado o es inválido.', flags: MessageFlags.Ephemeral });
     }
-
-    const isCreator = interaction.user.id === ticket.creator_id;
-    if (!isCreator && !canManageTicket(interaction.member, ticket.panel)) {
-      return interaction.reply({ content: '❌ Solo el creador del ticket o un staff puede cerrarlo.', flags: MessageFlags.Ephemeral });
-    }
-
-    await interaction.reply(buildCloseConfirm());
+    await interaction.reply(buildCloseConfirm(interaction.user.id));
   },
 });
 
 const closeConfirm = button({
+  guard: creatorOrStaff,
   async run(interaction) {
     await interaction.deferUpdate();
     const ticket = await findTicketByChannel(interaction.channelId);
@@ -131,6 +146,7 @@ const closeConfirm = button({
 });
 
 const closeCancel = button({
+  guard: creatorOrStaff,
   async run(interaction) {
     await interaction.deferUpdate();
     await interaction.message.delete().catch(() => {});
@@ -138,6 +154,7 @@ const closeCancel = button({
 });
 
 const reopen = button({
+  guard: staffOnly,
   async run(interaction) {
     await interaction.deferUpdate();
     const ticket = await findTicketByChannel(interaction.channelId);
@@ -155,6 +172,7 @@ const reopen = button({
 });
 
 const deleteChannel = button({
+  guard: staffOnly,
   async run(interaction) {
     const channel = ticketChannelOf(interaction);
     await interaction.reply('Eliminando canal en unos segundos...');
@@ -163,6 +181,7 @@ const deleteChannel = button({
 });
 
 const transcript = button({
+  guard: staffOnly,
   async run(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const channel = ticketChannelOf(interaction);
