@@ -1,4 +1,4 @@
-import type { Guild, GuildMember, PartialGuildMember, User } from 'discord.js';
+import type { Client, Guild, GuildMember, PartialGuildMember, User } from 'discord.js';
 import { env } from '../config/env';
 
 export const isDeveloper = (userId: string) => userId === env.DEVELOPER_ID;
@@ -16,3 +16,30 @@ export const isHomeGuild = (guild: Guild) => !env.GUILD_ID || guild.id === env.G
 
 /** Avatar URL stored in the database. A member resolves to their server avatar when they have one. */
 export const avatarUrlOf = (target: User | GuildMember) => target.displayAvatarURL({ size: 256, extension: 'png' });
+
+const DISCORD_ATTACHMENT_URL = /^https:\/\/(cdn|media)\.discordapp\.(com|net)\/attachments\//;
+
+interface RefreshUrlsResponse {
+  refreshed_urls: Array<{ original: string; refreshed: string }>;
+}
+
+/**
+ * Discord attachment URLs are signed and expire, so stored ones (e.g. tag images) stop working.
+ * This asks Discord for fresh signatures. Other URLs are returned untouched, and on failure the
+ * original URLs are returned.
+ */
+export const refreshAttachmentUrls = async (client: Client, urls: string[]): Promise<string[]> => {
+  const attachmentUrls = urls.filter(url => DISCORD_ATTACHMENT_URL.test(url));
+  if (attachmentUrls.length === 0) return urls;
+
+  try {
+    const response = await client.rest.post('/attachments/refresh-urls', {
+      body: { attachment_urls: attachmentUrls },
+    }) as RefreshUrlsResponse;
+    const refreshed = new Map(response.refreshed_urls.map(r => [r.original, r.refreshed]));
+    return urls.map(url => refreshed.get(url) ?? url);
+  } catch (error) {
+    console.warn('[Discord] Could not refresh attachment URLs:', error);
+    return urls;
+  }
+};

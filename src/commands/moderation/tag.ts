@@ -2,6 +2,7 @@ import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES, PREFIX } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
+import { refreshAttachmentUrls } from '../../lib/discord';
 import { deleteTag, getTag, listTags, saveTag } from '../../services/tags';
 
 /** `!tag <nombre>`: posts the tag's content in the channel. */
@@ -12,7 +13,7 @@ const showTag = async (ctx: CommandContext, rawArgs: string) => {
     return ctx.reply(`❌ No existe el tag \`${name}\`. Usa \`${PREFIX}tag list\` para ver los disponibles.`);
   }
 
-  const files = tag.media_urls;
+  const files = await refreshAttachmentUrls(ctx.client, tag.media_urls);
   const content = tag.content ?? (files.length === 0 ? 'Este tag está vacío.' : undefined);
   await ctx.send({ content, files });
 };
