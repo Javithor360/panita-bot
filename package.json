@@ -9,7 +9,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "deploy": "ts-node src/deploy-commands.ts",
     "build": "tsc",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "node --test -r ts-node/register/transpile-only test/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
