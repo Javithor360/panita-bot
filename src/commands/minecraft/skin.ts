@@ -1,86 +1,53 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction } from 'discord.js';
+import { ActionRowBuilder, EmbedBuilder, MessageFlags, SlashCommandBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { CATEGORIES, COLORS } from '../../config/constants';
+import { defineCommand, select } from '../../core/command';
+import { DEFAULT_SKIN_VIEW, isSkinView, isValidIgn, SKIN_VIEWS, skinRenderUrl, type SkinView } from '../../lib/minecraft';
 
-export const data = new SlashCommandBuilder()
-  .setName('skin')
-  .setDescription('Muestra la skin de un jugador de Minecraft.')
-  .addStringOption(option => 
-    option.setName('jugador')
-      .setDescription('El nombre de usuario (IGN) del jugador de Minecraft')
-      .setRequired(true)
-  );
+const buildSkinEmbed = (ign: string, view: SkinView) =>
+  new EmbedBuilder()
+    .setTitle(`Skin de ${ign}`)
+    .setColor(COLORS.green)
+    .setImage(skinRenderUrl(ign, view));
 
-export const metadata = {
-  aliases: ['skins'],
-  category: 'Minecraft',
-  description: 'Muestra la skin de un jugador de Minecraft en diferentes vistas interactivas.',
-  usage: 'skin <jugador>',
-  slashOnly: true,
-  devOnly: false,
-  staffOnly: false
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('skin')
+    .setDescription('Muestra la skin de un jugador de Minecraft.')
+    .addStringOption(option =>
+      option.setName('jugador')
+        .setDescription('El nombre de usuario (IGN) del jugador de Minecraft')
+        .setRequired(true),
+    ),
+  meta: {
+    category: CATEGORIES.minecraft,
+    description: 'Muestra la skin de un jugador de Minecraft en diferentes vistas interactivas.',
+    aliases: ['skins'],
+  },
+  async run(ctx) {
+    const ign = ctx.options.getString('jugador', true).trim();
+    if (!isValidIgn(ign)) {
+      return ctx.reply({ content: '❌ Ese no es un nombre de Minecraft válido (3-16 caracteres: letras, números y `_`).', ephemeral: true });
+    }
 
-const skinOptions = [
-  { label: 'Cuerpo Completo - 3D', value: '3d/full', description: 'Vista 3D del cuerpo completo', emoji: '🧍' },
-  { label: 'Busto - 3D', value: '3d/bust', description: 'Vista 3D desde la cintura hacia arriba', emoji: '👤' },
-  { label: 'Cabeza - 2D', value: '2d/head', description: 'Vista plana 2D de la cabeza', emoji: '🧑' },
-  { label: 'Frente - 2D', value: '2d/front', description: 'Vista plana 2D del frente del jugador', emoji: '🖼️' },
-  { label: 'Frente Completo - 2D', value: '2d/frontfull', description: 'Vista plana 2D del frente completo', emoji: '🧍‍♂️' }
-];
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId(ctx.customId('view', [ign], { owned: true }))
+      .setPlaceholder('Selecciona una vista diferente...')
+      .addOptions(SKIN_VIEWS.map(view => ({ ...view })));
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  const jugador = interaction.options.getString('jugador', true);
-  
-  // Default view is 3d/full
-  const defaultView = '3d/full';
-  
-  // Use a query param (e.g. timestamp) to prevent Discord from caching the image if the skin updates
-  const timeParam = Date.now();
-  const imageUrl = `https://render.crafty.gg/${defaultView}/${jugador}?t=${timeParam}`;
-
-  const embed = new EmbedBuilder()
-    .setTitle(`Skin de ${jugador}`)
-    .setColor('#38a169')
-    .setImage(imageUrl);
-
-  const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId(`select_skin_${jugador}::${interaction.user.id}`)
-    .setPlaceholder('Selecciona una vista diferente...')
-    .addOptions(skinOptions);
-
-  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
-
-  await interaction.reply({
-    embeds: [embed],
-    components: [row]
-  });
-};
-
-export const executeStringSelect = async (interaction: StringSelectMenuInteraction) => {
-  const customId = interaction.customId;
-  let jugador = customId.replace('select_skin_', '');
-  let executorId: string | undefined;
-
-  if (jugador.includes('::')) {
-    const parts = jugador.split('::');
-    jugador = parts[0];
-    executorId = parts[1];
-  }
-
-  if (executorId && interaction.user.id !== executorId) {
-    return interaction.reply({ content: '❌ Solo la persona que ejecutó el comando puede usar este menú.', ephemeral: true });
-  }
-
-  const selectedView = interaction.values[0];
-
-  const timeParam = Date.now();
-  const imageUrl = `https://render.crafty.gg/${selectedView}/${jugador}?t=${timeParam}`;
-
-  const embed = new EmbedBuilder()
-    .setTitle(`Skin de ${jugador}`)
-    .setColor('#38a169')
-    .setImage(imageUrl);
-
-  await interaction.update({
-    embeds: [embed]
-  });
-};
+    await ctx.reply({
+      embeds: [buildSkinEmbed(ign, DEFAULT_SKIN_VIEW)],
+      components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu)],
+    });
+  },
+  components: {
+    view: select({
+      async run(interaction, [ign]) {
+        const [view] = interaction.values;
+        if (!isSkinView(view)) {
+          return interaction.reply({ content: '❌ Vista no válida.', flags: MessageFlags.Ephemeral });
+        }
+        await interaction.update({ embeds: [buildSkinEmbed(ign, view)] });
+      },
+    }),
+  },
+});
