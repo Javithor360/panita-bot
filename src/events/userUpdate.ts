@@ -1,34 +1,26 @@
-import { User, PartialUser } from 'discord.js';
-import { prisma } from '../lib/prisma';
+import type { PartialUser, User } from 'discord.js';
+import { env } from '../config/env';
+import { avatarUrlOf } from '../lib/discord';
+import { syncProfile } from '../services/users';
 
 export const userUpdateEvent = async (oldUser: User | PartialUser, newUser: User) => {
-  if (process.env.GUILD_ID) {
-    const guild = newUser.client.guilds.cache.get(process.env.GUILD_ID);
-    // If the guild is not found or the user is not in the guild, ignore the update
+  if (env.GUILD_ID) {
+    const guild = newUser.client.guilds.cache.get(env.GUILD_ID);
+    // Ignore users that aren't part of the home guild
     if (!guild || !guild.members.cache.has(newUser.id)) return;
   }
 
   const avatarChanged = oldUser.avatar !== newUser.avatar;
   const usernameChanged = oldUser.username !== newUser.username;
+  if (!avatarChanged && !usernameChanged) return;
 
-  if (avatarChanged || usernameChanged) {
-    const discordId = newUser.id;
-    const newAvatarUrl = newUser.displayAvatarURL({ size: 256, extension: 'png' });
-    const newUsername = newUser.username;
-
-    const dataToUpdate: any = {};
-    if (avatarChanged) dataToUpdate.avatar_url = newAvatarUrl;
-    if (usernameChanged) dataToUpdate.discord_name = newUsername;
-
-    try {
-      // We use updateMany to avoid crashing if the user doesn't exist in our DB
-      await prisma.user.updateMany({
-        where: { discord_id: discordId },
-        data: dataToUpdate,
-      });
-      console.log(`Updated user data for ${newUser.tag} (Avatar: ${avatarChanged}, Username: ${usernameChanged})`);
-    } catch (error) {
-      console.error(`Failed to update user data for ${discordId}:`, error);
-    }
+  try {
+    await syncProfile(newUser.id, {
+      avatarUrl: avatarChanged ? avatarUrlOf(newUser) : undefined,
+      username: usernameChanged ? newUser.username : undefined,
+    });
+    console.log(`Updated user data for ${newUser.tag} (Avatar: ${avatarChanged}, Username: ${usernameChanged})`);
+  } catch (error) {
+    console.error(`Failed to update user data for ${newUser.id}:`, error);
   }
 };
