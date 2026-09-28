@@ -9,7 +9,7 @@ import { userUpdateEvent } from './events/userUpdate';
 import { guildMemberAddEvent } from './events/guildMemberAdd';
 import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
-import { initPostgresSync } from './events/postgresSync';
+import { startPgSync } from './services/pgSync';
 import { keepAlive } from './server';
 
 const client = new Client({
@@ -27,7 +27,7 @@ const registry = getRegistry();
 
 client.once(Events.ClientReady, c => {
   readyEvent(c, registry);
-  initPostgresSync(client);
+  startPgSync(client);
   keepAlive();
 });
 
