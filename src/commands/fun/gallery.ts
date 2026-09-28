@@ -3,6 +3,7 @@ import { CATEGORIES, COLORS, URLS } from '../../config/constants';
 import { button, defineCommand } from '../../core/command';
 import { encodeCustomId } from '../../core/customId';
 import { discordTimestamp } from '../../lib/format';
+import { embedImageUrl } from '../../lib/images';
 import { mcHeadUrl } from '../../lib/minecraft';
 import { getRandomPhoto, type GalleryPhoto } from '../../services/gallery';
 
@@ -14,7 +15,7 @@ const buildPhotoEmbed = (photo: GalleryPhoto) => {
   const embed = new EmbedBuilder()
     .setTitle(photo.title || 'Foto de la Galería')
     .setColor(COLORS.green)
-    .setImage(photo.url)
+    .setImage(embedImageUrl(photo.url))
     .setAuthor(ign ? { name: ign, iconURL: mcHeadUrl(ign) } : { name: 'Anónimo' });
 
   const lines: string[] = [];
@@ -46,7 +47,7 @@ const buildGalleryMessage = (photo: GalleryPhoto | null, ownerId: string) => {
       .setStyle(ButtonStyle.Secondary),
   );
 
-  return { content: '', embeds: [buildPhotoEmbed(photo)], components: [row] };
+  return { embeds: [buildPhotoEmbed(photo)], components: [row] };
 };
 
 export default defineCommand({
