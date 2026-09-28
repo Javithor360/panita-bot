@@ -1,5 +1,8 @@
 import { PermissionsBitField } from 'discord.js';
 
+/** Prefix for classic text commands. */
+export const PREFIX = '!';
+
 const WEB_BASE = 'https://www.panitacraft.com';
 
 export const URLS = {

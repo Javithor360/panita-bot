@@ -1,4 +1,5 @@
 import type { Message } from 'discord.js';
+import { PREFIX } from '../config/constants';
 import { accessDenial } from '../core/access';
 import { createPrefixContext } from '../core/context';
 import { SLASH_ONLY_ERROR, userMessageFor } from '../core/errors';
@@ -6,8 +7,6 @@ import { runLegacyPrefix } from '../core/legacy';
 import { parsePrefixArgs } from '../core/prefixParser';
 import type { CommandRegistry } from '../core/registry';
 import { formatParseError } from '../core/usage';
-
-export const PREFIX = '!';
 
 const EMPTY_PARSE = { group: null, subcommand: null, values: new Map() };
 
