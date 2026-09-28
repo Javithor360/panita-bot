@@ -1,22 +1,21 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, Message } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
 
-export const data = new SlashCommandBuilder()
-  .setName('ping')
-  .setDescription('Muestra la latencia del bot.');
-
-export const metadata = {
-  aliases: ['latencia'],
-  category: 'Utilidad',
-  description: 'Calcula la latencia y el tiempo de respuesta del bot.',
-  usage: 'ping',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
-};
-
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.reply({ content: 'Calculando...' });
-  const reply = await interaction.fetchReply();
-  const ping = reply.createdTimestamp - interaction.createdTimestamp;
-  await interaction.editReply({ content: `Pong! Latencia: \`${ping}ms\`` });
-};
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription('Muestra la latencia del bot.'),
+  meta: {
+    category: CATEGORIES.utility,
+    description: 'Calcula la latencia y el tiempo de respuesta del bot.',
+    aliases: ['latencia'],
+  },
+  async run(ctx) {
+    await ctx.reply('Calculando...');
+    const reply = await ctx.fetchReply();
+    const latency = reply.createdTimestamp - ctx.createdTimestamp;
+    const gateway = ctx.client.ws.ping >= 0 ? ` · Gateway: \`${ctx.client.ws.ping}ms\`` : '';
+    await ctx.edit(`Pong! Latencia: \`${latency}ms\`${gateway}`);
+  },
+});
