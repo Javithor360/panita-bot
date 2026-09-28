@@ -3,19 +3,19 @@ import { CATEGORIES, COLORS, URLS } from '../../config/constants';
 import { button, defineCommand } from '../../core/command';
 import { encodeCustomId } from '../../core/customId';
 import { discordTimestamp } from '../../lib/format';
-import { embedImageUrl } from '../../lib/images';
+import { resolveEmbedImage } from '../../lib/images';
 import { mcHeadUrl } from '../../lib/minecraft';
 import { getRandomPhoto, type GalleryPhoto } from '../../services/gallery';
 
 const NAME = 'gallery';
 const EMPTY_GALLERY = '❌ Actualmente no hay fotos disponibles en la galería.';
 
-const buildPhotoEmbed = (photo: GalleryPhoto) => {
+const buildPhotoEmbed = (photo: GalleryPhoto, imageUrl: string) => {
   const ign = photo.user?.ign;
   const embed = new EmbedBuilder()
     .setTitle(photo.title || 'Foto de la Galería')
     .setColor(COLORS.green)
-    .setImage(embedImageUrl(photo.url))
+    .setImage(imageUrl)
     .setAuthor(ign ? { name: ign, iconURL: mcHeadUrl(ign) } : { name: 'Anónimo' });
 
   const lines: string[] = [];
@@ -32,9 +32,14 @@ const buildPhotoEmbed = (photo: GalleryPhoto) => {
   return embed;
 };
 
-/** Message for a photo; its buttons only work for `ownerId`. */
-const buildGalleryMessage = (photo: GalleryPhoto | null, ownerId: string) => {
-  if (!photo) return { content: EMPTY_GALLERY, embeds: [], components: [] };
+/**
+ * Message for a photo; its buttons only work for `ownerId`. The image is uploaded with the message
+ * (see `resolveEmbedImage`) so it also shows up reliably when the message is edited by a reroll.
+ */
+const buildGalleryMessage = async (photo: GalleryPhoto | null, ownerId: string) => {
+  if (!photo) return { content: EMPTY_GALLERY, embeds: [], components: [], files: [] };
+
+  const image = await resolveEmbedImage(photo.url, 'gallery');
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
@@ -47,7 +52,11 @@ const buildGalleryMessage = (photo: GalleryPhoto | null, ownerId: string) => {
       .setStyle(ButtonStyle.Secondary),
   );
 
-  return { embeds: [buildPhotoEmbed(photo)], components: [row] };
+  return {
+    embeds: [buildPhotoEmbed(photo, image.url)],
+    components: [row],
+    files: image.file ? [image.file] : [],
+  };
 };
 
 export default defineCommand({
@@ -62,14 +71,15 @@ export default defineCommand({
   async run(ctx) {
     await ctx.defer();
     const photo = await getRandomPhoto();
-    await ctx.reply(buildGalleryMessage(photo, ctx.user.id));
+    await ctx.reply(await buildGalleryMessage(photo, ctx.user.id));
   },
   components: {
     reroll: button({
       async run(interaction) {
         await interaction.deferUpdate();
         const photo = await getRandomPhoto();
-        await interaction.editReply(buildGalleryMessage(photo, interaction.user.id));
+        // `attachments: []` drops the previous photo's file; the new one comes in `files`
+        await interaction.editReply({ ...await buildGalleryMessage(photo, interaction.user.id), attachments: [] });
       },
     }),
     link: button({
