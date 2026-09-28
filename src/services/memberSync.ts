@@ -1,4 +1,7 @@
+import type { GuildMember } from 'discord.js';
 import { prisma } from '../lib/prisma';
+import { avatarUrlOf, isAltAccount } from '../lib/discord';
+import { ensureUser, profileOf, syncProfile } from './users';
 
 export interface MemberSyncOptions {
   /**
@@ -84,4 +87,35 @@ export const syncMemberRoles = async (
     editionsAdded: editionsToAdd.length,
     editionsRemoved: editionsToRemove.length,
   };
+};
+
+export interface ResyncSummary {
+  processed: number;
+  created: number;
+  skipped: number;
+}
+
+const RESYNC_CONCURRENCY = 5;
+
+/**
+ * Full, non-destructive resync of every member: creates missing accounts, refreshes profile data and
+ * mirrors mapped roles. Editions are only added, never removed, so web-managed data is preserved.
+ * Bots and alt accounts are skipped.
+ */
+export const resyncMembers = async (members: GuildMember[]): Promise<ResyncSummary> => {
+  const summary: ResyncSummary = { processed: 0, created: 0, skipped: 0 };
+  const eligible = members.filter(m => !m.user.bot && !isAltAccount(m));
+  summary.skipped = members.length - eligible.length;
+
+  for (let i = 0; i < eligible.length; i += RESYNC_CONCURRENCY) {
+    await Promise.all(eligible.slice(i, i + RESYNC_CONCURRENCY).map(async member => {
+      const { created } = await ensureUser(profileOf(member.user, member.joinedAt));
+      if (!created) await syncProfile(member.id, { username: member.user.username, avatarUrl: avatarUrlOf(member.user) });
+      await syncMemberRoles(member.id, [...member.roles.cache.keys()], { removeEditions: false });
+      summary.processed++;
+      if (created) summary.created++;
+    }));
+  }
+
+  return summary;
 };
