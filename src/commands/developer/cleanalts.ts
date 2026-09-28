@@ -1,51 +1,27 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { prisma } from '../../lib/prisma';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
+import { defineCommand } from '../../core/command';
+import { isAltAccount } from '../../lib/discord';
+import { deleteUsersByDiscordIds } from '../../services/users';
 
-export const data = new SlashCommandBuilder()
-  .setName('cleanalts')
-  .setDescription('Elimina de la base de datos las cuentas secundarias');
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName('cleanalts')
+    .setDescription('Elimina de la base de datos las cuentas secundarias'),
+  meta: {
+    category: CATEGORIES.developer,
+    description: 'Elimina de la base de datos las cuentas secundarias (multicuentas).',
+    access: 'developer',
+    slashOnly: true,
+  },
+  async run(ctx) {
+    await ctx.defer({ ephemeral: true });
 
-export const metadata = {
-  aliases: [],
-  category: 'Desarrollador',
-  description: 'Elimina de la base de datos las cuentas secundarias (multicuentas).',
-  usage: 'cleanalts',
-  slashOnly: true,
-  devOnly: true,
-  staffOnly: false
-};
+    const members = await ctx.guild.members.fetch();
+    const altIds = members.filter(isAltAccount).map(member => member.id);
+    if (altIds.length === 0) return ctx.reply('No se encontraron cuentas secundarias en el servidor.');
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  await interaction.deferReply({ ephemeral: true });
-
-  try {
-    const guild = interaction.guild;
-    if (!guild) {
-      return interaction.editReply('Este comando solo se puede usar en un servidor.');
-    }
-
-    const members = await guild.members.fetch();
-    const altIds: string[] = [];
-
-    for (const [, member] of members) {
-      if (member.roles.cache.has(process.env.ALT_ROLE_ID as string)) {
-        altIds.push(member.user.id);
-      }
-    }
-
-    if (altIds.length === 0) {
-      return interaction.editReply('No se encontraron cuentas secundarias en el servidor.');
-    }
-
-    const deleteResult = await prisma.user.deleteMany({
-      where: {
-        discord_id: { in: altIds }
-      }
-    });
-
-    await interaction.editReply(`✅ Se han eliminado **${deleteResult.count}** cuentas secundarias de la base de datos.`);
-  } catch (error) {
-    console.error('[CleanAlts Error]', error);
-    await interaction.editReply('Ocurrió un error al intentar eliminar las cuentas secundarias.');
-  }
-};
+    const deleted = await deleteUsersByDiscordIds(altIds);
+    await ctx.reply(`✅ Se han eliminado **${deleted}** cuentas secundarias de la base de datos.`);
+  },
+});
