@@ -1,206 +1,115 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ModalSubmitInteraction, ComponentType, TextInputStyle, ModalBuilder, GuildMember } from 'discord.js';
-import bcrypt from 'bcryptjs';
-import { prisma } from '../../lib/prisma';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  MessageFlags,
+  ModalBuilder,
+  SlashCommandBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  type ModalActionRowComponentBuilder,
+} from 'discord.js';
+import { CATEGORIES, COLORS, URLS } from '../../config/constants';
+import { button, defineCommand, modal } from '../../core/command';
+import { encodeCustomId } from '../../core/customId';
+import { avatarUrlOf, isAltAccount } from '../../lib/discord';
+import { activateAccount, ensureUser, profileOf, syncProfile } from '../../services/users';
 
-export const data = new SlashCommandBuilder()
-  .setName('register')
-  .setDescription('Activa tu cuenta para acceder al Panel Web.');
+const NAME = 'register';
+const SPECIAL_CHARACTER = /[!@#$%^&*(),.?":{}|<>_\-+=]/;
 
-export const metadata = {
-  aliases: ['registrar', 'activar'],
-  category: 'General',
-  description: 'Activa tu cuenta de Discord para iniciar sesión en el Panel Web.',
-  usage: 'register',
-  slashOnly: false,
-  devOnly: false,
-  staffOnly: false
+const MESSAGES = {
+  alt: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
+  alreadyActive: `¡Tu cuenta ya está activada! Puedes iniciar sesión en <${URLS.login}>`,
+  passwordMismatch: 'Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.',
+  passwordSpecial: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.',
+  failure: 'Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.',
+  success: (ign: string) => `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\`.\n\nYa puedes iniciar sesión en: <${URLS.login}>`,
 };
 
-export const execute = async (interaction: ChatInputCommandInteraction) => {
-  const member = interaction.member as GuildMember;
-  if (member?.roles.cache.has(process.env.ALT_ROLE_ID as string)) {
-    return interaction.reply({
-      content: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
-      ephemeral: true
-    });
-  }
-
-  const discordId = interaction.user.id;
-
-  // 1. Ensure user exists
-  let user = await prisma.user.findUnique({
-    where: { discord_id: discordId }
-  });
-
-  if (!user) {
-    // Create default account if missing
-    const guestRole = await prisma.role.findUnique({ where: { id: 'default' } });
-    const rolesToConnect = guestRole ? [{ id: guestRole.id }] : [];
-
-    user = await prisma.user.create({
-      data: {
-        discord_id: discordId,
-        discord_name: interaction.user.username,
-        ign: null,
-        enabled: false,
-        password: null,
-        trusted_author: false,
-        joined_at: new Date(),
-        avatar_url: interaction.user.displayAvatarURL({ size: 256, extension: 'png' }),
-        roles: {
-          connect: rolesToConnect
-        }
-      }
-    });
-  } else {
-    let updated = false;
-    const dataToUpdate: any = {};
-    
-    if (user.discord_name !== interaction.user.username) {
-      dataToUpdate.discord_name = interaction.user.username;
-      updated = true;
-    }
-    
-    const currentAvatar = interaction.user.displayAvatarURL({ size: 256, extension: 'png' });
-    if (user.avatar_url !== currentAvatar) {
-      dataToUpdate.avatar_url = currentAvatar;
-      updated = true;
-    }
-
-    if (updated) {
-      user = await prisma.user.update({
-        where: { discord_id: discordId },
-        data: dataToUpdate
-      });
-    }
-  }
-
-  // 2. Check if already activated
-  if (user.enabled) {
-    return interaction.reply({
-      content: '¡Tu cuenta ya está activada! Puedes iniciar sesión en <https://panita.vercel.app/login>',
-      ephemeral: true
-    });
-  }
-
-  // 3. Build the embed instructions
-  const embed = new EmbedBuilder()
+const buildInstructions = () =>
+  new EmbedBuilder()
     .setTitle('Activación de Cuenta')
-    .setColor('#5865F2')
+    .setColor(COLORS.blurple)
     .setDescription('Al activar tu cuenta tendrás acceso completo al Panel Web, permitiéndote ver tus estadísticas, subir fotos e interactuar con la plataforma de la comunidad.')
     .addFields(
       { name: 'Pasos para Activar', value: '1. Haz clic en el botón "Comenzar Activación" de abajo.\n2. Aparecerá un formulario privado emergente.\n3. Ingresa tu IGN de Minecraft y una contraseña segura.\n4. Envía el formulario para activar tu cuenta instantáneamente.' },
-      { name: '⚠️ Aviso Importante', value: 'Tu nombre de Minecraft (IGN) **no se puede cambiar más adelante** y se utilizará para agregarte a la **whitelist** del servidor. Asegúrate de ingresar un nombre válido que te pertenezca legítimamente. Hacerse pasar por otros jugadores está estrictamente prohibido y puede resultar en un baneo.' }
+      { name: '⚠️ Aviso Importante', value: 'Tu nombre de Minecraft (IGN) **no se puede cambiar más adelante** y se utilizará para agregarte a la **whitelist** del servidor. Asegúrate de ingresar un nombre válido que te pertenezca legítimamente. Hacerse pasar por otros jugadores está estrictamente prohibido y puede resultar en un baneo.' },
     );
 
-  const button = new ButtonBuilder()
-    .setCustomId('btn_activate_account')
-    .setLabel('Comenzar Activación')
-    .setStyle(ButtonStyle.Success)
-    .setEmoji('🚀');
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-
-  await interaction.reply({
-    embeds: [embed],
-    components: [row],
-    ephemeral: true
-  });
+const textInput = (id: string, label: string, min: number, max: number, placeholder?: string) => {
+  const input = new TextInputBuilder()
+    .setCustomId(id)
+    .setLabel(label)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setMinLength(min)
+    .setMaxLength(max);
+  if (placeholder) input.setPlaceholder(placeholder);
+  return new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(input);
 };
 
-export const executeButton = async (interaction: ButtonInteraction) => {
-  if (interaction.customId === 'btn_activate_account') {
-    const modal = new ModalBuilder({
-      custom_id: 'modal_activate_account',
-      title: 'Activación de Cuenta',
-      components: [
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.TextInput,
-              custom_id: 'input_ign',
-              label: 'IGN de Minecraft',
-              placeholder: 'Ej: Steve',
-              style: TextInputStyle.Short,
-              required: true,
-              min_length: 3,
-              max_length: 16
-            }
-          ]
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.TextInput,
-              custom_id: 'input_password',
-              label: 'Contraseña',
-              style: TextInputStyle.Short,
-              required: true,
-              min_length: 6,
-              max_length: 32
-            }
-          ]
-        },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.TextInput,
-              custom_id: 'input_confirm_password',
-              label: 'Repetir Contraseña',
-              style: TextInputStyle.Short,
-              required: true,
-              min_length: 6,
-              max_length: 32
-            }
-          ]
+const buildActivationModal = () =>
+  new ModalBuilder()
+    .setCustomId(encodeCustomId({ namespace: NAME, action: 'submit' }))
+    .setTitle('Activación de Cuenta')
+    .addComponents(
+      textInput('input_ign', 'IGN de Minecraft', 3, 16, 'Ej: Steve'),
+      textInput('input_password', 'Contraseña', 6, 32),
+      textInput('input_confirm_password', 'Repetir Contraseña', 6, 32),
+    );
+
+export default defineCommand({
+  data: new SlashCommandBuilder()
+    .setName(NAME)
+    .setDescription('Activa tu cuenta para acceder al Panel Web.'),
+  meta: {
+    category: CATEGORIES.general,
+    description: 'Activa tu cuenta de Discord para iniciar sesión en el Panel Web.',
+    aliases: ['registrar', 'activar'],
+  },
+  async run(ctx) {
+    if (isAltAccount(ctx.member)) return ctx.reply({ content: MESSAGES.alt, ephemeral: true });
+
+    const { user, created } = await ensureUser(profileOf(ctx.user, ctx.member.joinedAt));
+    if (!created) await syncProfile(ctx.user.id, { username: ctx.user.username, avatarUrl: avatarUrlOf(ctx.user) });
+
+    if (user.enabled) return ctx.reply({ content: MESSAGES.alreadyActive, ephemeral: true });
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(ctx.customId('activate'))
+        .setLabel('Comenzar Activación')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('🚀'),
+    );
+
+    await ctx.reply({ embeds: [buildInstructions()], components: [row], ephemeral: true });
+  },
+  components: {
+    activate: button({
+      run: interaction => interaction.showModal(buildActivationModal()),
+    }),
+    submit: modal({
+      async run(interaction) {
+        const ign = interaction.fields.getTextInputValue('input_ign');
+        const password = interaction.fields.getTextInputValue('input_password');
+        const confirmPassword = interaction.fields.getTextInputValue('input_confirm_password');
+        const reply = (content: string) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
+
+        if (password !== confirmPassword) return reply(MESSAGES.passwordMismatch);
+        if (!SPECIAL_CHARACTER.test(password)) return reply(MESSAGES.passwordSpecial);
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        try {
+          await activateAccount(interaction.user.id, ign, password);
+          await interaction.editReply(MESSAGES.success(ign));
+        } catch (error) {
+          console.error('[Activation Error]', error);
+          await interaction.editReply(MESSAGES.failure);
         }
-      ]
-    });
-
-    await interaction.showModal(modal);
-  }
-};
-
-export const executeModal = async (interaction: ModalSubmitInteraction) => {
-  if (interaction.customId === 'modal_activate_account') {
-    const ign = interaction.fields.getTextInputValue('input_ign');
-    const password = interaction.fields.getTextInputValue('input_password');
-    const confirmPassword = interaction.fields.getTextInputValue('input_confirm_password');
-    const discordId = interaction.user.id;
-
-    if (password !== confirmPassword) {
-      return interaction.reply({ content: 'Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.', ephemeral: true });
-    }
-
-    const specialCharRegex = /[!@#$%^&*(),.?":{}|<>_\-+=]/;
-    if (!specialCharRegex.test(password)) {
-      return interaction.reply({ content: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.', ephemeral: true });
-    }
-
-    try {
-      // Defer reply immediately since hashing might take a bit
-      await interaction.deferReply({ ephemeral: true });
-
-      const hashedPassword = bcrypt.hashSync(password, 10);
-
-      await prisma.user.update({
-        where: { discord_id: discordId },
-        data: {
-          ign: ign,
-          password: hashedPassword,
-          enabled: true
-        }
-      });
-
-      await interaction.editReply({
-        content: `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\`.\n\nYa puedes iniciar sesión en: <https://panita.vercel.app/login>`
-      });
-    } catch (error) {
-      console.error('[Activation Error]', error);
-      await interaction.editReply('Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.');
-    }
-  }
-};
+      },
+    }),
+  },
+});
