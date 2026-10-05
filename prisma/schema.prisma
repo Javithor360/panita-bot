@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["public", "launcher"]
 }
 
 model Photo {
@@ -23,6 +25,8 @@ model Photo {
   edition     Edition?   @relation(fields: [edition_id], references: [id])
   user        User?      @relation(fields: [user_id], references: [id])
   categories  Category[] @relation("CategoryToPhoto")
+
+  @@schema("public")
 }
 
 model User {
@@ -42,6 +46,8 @@ model User {
   forms          Form[]         @relation("FormCreator")
   form_responses FormResponse[] @relation("UserFormResponses")
   wiki_articles  WikiArticle[]
+
+  @@schema("public")
 }
 
 model Edition {
@@ -56,6 +62,8 @@ model Edition {
   photos          Photo[]
   users           UserEdition[]
   wiki_articles   WikiArticle[]
+
+  @@schema("public")
 }
 
 model Category {
@@ -64,6 +72,8 @@ model Category {
   icon   String?
   color  String?
   photos Photo[] @relation("CategoryToPhoto")
+
+  @@schema("public")
 }
 
 model Role {
@@ -73,6 +83,8 @@ model Role {
   position        Int     @default(0)
   discord_role_id String? @unique
   users           User[]  @relation("RoleToUser")
+
+  @@schema("public")
 }
 
 model Emblem {
@@ -84,6 +96,8 @@ model Emblem {
   edition_id  String?
   edition     Edition? @relation(fields: [edition_id], references: [id])
   users       User[]   @relation("EmblemToUser")
+
+  @@schema("public")
 }
 
 model UserEdition {
@@ -96,6 +110,7 @@ model UserEdition {
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, edition_id])
+  @@schema("public")
 }
 
 model TicketPanel {
@@ -110,6 +125,8 @@ model TicketPanel {
   ticket_counter        Int      @default(0)
   show_panel_id_in_name Boolean  @default(true)
   tickets               Ticket[]
+
+  @@schema("public")
 }
 
 model Ticket {
@@ -120,6 +137,8 @@ model Ticket {
   status     String      @default("OPEN")
   created_at DateTime    @default(now())
   panel      TicketPanel @relation(fields: [panel_id], references: [id], onDelete: Cascade)
+
+  @@schema("public")
 }
 
 model Tag {
@@ -129,6 +148,8 @@ model Tag {
   media_urls String[]
   author_id  String
   created_at DateTime @default(now())
+
+  @@schema("public")
 }
 
 model Form {
@@ -144,6 +165,8 @@ model Form {
   creator       User           @relation("FormCreator", fields: [creator_id], references: [id])
   sections      FormSection[]
   responses     FormResponse[]
+
+  @@schema("public")
 }
 
 model FormSection {
@@ -154,6 +177,8 @@ model FormSection {
   position    Int            @default(0)
   form        Form           @relation(fields: [form_id], references: [id], onDelete: Cascade)
   questions   FormQuestion[]
+
+  @@schema("public")
 }
 
 model FormQuestion {
@@ -167,6 +192,8 @@ model FormQuestion {
   options     Json?
   section     FormSection  @relation(fields: [section_id], references: [id], onDelete: Cascade)
   answers     FormAnswer[]
+
+  @@schema("public")
 }
 
 model FormResponse {
@@ -179,6 +206,7 @@ model FormResponse {
   answers    FormAnswer[]
 
   @@unique([form_id, user_id])
+  @@schema("public")
 }
 
 model FormAnswer {
@@ -189,6 +217,8 @@ model FormAnswer {
   values      String[]
   response    FormResponse @relation(fields: [response_id], references: [id], onDelete: Cascade)
   question    FormQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@schema("public")
 }
 
 // ---------------------------------------------------------
@@ -203,6 +233,8 @@ model WikiCategory {
   icon        String? // Lucide icon name
   position    Int           @default(0) // display order in sidebar
   articles    WikiArticle[]
+
+  @@schema("public")
 }
 
 model WikiArticle {
@@ -224,6 +256,8 @@ model WikiArticle {
   category WikiCategory @relation(fields: [category_id], references: [id])
   edition  Edition?     @relation(fields: [edition_id], references: [id])
   author   User         @relation(fields: [author_id], references: [id])
+
+  @@schema("public")
 }
 
 model WikiAsset {
@@ -234,4 +268,27 @@ model WikiAsset {
   created_at DateTime @default(now())
 
   @@unique([category, name]) // prevent duplicate uploads
+  @@schema("public")
+}
+
+model Instance {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                 String   @unique
+  name                 String
+  description          String   @default("")
+  icon_url             String?
+  banner_url           String?
+  source_type          String   @default("vanilla") // "vanilla" | "modrinth"
+  minecraft_version    String?
+  modrinth_project_id  String?
+  pack_version_id      String?
+  loader               String? // "fabric" | "quilt" | "forge" | "neoforge"
+  min_launcher_version String?
+  enabled              Boolean  @default(false)
+  sort_order           Int      @default(0)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("instances")
+  @@schema("launcher")
 }
