@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { Prisma, type User as DbUser } from '@prisma/client';
+import { Prisma, type User as DbUser } from '../generated/prisma/client';
 import type { User } from 'discord.js';
 import { prisma } from '../lib/prisma';
 import { avatarUrlOf } from '../lib/discord';

@@ -25,7 +25,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
 
 ## Requirements
 
-- **Node.js 22** or newer.
+- **Node.js 22.12** or newer (required by Prisma 7).
 - Access to the **Panita Web PostgreSQL database**. Panita Web owns the Prisma schema; this repository never changes it.
 - A Discord application with a bot user and both **privileged gateway intents** enabled: *Server Members* and *Message Content*.
 
