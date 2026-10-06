@@ -1,7 +1,7 @@
 import { env } from '../../config/env';
 import { ApiClient } from './client';
 
-export { API_TIMEOUTS } from './client';
+export { API_TIMEOUTS, PRE_ACK_REQUEST } from './client';
 export { ApiError, isApiError } from './errors';
 export { verifyApiAccess } from './startup';
 

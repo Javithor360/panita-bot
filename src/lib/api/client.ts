@@ -4,6 +4,12 @@ import type { ApiEnvelope } from './types';
 /** Timeouts per kind of call. `preAck` is for calls made before a Discord interaction is acknowledged. */
 export const API_TIMEOUTS = { default: 8_000, preAck: 2_000, bulk: 30_000 } as const;
 
+/**
+ * For calls made before a Discord interaction is acknowledged (3 s to answer): one short attempt, no
+ * retries, since a retry would outlast the interaction.
+ */
+export const PRE_ACK_REQUEST = { timeoutMs: API_TIMEOUTS.preAck, idempotent: false } as const;
+
 const MAX_CONCURRENT = 6;
 const MAX_RETRIES = 2;
 const BACKOFF_BASE_MS = 300;
