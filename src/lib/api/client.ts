@@ -25,6 +25,8 @@ export interface RequestOptions {
   timeoutMs?: number;
   /** Whether a failed call may be retried. Defaults to true for GET, PUT and DELETE. */
   idempotent?: boolean;
+  /** Skip the log line of a successful call (for frequent polling); failures and slow calls are still logged. */
+  quiet?: boolean;
 }
 
 /** Overridable pieces, so tests need neither real delays nor real randomness. */
@@ -162,7 +164,7 @@ export class ApiClient {
     const started = Date.now();
     try {
       const { body, status, requestId } = await this.send(method, url, options);
-      this.logSuccess(method, template, status, Date.now() - started, requestId);
+      this.logSuccess(method, template, status, Date.now() - started, requestId, options.quiet);
       return body;
     } catch (error) {
       if (error instanceof ApiError) this.logFailure(method, template, error, Date.now() - started);
@@ -213,7 +215,8 @@ export class ApiClient {
 
   // One line per call; never the request or response body, never the key.
 
-  private logSuccess(method: string, template: string, status: number, ms: number, requestId?: string) {
+  private logSuccess(method: string, template: string, status: number, ms: number, requestId?: string, quiet = false) {
+    if (quiet && ms <= SLOW_CALL_MS) return;
     const line = `[API] ${method} ${template} ${status} ${ms}ms${requestId ? ` req=${requestId}` : ''}`;
     if (ms > SLOW_CALL_MS) this.logger.warn(`${line} (slow)`);
     else this.logger.log(line);

@@ -356,6 +356,28 @@ describe('logging', () => {
     assert.match(lines.error[0], /^\[API\] POST \/v1\/x network \d+ms$/);
   });
 
+  test('a quiet call logs nothing when it succeeds but still logs failures and slow calls', async () => {
+    const { lines, logger } = capture();
+    sequence(ok({}), apiError(503, 'x'));
+    const { client } = makeClient({ logger });
+
+    await client.get('/v1/x', { quiet: true });
+    assert.deepEqual(lines, { log: [], warn: [], error: [] });
+
+    await assert.rejects(client.post('/v1/x', {}, { quiet: true }));
+    assert.equal(lines.error.length, 1);
+
+    mock.restoreAll();
+    let now = 0;
+    mock.method(Date, 'now', () => now);
+    stubFetch(async () => {
+      now += 1_600;
+      return ok({});
+    });
+    await client.get('/v1/x', { quiet: true });
+    assert.equal(lines.warn.length, 1);
+  });
+
   test('warns about slow calls', async () => {
     const { lines, logger } = capture();
     let now = 0;
