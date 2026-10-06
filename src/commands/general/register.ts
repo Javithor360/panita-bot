@@ -15,10 +15,20 @@ import { button, defineCommand, modal } from '../../core/command';
 import { encodeCustomId } from '../../core/customId';
 import { avatarUrlOf, isAltAccount } from '../../lib/discord';
 import { isValidIgn } from '../../lib/minecraft';
-import { activateAccount, ensureUser, IgnTakenError, profileOf, syncProfile } from '../../services/users';
+import { SERVICE_UNAVAILABLE_ERROR } from '../../core/errors';
+import { ApiError } from '../../lib/api';
+import {
+  activateAccount,
+  AlreadyActivatedError,
+  ensureUser,
+  IgnTakenError,
+  InvalidActivationError,
+  profileOf,
+  syncProfile,
+  UserNotFoundError,
+} from '../../services/users';
 
 const NAME = 'register';
-const SPECIAL_CHARACTER = /[!@#$%^&*(),.?":{}|<>_\-+=]/;
 
 const MESSAGES = {
   alt: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
@@ -27,8 +37,25 @@ const MESSAGES = {
   ignTaken: (ign: string) => `❌ El IGN \`${ign}\` ya está registrado por otra cuenta. Si crees que es un error, contacta al Staff.`,
   passwordMismatch:'Las contraseñas no coinciden. Por favor, intenta ejecutar el comando de nuevo.',
   passwordSpecial: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.',
+  passwordLength: 'La contraseña debe tener entre 6 y 32 caracteres.',
   failure: 'Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.',
   success: (ign: string) => `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\`.\n\nYa puedes iniciar sesión en: <${URLS.login}>`,
+};
+
+/** The message for an activation that did not go through; unexpected failures are logged. */
+const activationFailureMessage = (error: unknown, ign: string): string => {
+  if (error instanceof InvalidActivationError) {
+    return {
+      ign_format: MESSAGES.invalidIgn,
+      special: MESSAGES.passwordSpecial,
+      length: MESSAGES.passwordLength,
+    }[error.reason];
+  }
+  if (error instanceof IgnTakenError) return MESSAGES.ignTaken(ign);
+  if (error instanceof AlreadyActivatedError) return MESSAGES.alreadyActive;
+  if (error instanceof ApiError && error.transient) return SERVICE_UNAVAILABLE_ERROR;
+  console.error('[Activation Error]', error);
+  return MESSAGES.failure;
 };
 
 const buildInstructions = () =>
@@ -73,6 +100,9 @@ export default defineCommand({
     aliases: ['registrar', 'activar'],
   },
   async run(ctx) {
+    // Acknowledge before calling the API
+    await ctx.defer({ ephemeral: true });
+
     if (isAltAccount(ctx.member)) return ctx.reply({ content: MESSAGES.alt, ephemeral: true });
 
     const { user, created } = await ensureUser(profileOf(ctx.user, ctx.member.joinedAt));
@@ -102,23 +132,28 @@ export default defineCommand({
         const reply = (content: string) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
 
         if (!isValidIgn(ign)) return reply(MESSAGES.invalidIgn);
-        if (password !== confirmPassword) return reply(MESSAGES.passwordMismatch);
-        if (!SPECIAL_CHARACTER.test(password)) return reply(MESSAGES.passwordSpecial);
+        // The password rules (length, special character) live in the API; its answer is mapped below
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         // Re-validate: the state may have changed since the command was run
         if (!interaction.inCachedGuild() || isAltAccount(interaction.member)) return interaction.editReply(MESSAGES.alt);
-        const { user } = await ensureUser(profileOf(interaction.user, interaction.member.joinedAt));
+        const profile = profileOf(interaction.user, interaction.member.joinedAt);
+        const { user } = await ensureUser(profile);
         if (user.enabled) return interaction.editReply(MESSAGES.alreadyActive);
 
         try {
-          await activateAccount(interaction.user.id, ign, password);
+          try {
+            await activateAccount(interaction.user.id, ign, password);
+          } catch (error) {
+            // The account vanished since it was ensured: create it again and retry once
+            if (!(error instanceof UserNotFoundError)) throw error;
+            await ensureUser(profile);
+            await activateAccount(interaction.user.id, ign, password);
+          }
           await interaction.editReply(MESSAGES.success(ign));
         } catch (error) {
-          if (error instanceof IgnTakenError) return interaction.editReply(MESSAGES.ignTaken(ign));
-          console.error('[Activation Error]', error);
-          await interaction.editReply(MESSAGES.failure);
+          await interaction.editReply(activationFailureMessage(error, ign));
         }
       },
     }),
