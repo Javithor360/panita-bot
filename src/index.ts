@@ -9,6 +9,7 @@ import { userUpdateEvent } from './events/userUpdate';
 import { guildMemberAddEvent } from './events/guildMemberAdd';
 import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
+import { api, verifyApiAccess } from './lib/api';
 import { startPgSync } from './services/pgSync';
 import { keepAlive } from './server';
 
@@ -38,7 +39,12 @@ client.on(Events.GuildRoleDelete, roleDeleteEvent);
 client.on(Events.InteractionCreate, createInteractionHandler(registry));
 client.on(Events.MessageCreate, createMessageHandler(registry));
 
-client.login(env.DISCORD_TOKEN).catch(error => {
+const start = async () => {
+  if (!(await verifyApiAccess(api))) process.exit(1);
+  await client.login(env.DISCORD_TOKEN);
+};
+
+start().catch(error => {
   console.error('[Client] Login failed:', error);
   process.exit(1);
 });

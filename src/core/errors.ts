@@ -1,4 +1,5 @@
 import { Client, Events, MessageFlags, type RepliableInteraction } from 'discord.js';
+import { ApiError } from '../lib/api/errors';
 
 /** An expected failure whose message is safe to show to the user as-is. */
 export class UserError extends Error {}
@@ -7,7 +8,9 @@ export class UserError extends Error {}
 export class PrefixUnsupportedError extends Error {}
 
 export const GENERIC_ERROR = '❌ ¡Hubo un error al ejecutar este comando!';
-export const SLASH_ONLY_ERROR = (name: string) =>
+export const SERVICE_UNAVAILABLE_ERROR =
+  '❌ El servicio no está disponible en este momento. Inténtalo de nuevo en unos segundos.';
+export const SLASH_ONLY_ERROR =(name: string) =>
   `❌ Esta acción es interactiva y solo se puede usar como **Slash Command** (ejemplo: \`/${name}\`).`;
 
 /** Ephemeral reply that never throws (the interaction may have expired). */
@@ -25,6 +28,8 @@ export const safeReply = async (interaction: RepliableInteraction, content: stri
 export const userMessageFor = (error: unknown, commandName: string, scope: string): string => {
   if (error instanceof UserError) return error.message;
   if (error instanceof PrefixUnsupportedError) return SLASH_ONLY_ERROR(commandName);
+  // The API client already logged this call; a rejected key or a bug falls through and is logged below
+  if (error instanceof ApiError && error.transient) return SERVICE_UNAVAILABLE_ERROR;
   console.error(`[${scope}] ${commandName}:`, error);
   return GENERIC_ERROR;
 };
