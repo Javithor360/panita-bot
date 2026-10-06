@@ -20,6 +20,42 @@ export interface WhoAmI {
   client: ApiClientName;
 }
 
+/** The bot's view of an account (`/v1/discord/users`). */
+export interface BotUser {
+  id: number;
+  discord_id: string;
+  enabled: boolean;
+  ign: string | null;
+}
+
+/** `PUT /v1/discord/users/{discordId}` */
+export interface EnsureUserResult {
+  user: BotUser;
+  created: boolean;
+}
+
+/** `PUT /v1/discord/users/{discordId}/roles` */
+export interface RoleSyncCounts {
+  rolesAdded: number;
+  rolesRemoved: number;
+  editionsAdded: number;
+  editionsRemoved: number;
+}
+
+/** `POST /v1/discord/members/resync` */
+export interface ResyncSummary {
+  processed: number;
+  created: number;
+  /** Members repeated within the chunk. */
+  skipped: number;
+}
+
+/** `POST /v1/discord/users/bulk-delete` */
+export interface BulkDeleteResult {
+  deleted: number;
+  skipped: { discord_id: string; reason: 'owns_content' }[];
+}
+
 /** `/v1/tags` */
 export interface Tag {
   id: string;
