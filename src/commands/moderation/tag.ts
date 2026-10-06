@@ -3,7 +3,7 @@ import { CATEGORIES, PREFIX } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { refreshAttachmentUrls } from '../../lib/discord';
-import { deleteTag, getTag, listTags, saveTag } from '../../services/tags';
+import { deleteTag, getTag, listTags, saveTag, TAG_CONTENT_MAX } from '../../services/tags';
 
 /** `!tag <nombre>`: posts the tag's content in the channel. */
 const showTag = async (ctx: CommandContext, rawArgs: string) => {
@@ -27,7 +27,7 @@ export default defineCommand({
         .setName('add')
         .setDescription('Crea o actualiza un tag.')
         .addStringOption(option => option.setName('nombre').setDescription('Nombre del tag').setRequired(true))
-        .addStringOption(option => option.setName('texto').setDescription('Contenido del tag').setRequired(false))
+        .addStringOption(option => option.setName('texto').setDescription('Contenido del tag').setMaxLength(TAG_CONTENT_MAX).setRequired(false))
         .addAttachmentOption(option => option.setName('adjunto').setDescription('Imagen o archivo adjunto').setRequired(false)),
     )
     .addSubcommand(subcommand =>
@@ -52,6 +52,9 @@ export default defineCommand({
   },
   async run(ctx) {
     const subcommand = ctx.options.getSubcommand();
+
+    // Acknowledge before calling the API: list is public, add and delete are ephemeral
+    await ctx.defer({ ephemeral: subcommand !== 'list' });
 
     if (subcommand === 'list') {
       const tags = await listTags();
