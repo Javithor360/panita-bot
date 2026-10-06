@@ -19,3 +19,16 @@ export type ApiClientName = 'web' | 'bot' | 'launcher' | 'mod';
 export interface WhoAmI {
   client: ApiClientName;
 }
+
+/** `GET /v1/photos/random` */
+export interface RandomPhoto {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  date_taken: string | null;
+  created_at: string;
+  user: { ign: string | null } | null;
+  edition: { id: string; name: string } | null;
+  categories: { id: string; name: string }[];
+}
