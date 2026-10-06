@@ -37,8 +37,6 @@ export const env = {
   DISCORD_TOKEN: required('DISCORD_TOKEN'),
   PANITA_API_KEY: required('PANITA_API_KEY'),
   PANITA_API_URL: apiUrl(),
-  DATABASE_URL: required('DATABASE_URL'),
-  DIRECT_URL: required('DIRECT_URL'),
   STAFF_ROLE_ID: required('STAFF_ROLE_ID'),
   DEVELOPER_ID: required('DEVELOPER_ID'),
   ALT_ROLE_ID: required('ALT_ROLE_ID'),

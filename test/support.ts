@@ -5,7 +5,7 @@
  */
 import { mock } from 'node:test';
 
-for (const name of ['DISCORD_TOKEN', 'DATABASE_URL', 'DIRECT_URL', 'STAFF_ROLE_ID', 'DEVELOPER_ID', 'ALT_ROLE_ID']) {
+for (const name of ['DISCORD_TOKEN', 'STAFF_ROLE_ID', 'DEVELOPER_ID', 'ALT_ROLE_ID']) {
   process.env[name] = 'test';
 }
 process.env.PANITA_API_KEY = 'pk_test_key';
