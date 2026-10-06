@@ -20,6 +20,24 @@ export interface WhoAmI {
   client: ApiClientName;
 }
 
+/** One web → Discord change from `GET /v1/discord/sync-events`. */
+export interface SyncEvent {
+  /** Grows with time; used as the cursor. */
+  id: number;
+  kind: 'role' | 'edition';
+  action: 'add' | 'remove';
+  user_id: number;
+  discord_id: string;
+  discord_role_id: string;
+  /** The client that caused the change (`web`, `bot`, …). */
+  origin: string;
+  created_at: string;
+}
+
+export interface SyncEventsMeta extends ListMeta {
+  cursor: number;
+}
+
 /** `/v1/ticket-panels` */
 export interface TicketPanel {
   id: string;
