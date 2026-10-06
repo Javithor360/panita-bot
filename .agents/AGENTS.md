@@ -5,8 +5,8 @@
 - Commits pequeños y útiles, con formato convencional y solo asunto: `feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`, `docs: ...`, `test: ...`.
 - Cada commit debe compilar (`npx tsc --noEmit`) y pasar los tests (`npm test`).
 
-## Base de datos
-- **No modificar `prisma/schema.prisma` desde este repositorio.** La base de datos se comparte con `panita-web`, que es el dueño del esquema.
+## Datos
+- **El bot no se conecta a la base de datos.** Toda lectura y escritura pasa por la API de Panita (`lib/api`) con la clave de servicio del bot (`PANITA_API_KEY`). El esquema y sus cambios viven en `panita-api`.
 
 ## Arquitectura
 ```
@@ -26,9 +26,9 @@ src/
     errors.ts          UserError, respuestas seguras y handlers de proceso
   handlers/            interactionCreate (slash + componentes) y messageCreate (prefijo)
   events/              listeners del gateway, delgados; delegan en services/
-  services/            lógica de negocio y TODO el acceso a Prisma (users, memberSync, pgSync, tickets, tags, gallery, roles, commandDeploy)
-  lib/                 helpers: prisma, discord, minecraft, embeds, format, galactic, syncLock
-  lib/api/             cliente de la API de Panita (client, errors, types, startup); migración en curso, ver docs/api-migration-plan.md
+  services/            lógica de negocio y TODO el acceso a la API (users, memberSync, webSync, tickets, tags, gallery, roles, commandDeploy)
+  lib/                 helpers: discord, minecraft, embeds, format, galactic, syncLock
+  lib/api/             cliente de la API de Panita (client, errors, types, startup)
   data/                contenido estático (Tezzlar, minieventos, recetas, encantamientos, comida, comandos del server)
   features/tickets/    sistema de tickets dividido: permissions, embeds, panel, components, context
   commands/<cat>/      un archivo por comando (`export default defineCommand({...})`)
@@ -36,7 +36,6 @@ src/
 test/                  tests unitarios (node:test) del parser y del customId
 ```
 - **Los comandos son delgados:** leen opciones → llaman a un service → construyen el embed.
-- **Prisma solo en `services/`** (y `lib/prisma.ts`).
 - **El cliente de la API (`lib/api`) solo se importa desde `services/`** (y desde `index.ts` para la verificación de arranque). Las rutas llevan placeholders `{nombre}` con `params`; nunca se arman a mano. Nunca registrar cuerpos de petición ni la clave.
 - **Variables de entorno solo vía `config/env.ts`**; nunca `process.env` directo.
 - **URLs externas y assets solo vía `config/constants.ts` y `lib/minecraft.ts`** (skins, cabezas, etc.).
@@ -59,9 +58,9 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - Los handlers se declaran en `components` del comando con `button()`, `select()` o `modal()`.
 - `legacyCustomId` mapea IDs antiguos (`btn_ticket_*`) de paneles y controles de tickets que ya están publicados en Discord. **No eliminarlo** mientras existan paneles antiguos.
 
-### Sincronización con la base de datos
-- Discord → BD: `guildMemberAdd`, `userUpdate`, `guildMemberUpdate` y `roleDelete` usan `services/users` y `services/memberSync`.
-- BD → Discord: `services/pgSync` escucha `NOTIFY discord_sync` (usa `DIRECT_URL`, reconecta solo) y aplica roles; `lib/syncLock` evita bucles.
+### Sincronización con la web
+- Discord → web: `guildMemberAdd`, `userUpdate`, `guildMemberUpdate` y `roleDelete` usan `services/users` y `services/memberSync`.
+- Web → Discord: `services/webSync` consulta cada pocos segundos el outbox de la API (`GET /v1/discord/sync-events`, con cursor en memoria) y aplica roles; `lib/syncLock` evita bucles.
 - Solo se sincronizan roles con `discord_role_id`; los roles exclusivos de la web nunca se tocan.
 - `/systemsync` **nunca elimina datos**: crea cuentas faltantes, actualiza perfiles y roles, y solo agrega ediciones.
 - TODO: al quitar un rol de edición en Discord se elimina el `UserEdition` (se pierde `history_text`). A futuro debería desactivarse con un campo `enabled` en lugar de borrarse.
