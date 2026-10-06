@@ -10,7 +10,7 @@ import { guildMemberAddEvent } from './events/guildMemberAdd';
 import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
 import { api, verifyApiAccess } from './lib/api';
-import { startPgSync } from './services/pgSync';
+import { startWebSync } from './services/webSync';
 import { keepAlive } from './server';
 
 const client = new Client({
@@ -28,7 +28,7 @@ const registry = getRegistry();
 
 client.once(Events.ClientReady, c => {
   readyEvent(c, registry);
-  startPgSync(client);
+  startWebSync(client);
   keepAlive();
 });
 
