@@ -20,6 +20,16 @@ export interface WhoAmI {
   client: ApiClientName;
 }
 
+/** `/v1/tags` */
+export interface Tag {
+  id: string;
+  name: string;
+  content: string | null;
+  media_urls: string[];
+  author_id: string;
+  created_at: string;
+}
+
 /** `GET /v1/photos/random` */
 export interface RandomPhoto {
   id: string;
