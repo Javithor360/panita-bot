@@ -48,6 +48,8 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `DISCORD_TOKEN` | ✅ | Bot token. |
 | `DATABASE_URL` | ✅ | PostgreSQL connection through the transaction pooler (e.g. port `6543` with `?pgbouncer=true`). |
 | `DIRECT_URL` | ✅ | Session/direct connection (e.g. port `5432`). Used for `LISTEN/NOTIFY`. |
+| `PANITA_API_KEY` | ✅ | Service key of the `bot` client of the Panita API. The bot checks it on startup and exits if the API rejects it. |
+| `PANITA_API_URL` | — | Base URL of the Panita API. Defaults to `https://api.panitacraft.com`; must use `https` (plain `http` only for `localhost`). |
 | `STAFF_ROLE_ID` | ✅ | Staff role. Grants access to moderation and ticket commands. |
 | `DEVELOPER_ID` | ✅ | Developer user ID. Grants access to developer commands. |
 | `ALT_ROLE_ID` | ✅ | Role that marks secondary (alt) accounts. |
@@ -62,6 +64,7 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 DISCORD_TOKEN=your-bot-token
 DATABASE_URL=postgresql://user:password@host:6543/postgres?pgbouncer=true
 DIRECT_URL=postgresql://user:password@host:5432/postgres
+PANITA_API_KEY=pk_your-bot-service-key
 STAFF_ROLE_ID=000000000000000000
 DEVELOPER_ID=000000000000000000
 ALT_ROLE_ID=000000000000000000
@@ -81,6 +84,7 @@ GUILD_ID=000000000000000000
 | `npm run deploy -- --guild` | Registers the slash commands in `GUILD_ID` only. |
 | `npm run deploy:prod` | Same as `deploy`, using the compiled build. |
 | `npm test` | Runs the unit tests. |
+| `npm run smoke:api` | Read-only check of the Panita API from this environment (key, URL and response shapes). Run it after every deploy. |
 
 ## Registering slash commands
 

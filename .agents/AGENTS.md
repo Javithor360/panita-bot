@@ -28,6 +28,7 @@ src/
   events/              listeners del gateway, delgados; delegan en services/
   services/            lógica de negocio y TODO el acceso a Prisma (users, memberSync, pgSync, tickets, tags, gallery, roles, commandDeploy)
   lib/                 helpers: prisma, discord, minecraft, embeds, format, galactic, syncLock
+  lib/api/             cliente de la API de Panita (client, errors, types, startup); migración en curso, ver docs/api-migration-plan.md
   data/                contenido estático (Tezzlar, minieventos, recetas, encantamientos, comida, comandos del server)
   features/tickets/    sistema de tickets dividido: permissions, embeds, panel, components, context
   commands/<cat>/      un archivo por comando (`export default defineCommand({...})`)
@@ -36,6 +37,7 @@ test/                  tests unitarios (node:test) del parser y del customId
 ```
 - **Los comandos son delgados:** leen opciones → llaman a un service → construyen el embed.
 - **Prisma solo en `services/`** (y `lib/prisma.ts`).
+- **El cliente de la API (`lib/api`) solo se importa desde `services/`** (y desde `index.ts` para la verificación de arranque). Las rutas llevan placeholders `{nombre}` con `params`; nunca se arman a mano. Nunca registrar cuerpos de petición ni la clave.
 - **Variables de entorno solo vía `config/env.ts`**; nunca `process.env` directo.
 - **URLs externas y assets solo vía `config/constants.ts` y `lib/minecraft.ts`** (skins, cabezas, etc.).
 - **Un comando se define una sola vez** para slash y prefijo; el parser de prefijo usa el esquema del `SlashCommandBuilder`. Nunca ramificar por "¿es prefijo?" (la única excepción razonable es algo inherente al mensaje, como borrar el mensaje que invocó el comando con `ctx.deleteTrigger()`).
