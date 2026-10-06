@@ -20,6 +20,38 @@ export interface WhoAmI {
   client: ApiClientName;
 }
 
+/** `/v1/ticket-panels` */
+export interface TicketPanel {
+  id: string;
+  guild_id: string;
+  channel_id: string;
+  message_id: string;
+  title: string;
+  description: string | null;
+  category_id: string | null;
+  staff_role_id: string | null;
+  /** The last ticket number handed out. */
+  ticket_counter: number;
+  show_panel_id_in_name: boolean;
+}
+
+export type TicketStatus = 'OPEN' | 'CLOSED';
+
+/** `/v1/tickets` */
+export interface Ticket {
+  id: string;
+  panel_id: string;
+  channel_id: string;
+  creator_id: string;
+  status: TicketStatus;
+  created_at: string;
+}
+
+/** `GET /v1/tickets/by-channel/{channelId}` */
+export interface TicketWithPanel extends Ticket {
+  panel: TicketPanel;
+}
+
 /** The bot's view of an account (`/v1/discord/users`). */
 export interface BotUser {
   id: number;
