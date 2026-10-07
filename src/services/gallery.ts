@@ -1,27 +1,23 @@
-import type { Prisma } from '../generated/prisma/client';
-import { prisma } from '../lib/prisma';
+import { api, isApiError } from '../lib/api';
+import type { RandomPhoto } from '../lib/api/types';
 
-/** Older rows may predate `media_type`, so video files are also excluded by extension. */
-const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
-
-const PHOTO_WHERE: Prisma.PhotoWhereInput = {
-  enabled: true,
-  media_type: 'image',
-  NOT: VIDEO_EXTENSIONS.map(ext => ({ url: { endsWith: ext, mode: 'insensitive' as const } })),
+/** A gallery photo with the fields the `/gallery` embed reads, dates already converted. */
+export type GalleryPhoto = Omit<RandomPhoto, 'date_taken' | 'created_at'> & {
+  date_taken: Date | null;
+  created_at: Date;
 };
-
-const PHOTO_INCLUDE = { user: true, categories: true, edition: true } satisfies Prisma.PhotoInclude;
-
-export type GalleryPhoto = Prisma.PhotoGetPayload<{ include: typeof PHOTO_INCLUDE }>;
 
 /** A random enabled image from the gallery, or `null` when there are none. */
 export const getRandomPhoto = async (): Promise<GalleryPhoto | null> => {
-  const count = await prisma.photo.count({ where: PHOTO_WHERE });
-  if (count === 0) return null;
-
-  return prisma.photo.findFirst({
-    where: PHOTO_WHERE,
-    skip: Math.floor(Math.random() * count),
-    include: PHOTO_INCLUDE,
-  });
+  try {
+    const photo = await api.get<RandomPhoto>('/v1/photos/random');
+    return {
+      ...photo,
+      date_taken: photo.date_taken ? new Date(photo.date_taken) : null,
+      created_at: new Date(photo.created_at),
+    };
+  } catch (error) {
+    if (isApiError(error, 404)) return null;
+    throw error;
+  }
 };

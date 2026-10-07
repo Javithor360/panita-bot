@@ -8,6 +8,7 @@ const WEB_BASE = 'https://www.panitacraft.com';
 export const URLS = {
   web: `${WEB_BASE}/`,
   login: `${WEB_BASE}/login`,
+  api: 'https://api.panitacraft.com',
   tezzlar3: `${WEB_BASE}/tezzlar3`,
   gallery: (photoId: string) => `${WEB_BASE}/gallery?photo=${photoId}`,
   editionIcon: (editionId: string) => `https://res.cloudinary.com/panita/image/upload/panita-web/logos/icon_${editionId}.png`,

@@ -25,8 +25,8 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
 
 ## Requirements
 
-- **Node.js 22.12** or newer (required by Prisma 7).
-- Access to the **Panita Web PostgreSQL database**. Panita Web owns the Prisma schema; this repository never changes it.
+- **Node.js 22** or newer.
+- A **service key of the `bot` client** of the [Panita API](https://api.panitacraft.com/docs). The bot never connects to the database: every read and write goes through the API.
 - A Discord application with a bot user and both **privileged gateway intents** enabled: *Server Members* and *Message Content*.
 
 ## Installation
@@ -37,7 +37,7 @@ cd panita-bot
 npm install
 ```
 
-`npm install` also runs `prisma generate`, so the database client is ready right away. Next, create the `.env` file described below.
+Next, create the `.env` file described below.
 
 ## Configuration
 
@@ -46,8 +46,8 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | Variable | Required | Purpose |
 |---|:---:|---|
 | `DISCORD_TOKEN` | ✅ | Bot token. |
-| `DATABASE_URL` | ✅ | PostgreSQL connection through the transaction pooler (e.g. port `6543` with `?pgbouncer=true`). |
-| `DIRECT_URL` | ✅ | Session/direct connection (e.g. port `5432`). Used for `LISTEN/NOTIFY`. |
+| `PANITA_API_KEY` | ✅ | Service key of the `bot` client of the Panita API. The bot checks it on startup and exits if the API rejects it. |
+| `PANITA_API_URL` | — | Base URL of the Panita API. Defaults to `https://api.panitacraft.com`; must use `https` (plain `http` only for `localhost`). |
 | `STAFF_ROLE_ID` | ✅ | Staff role. Grants access to moderation and ticket commands. |
 | `DEVELOPER_ID` | ✅ | Developer user ID. Grants access to developer commands. |
 | `ALT_ROLE_ID` | ✅ | Role that marks secondary (alt) accounts. |
@@ -60,8 +60,7 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 
 ```env
 DISCORD_TOKEN=your-bot-token
-DATABASE_URL=postgresql://user:password@host:6543/postgres?pgbouncer=true
-DIRECT_URL=postgresql://user:password@host:5432/postgres
+PANITA_API_KEY=pk_your-bot-service-key
 STAFF_ROLE_ID=000000000000000000
 DEVELOPER_ID=000000000000000000
 ALT_ROLE_ID=000000000000000000
@@ -81,6 +80,7 @@ GUILD_ID=000000000000000000
 | `npm run deploy -- --guild` | Registers the slash commands in `GUILD_ID` only. |
 | `npm run deploy:prod` | Same as `deploy`, using the compiled build. |
 | `npm test` | Runs the unit tests. |
+| `npm run smoke:api` | Read-only check of the Panita API from this environment (key, URL and response shapes). Run it after every deploy. |
 
 ## Registering slash commands
 
@@ -116,8 +116,8 @@ src/
   core/          command framework (single definition for slash + prefix, parser, custom IDs, registry)
   handlers/      routing for interactions and prefix messages
   events/        Discord gateway events
-  services/      business logic and every database access
-  lib/           shared helpers
+  services/      business logic and every call to the Panita API
+  lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
   features/      large features split into modules (tickets)
   commands/      one file per command, grouped by category
@@ -251,7 +251,7 @@ The sync runs in both directions and needs no manual steps.
 | A member joins the server | A disabled Panita Web account is created with the default role. The member activates it with `/register`. |
 | A member changes their username or avatar (global or server) | The stored profile is updated. |
 | A member's Discord roles change | Their web roles and editions are updated. Only roles linked to a Discord role are synced; web-only roles are never touched. |
-| Panita Web changes a user's roles or editions | The database emits a `NOTIFY`, and the bot applies the matching Discord role. The connection reconnects on its own if it drops. |
+| Panita Web changes a user's roles or editions | The API records the change in an outbox. The bot polls it every few seconds and applies the matching Discord role, so a change reaches Discord within about 5 seconds. Polling backs off and recovers on its own if the API is down. |
 | A Discord role is deleted | The web role is unlinked from Discord, not deleted. |
 | A developer runs `/systemsync` | Every member is resynced. Missing accounts are created and nothing is deleted. |
 
@@ -267,5 +267,5 @@ The sync runs in both directions and needs no manual steps.
 
 ## Known issues and roadmap
 
-- [ ] **Keep edition history when a Discord role is removed.** Removing an edition role on Discord currently deletes the member's `UserEdition`, including its `history_text`. It should be deactivated instead (an `enabled` flag in the shared schema).
+- [ ] **Keep edition history when a Discord role is removed.** Removing an edition role on Discord currently deletes the member's edition membership, including its `history_text`. It should be deactivated instead (an `enabled` flag in the shared schema, exposed by the API).
 - [ ] **Move Discord CDN assets to Cloudinary.** Some icons and images (`Picel.gif`, `corazonestezzlar.png`, recipe images) point to Discord attachment links, which expire. They're centralized in `src/config/constants.ts` and `src/data/recipes.ts`, so moving them only means swapping those URLs.

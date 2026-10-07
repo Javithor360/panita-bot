@@ -21,7 +21,8 @@ export default defineCommand({
     const altIds = members.filter(isAltAccount).map(member => member.id);
     if (altIds.length === 0) return ctx.reply('No se encontraron cuentas secundarias en el servidor.');
 
-    const deleted = await deleteUsersByDiscordIds(altIds);
-    await ctx.reply(`✅ Se han eliminado **${deleted}** cuentas secundarias de la base de datos.`);
+    const { deleted, skipped } = await deleteUsersByDiscordIds(altIds);
+    const omitted = skipped.length > 0 ? `\n${skipped.length} cuentas omitidas porque tienen contenido en la web.` : '';
+    await ctx.reply(`✅ Se han eliminado **${deleted}** cuentas secundarias de la base de datos.${omitted}`);
   },
 });

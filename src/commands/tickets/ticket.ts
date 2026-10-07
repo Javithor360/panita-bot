@@ -20,6 +20,8 @@ import { deletePanelMessage, sendPanel } from '../../features/tickets/panel';
 import { deletePanel, getPanel, listPanels, updatePanel, type PanelConfigUpdate } from '../../services/tickets';
 
 const PANEL_NOT_FOUND = '❌ No se encontró ningún panel con ese ID.';
+/** The API refuses larger counters. */
+const COUNTER_MAX = 1_000_000_000;
 
 const panelIdOption = (description = 'ID del panel') =>
   (option: SlashCommandStringOption) => option.setName('panel_id').setDescription(description).setRequired(true);
@@ -63,7 +65,8 @@ const subcommands: Record<string, (ctx: CommandContext) => Promise<unknown>> = {
     await ctx.defer();
     const panel = await requirePanel(ctx.options.getString('panel_id', true));
     await deletePanelMessage(ctx.client, panel);
-    await deletePanel(panel.id);
+    // It may have been deleted since the lookup above
+    if (!(await deletePanel(panel.id))) throw new UserError(PANEL_NOT_FOUND);
     await ctx.reply(`✅ Panel **${panel.id}** eliminado.`);
   },
 
@@ -189,7 +192,7 @@ export default defineCommand({
         .setName('counter')
         .setDescription('Ajusta el número de contador de tickets')
         .addStringOption(panelIdOption())
-        .addIntegerOption(opt => opt.setName('number').setDescription('Número inicial').setRequired(true)))
+        .addIntegerOption(opt => opt.setName('number').setDescription('Número inicial').setMinValue(0).setMaxValue(COUNTER_MAX).setRequired(true)))
       .addSubcommand(sub => sub
         .setName('show_id_in_name')
         .setDescription('Alternar si se muestra el ID del panel en el nombre del ticket')

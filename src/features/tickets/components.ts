@@ -2,7 +2,8 @@ import { ChannelType, MessageFlags, MessageType, OverwriteType, type ButtonInter
 import * as discordTranscripts from 'discord-html-transcripts';
 import { COLORS } from '../../config/constants';
 import { button, modal, type ComponentHandler } from '../../core/command';
-import { UserError } from '../../core/errors';
+import { SERVICE_UNAVAILABLE_ERROR, UserError } from '../../core/errors';
+import { ApiError } from '../../lib/api';
 import {
   createPanel,
   createTicket,
@@ -10,10 +11,13 @@ import {
   findTicketByChannel,
   getPanel,
   nextTicketNumber,
+  PanelExistsError,
   PANEL_ID_PATTERN,
   setTicketStatus,
   TICKET_STATUS,
 } from '../../services/tickets';
+import { createTicketFlow } from './create';
+import { ticketOfInteraction } from './context';
 import {
   buildCloseConfirm,
   buildClosedControls,
@@ -51,7 +55,7 @@ const NOT_ALLOWED_STAFF = '❌ Solo el equipo de soporte puede usar estos contro
 /** Guard: the ticket's creator or its panel staff. */
 const creatorOrStaff = async (interaction: ButtonInteraction) => {
   if (!interaction.inCachedGuild()) return NOT_ALLOWED_CLOSE;
-  const ticket = await findTicketByChannel(interaction.channelId);
+  const ticket = await ticketOfInteraction(interaction);
   if (!ticket) return null; // the handler reports the invalid ticket
   const allowed = interaction.user.id === ticket.creator_id || canManageTicket(interaction.member, ticket.panel);
   return allowed ? null : NOT_ALLOWED_CLOSE;
@@ -60,7 +64,7 @@ const creatorOrStaff = async (interaction: ButtonInteraction) => {
 /** Guard: panel staff or administrators only (closed-ticket controls). */
 const staffOnly = async (interaction: ButtonInteraction) => {
   if (!interaction.inCachedGuild()) return NOT_ALLOWED_STAFF;
-  const ticket = await findTicketByChannel(interaction.channelId);
+  const ticket = await ticketOfInteraction(interaction);
   if (!ticket) return null;
   return canManageTicket(interaction.member, ticket.panel) ? null : NOT_ALLOWED_STAFF;
 };
@@ -70,40 +74,52 @@ const createTicketChannel = button({
     const interaction = cachedGuildOf(rawInteraction);
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    const existing = await findOpenTicketByCreator(interaction.user.id, interaction.guildId);
-    if (existing) {
-      return interaction.editReply(`Parece que ya tienes un ticket abierto en <#${existing.channel_id}>, para abrir uno nuevo primero debes cerrar el ya existente.`);
-    }
-
-    const panel = await getPanel(panelId);
-    if (!panel) return interaction.editReply('❌ No se encontró el panel de tickets.');
-
-    const { ticket_counter: counter, show_panel_id_in_name: showPanelId } = await nextTicketNumber(panel.id);
-    const number = counter.toString().padStart(4, '0');
-
     try {
-      const channel = await interaction.guild.channels.create({
-        name: showPanelId ? `ticket-${panel.id}-${number}` : `ticket-${number}`,
-        type: ChannelType.GuildText,
-        parent: panel.category_id ?? undefined,
-        permissionOverwrites: buildTicketOverwrites({
-          guildId: interaction.guildId,
-          creatorId: interaction.user.id,
-          botId: interaction.client.user.id,
-          staffRoleId: panel.staff_role_id,
-        }),
-      });
+      const result = await createTicketFlow(
+        { panelId, guildId: interaction.guildId, creatorId: interaction.user.id },
+        {
+          findOpenTicketByCreator,
+          getPanel,
+          nextTicketNumber,
+          createTicket,
+          findTicketByChannel,
+          deleteChannel: channelId => interaction.guild.channels.delete(channelId),
+          createChannel: panel => {
+            const number = panel.ticket_counter.toString().padStart(4, '0');
+            return interaction.guild.channels.create({
+              name: panel.show_panel_id_in_name ? `ticket-${panel.id}-${number}` : `ticket-${number}`,
+              type: ChannelType.GuildText,
+              parent: panel.category_id ?? undefined,
+              permissionOverwrites: buildTicketOverwrites({
+                guildId: interaction.guildId,
+                creatorId: interaction.user.id,
+                botId: interaction.client.user.id,
+                staffRoleId: panel.staff_role_id,
+              }),
+            });
+          },
+        },
+      );
 
-      await createTicket({ channelId: channel.id, panelId: panel.id, creatorId: interaction.user.id });
+      if (result.status === 'panel_not_found') return interaction.editReply('❌ No se encontró el panel de tickets.');
+      if (result.status === 'already_open') {
+        const where = result.channelId ? ` en <#${result.channelId}>` : '';
+        return interaction.editReply(`Parece que ya tienes un ticket abierto${where}, para abrir uno nuevo primero debes cerrar el ya existente.`);
+      }
 
-      const welcome = await channel.send(buildWelcomeMessage(interaction.user.id, panel.staff_role_id));
-      await welcome.pin();
-      removePinNotice(channel);
+      const channel = interaction.guild.channels.cache.get(result.channelId);
+      if (channel?.type === ChannelType.GuildText) {
+        const welcome = await channel.send(buildWelcomeMessage(interaction.user.id, result.panel.staff_role_id));
+        await welcome.pin();
+        removePinNotice(channel);
+      }
 
-      await interaction.editReply(`✅ Tu ticket ha sido creado: <#${channel.id}>`);
+      await interaction.editReply(`✅ Tu ticket ha sido creado: <#${result.channelId}>`);
     } catch (error) {
       console.error('[Tickets] Failed to create ticket channel:', error);
-      await interaction.editReply('❌ Hubo un error al crear tu canal de ticket.');
+      await interaction.editReply(
+        error instanceof ApiError && error.transient ? SERVICE_UNAVAILABLE_ERROR : '❌ Hubo un error al crear tu canal de ticket.',
+      );
     }
   },
 });
@@ -111,7 +127,7 @@ const createTicketChannel = button({
 const closePrompt = button({
   guard: creatorOrStaff,
   async run(interaction) {
-    const ticket = await findTicketByChannel(interaction.channelId);
+    const ticket = await ticketOfInteraction(interaction);
     if (!ticket || ticket.status === TICKET_STATUS.closed) {
       return interaction.reply({ content: '❌ Este ticket ya está cerrado o es inválido.', flags: MessageFlags.Ephemeral });
     }
@@ -123,7 +139,7 @@ const closeConfirm = button({
   guard: creatorOrStaff,
   async run(interaction) {
     await interaction.deferUpdate();
-    const ticket = await findTicketByChannel(interaction.channelId);
+    const ticket = await ticketOfInteraction(interaction);
     if (!ticket) return;
 
     await setTicketStatus(ticket.id, TICKET_STATUS.closed);
@@ -157,7 +173,7 @@ const reopen = button({
   guard: staffOnly,
   async run(interaction) {
     await interaction.deferUpdate();
-    const ticket = await findTicketByChannel(interaction.channelId);
+    const ticket = await ticketOfInteraction(interaction);
     if (!ticket) return;
 
     await setTicketStatus(ticket.id, TICKET_STATUS.open);
@@ -226,6 +242,10 @@ const panelModal = modal({
       await createPanel({ id, guildId: interaction.guildId, channelId: channel.id, messageId: message.id, title, description });
     } catch (error) {
       await message.delete().catch(() => {});
+      // Someone created the same id between the check above and now
+      if (error instanceof PanelExistsError) {
+        return interaction.editReply(`❌ Ya existe un panel con la índole/ID **${id}**. Por favor elige otro o elimínalo primero.`);
+      }
       throw error;
     }
 
