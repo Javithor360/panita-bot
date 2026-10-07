@@ -9,7 +9,7 @@ export default defineCommand({
   meta: {
     category: CATEGORIES.general,
     description: 'Comparte el enlace directo al Panel Web del servidor.',
-    aliases: ['pagina', 'panel'],
+    aliases: ['pagina', 'panel', 'website'],
   },
   async run(ctx) {
     await ctx.reply(`Visita nuestro sitio web oficial: <${URLS.web}>`);
