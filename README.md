@@ -18,6 +18,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
   - [Commands](#commands)
   - [Ticket system](#ticket-system)
   - [Sign-in codes and sessions](#sign-in-codes-and-sessions)
+  - [Minecraft bridge](#minecraft-bridge)
   - [Panita Web synchronization](#panita-web-synchronization)
   - [Reliability](#reliability)
 - [Known issues and roadmap](#known-issues-and-roadmap)
@@ -54,7 +55,16 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `ALT_ROLE_ID` | ✅ | Role that marks secondary (alt) accounts. |
 | `GUILD_ID` | Recommended | Home server. Events from other servers are ignored, and it's required for the Panita Web → Discord sync. |
 | `CLIENT_ID` | — | Application ID. Resolved from the token when omitted. |
-| `PORT` | — | Port of the health-check endpoint. Defaults to `3005`. |
+| `PORT` | — | Port of the health-check endpoint, which also takes the Minecraft bridge. Defaults to `3005`. |
+| `BRIDGE_KEY` | — | Secret the Minecraft server sends to connect (at least 16 characters). Without it the Minecraft bridge is off. |
+| `MC_CHANNEL_GLOBAL` | — | Discord channel joined to the server's global chat. Also where notifications go and whose topic shows the server. |
+| `MC_CHANNEL_STAFF` | — | Optional channel joined to the server's staff chat. |
+| `MC_JOINED_ROLE_ID` | — | Role given to a linked member when they join the Minecraft server. |
+| `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED` | — | Head templates for players with a Microsoft account and for those with a PIN, with `{uuid}`, `{name}` and `{nickname}`. Default to `mc-heads.net`. |
+| `MC_TOPIC_TEMPLATE` | — | The topic of the global channel, with `{online}`, `{max}`, `{tps}` and `{uptime}`. |
+| `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
+| `MC_SYNC_PILOT_IDS` | — | Comma-separated Discord ids. When set, the nickname sync and the join role only touch these members. |
+| `MC_SYNC_MINUTES` | — | Minutes between runs of the topic and nickname sync. At least 10. |
 
 <details>
 <summary>Example <code>.env</code></summary>
@@ -120,7 +130,7 @@ src/
   services/      business logic and every call to the Panita API
   lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
-  features/      large features split into modules (tickets)
+  features/      large features split into modules (tickets, minecraft)
   commands/      one file per command, grouped by category
 test/            unit tests
 ```
@@ -183,10 +193,12 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `food` | Rebalanced food values and special dishes in Tezzlar III. | `comida`, `foods`, `comidas` |
 | `ip [--numeric]` | Server address (domain or numeric IP). | `server`, `jugar` |
 | `minievent <id\|list>` | Details of a Tezzlar minievent, or the full list. | `minieventos`, `minievents`, `me` |
+| `playerlist` | Who is online on the Minecraft server, by chat nickname with the real name beside it. Asks the server live. | `jugadores`, `conectados` |
 | `recipes <id\|list>` | Custom crafting recipes with guide images, or the full list. | `recetas`, `crafteos`, `crafts` |
 | `resources` | Download link for the mods and textures, plus installation steps. | `recursos`, `assets` |
 | `skin <player>` | A player's skin with a menu to switch views (3D, bust, head…). Only the member who ran it can switch views. | `skins` |
 | `tezzlar day <number> [--force]` | Information for a Tezzlar III day. Each day unlocks on its date; `--force` bypasses that for the developer. `!tz <number>` also works. | `tez`, `tz` |
+| `tps` | Ticks per second of the Minecraft server and the average time of a tick. Asks the server live. | `rendimiento` |
 | `trailer` | Link to the Tezzlar 3 trailer. | — |
 
 </details>
@@ -228,6 +240,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 
 | Command | Description | Aliases |
 |---|---|---|
+| `bridge` | State of the connection with the Minecraft server: version, joined channels, traffic and last error. | — |
 | `systemsync` | Full sync with the server: creates missing accounts and updates profiles, roles and editions. **It never deletes data.** Slash only. | — |
 | `cleanalts` | Deletes the accounts of alt members from the database. Slash only. | — |
 | `deploy [--guild]` | Registers the slash commands (globally, or in this server only with `--guild`). | `deploycommands` |
@@ -251,6 +264,20 @@ Members sign in to the website and the launcher without a password. The app show
 3. `/sessions` lists the open sessions and closes any of them.
 
 A code only confirms a sign-in created for the member who sends it, expires after 3 minutes and works once. Any other DM gets one short help reply per user per minute. Nothing about codes or sessions is stored by the bot; it all goes through the API.
+
+### Minecraft bridge
+
+The bot is the only Discord client of the Minecraft server. The server (the Enriquecraft mod) keeps one authenticated WebSocket to the bot on `/bridge` of its HTTP server, with `BRIDGE_KEY` as the bearer token, and the two exchange small JSON frames. The mod never talks to Discord and holds no Discord token. The protocol is in [`docs/minecraft-bridge-plan.md`](docs/minecraft-bridge-plan.md).
+
+- **Game to Discord.** Chat lines are posted through the bot's own webhook in the joined channel (it makes it the first time and finds it again), under the player's chat nickname or name, with their head. Joins, leaves, first joins, deaths, advancements, `/broadcast` and the server starting and stopping are posted as the bot. Nobody is ever mentioned.
+- **Discord to game.** What a **linked** member writes in a joined channel goes to the server under their Minecraft name. Anyone else gets a ❌ on their message and nothing else. Commands (`!`), bots and webhooks are never bridged, and each member is heard at most five times in ten seconds.
+- **Commands.** `/playerlist` and `/tps` ask the server live. If it is not connected they say so.
+- **Join role.** When a linked member joins the server they get `MC_JOINED_ROLE_ID` if they lack it. It is never removed by the bridge.
+- **Topic and nicknames.** Every `MC_SYNC_MINUTES` (10 at least) the topic of the global channel shows the server (or that it is down; it is only edited when the text changes), and each linked member's server nickname is set to their Minecraft name, even if they changed it. Members the bot cannot rename (the owner, higher roles) are skipped.
+- **Careful rollout.** The nickname sync and the join role are in dry run until `MC_SYNC_DRY_RUN=false`, and `MC_SYNC_PILOT_IDS` limits them to some members while testing.
+- **The game never depends on the bot.** If the bot is down, chat is just not mirrored.
+
+Never run a second copy of the production bot with its token: it would answer every command twice. Develop with a test application and guild, or turn the production bot off first.
 
 ### Panita Web synchronization
 

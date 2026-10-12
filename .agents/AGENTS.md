@@ -31,6 +31,7 @@ src/
   lib/api/             cliente de la API de Panita (client, errors, types, startup)
   data/                contenido estático (Tezzlar, minieventos, recetas, encantamientos, comida, comandos del server)
   features/tickets/    sistema de tickets dividido: permissions, embeds, panel, components, context
+  features/minecraft/  puente con el servidor de Minecraft: protocol, link, server (WebSocket), inbound, outbound, webhook, notifications, roles, sync, directory, queries, embeds, discord (los únicos adaptadores de discord.js)
   commands/<cat>/      un archivo por comando (`export default defineCommand({...})`)
   scripts/             deploy-commands.ts (registro de comandos slash)
 test/                  tests unitarios (node:test) del parser y del customId
@@ -57,6 +58,15 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - **Si solo quien ejecutó el comando debe poder usarlo, incluir el owner.** El router valida el dueño antes de llamar al handler, y luego el `guard` opcional del handler.
 - Los handlers se declaran en `components` del comando con `button()`, `select()` o `modal()`.
 - `legacyCustomId` mapea IDs antiguos (`btn_ticket_*`) de paneles y controles de tickets que ya están publicados en Discord. **No eliminarlo** mientras existan paneles antiguos.
+
+### Puente con Minecraft
+- **El bot es el único cliente de Discord del puente.** El mod de Minecraft se conecta al bot por WebSocket (`/bridge` del servidor HTTP, con `BRIDGE_KEY` como bearer) y nunca habla con Discord. El protocolo (versión 1) está en `docs/minecraft-bridge-plan.md` y en `features/minecraft/protocol.ts`.
+- **Todo lo que llega del mod es entrada no confiable**: se valida en `protocol.ts` (forma, tamaño, tipos) antes de que nada más lo vea; un frame inválido cierra la conexión y un tipo desconocido se ignora.
+- `features/minecraft/` trabaja con interfaces pequeñas (`Hook`, `HookChannel`, `BridgeMessage`, `TopicChannel`, `NicknameMember`, `RoleMember`) y solo `discord.ts` toca objetos de discord.js, así todo se prueba sin Discord. El acceso a la API sigue en `services/` (`listEnabledMembers`).
+- Los comandos del puente (`/playerlist`, `/tps`) están en la categoría `minecraft`, se definen una vez y salen en `/help` y en el deploy como cualquier otro; usan `queryMinecraft`, que convierte "apagado", "no conectado" y "sin respuesta" en `UserError`.
+- **Nunca mencionar a nadie**: los webhooks y las notificaciones usan `allowedMentions: { parse: [] }`. Solo se escuchan los mensajes de miembros **vinculados** (cuenta habilitada con IGN, según la API); los demás reciben una reacción ❌.
+- La sincronización (tema, apodos) y el rol al entrar están en **modo de prueba** (`MC_SYNC_DRY_RUN=true`) por defecto y pueden limitarse con `MC_SYNC_PILOT_IDS`. El tema solo se edita si el texto cambió (Discord permite ~2 ediciones cada 10 minutos).
+- **Nunca ejecutar una segunda copia del bot de producción con su token**: respondería cada comando dos veces. Para desarrollar, usar una aplicación y un servidor de prueba, o apagar antes el bot de producción.
 
 ### Sincronización con la web
 - Discord → web: `guildMemberAdd`, `userUpdate`, `guildMemberUpdate` y `roleDelete` usan `services/users` y `services/memberSync`.
