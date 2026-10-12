@@ -1,9 +1,10 @@
 import { env } from './config/env';
-import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { getRegistry } from './core/registry';
 import { installProcessHandlers } from './core/errors';
 import { createInteractionHandler } from './handlers/interactionCreate';
 import { createMessageHandler } from './handlers/messageCreate';
+import { createDirectMessageHandler } from './events/dmMessage';
 import { readyEvent } from './events/ready';
 import { userUpdateEvent } from './events/userUpdate';
 import { guildMemberAddEvent } from './events/guildMemberAdd';
@@ -19,7 +20,11 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    // Members confirm sign-in codes by DM
+    GatewayIntentBits.DirectMessages,
   ],
+  // DM channels reach the bot as partials
+  partials: [Partials.Channel],
 });
 
 installProcessHandlers(client);
@@ -38,6 +43,7 @@ client.on(Events.GuildMemberUpdate, guildMemberUpdateEvent);
 client.on(Events.GuildRoleDelete, roleDeleteEvent);
 client.on(Events.InteractionCreate, createInteractionHandler(registry));
 client.on(Events.MessageCreate, createMessageHandler(registry));
+client.on(Events.MessageCreate, createDirectMessageHandler());
 
 const start = async () => {
   if (!(await verifyApiAccess(api))) process.exit(1);
