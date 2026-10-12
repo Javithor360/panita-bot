@@ -76,18 +76,28 @@ test('syncProfile makes no request when there is nothing to update, and 0 means 
   assert.equal(calls.length, 1);
 });
 
-test('activateAccount posts the ign and the password and never retries', async () => {
+const ACTIVATION = { ign: 'Steve', minecraftStatus: 'premium' as const, password: 'Panita#2026' };
+
+test('activateAccount posts the ign, the status and the password and never retries', async () => {
   const calls = stubFetch(apiError(503, 'http_503'));
 
-  await assert.rejects(activateAccount(ID, 'Steve', 'Panita#2026'), (error: unknown) => error instanceof ApiError && error.status === 503);
+  await assert.rejects(activateAccount(ID, ACTIVATION), (error: unknown) => error instanceof ApiError && error.status === 503);
 
-  assert.deepEqual(calls, [{ method: 'POST', path: `/v1/discord/users/${ID}/activate`, body: { ign: 'Steve', password: 'Panita#2026' } }]);
+  assert.deepEqual(calls, [{ method: 'POST', path: `/v1/discord/users/${ID}/activate`, body: { ign: 'Steve', minecraft_status: 'premium', password: 'Panita#2026' } }]);
+});
+
+test('activateAccount leaves the password out when there is none', async () => {
+  const calls = stubFetch(ok({ activated: true }));
+
+  await activateAccount(ID, { ign: 'Alex', minecraftStatus: 'cracked' });
+
+  assert.deepEqual(calls, [{ method: 'POST', path: `/v1/discord/users/${ID}/activate`, body: { ign: 'Alex', minecraft_status: 'cracked' } }]);
 });
 
 test('activateAccount succeeds on 200', async () => {
   stubFetch(ok({ activated: true }));
 
-  await activateAccount(ID, 'Steve', 'Panita#2026');
+  await activateAccount(ID, ACTIVATION);
 });
 
 test('activateAccount maps each rejection to a typed error', async () => {
@@ -104,7 +114,7 @@ test('activateAccount maps each rejection to a typed error', async () => {
     mock.restoreAll();
     silenceApiLogs();
     stubFetch(response);
-    await assert.rejects(activateAccount(ID, 'Steve', 'Panita#2026'), matches);
+    await assert.rejects(activateAccount(ID, ACTIVATION), matches);
   }
 });
 
@@ -113,7 +123,7 @@ test('activateAccount lets other failures through untouched', async () => {
     mock.restoreAll();
     silenceApiLogs();
     stubFetch(response);
-    await assert.rejects(activateAccount(ID, 'Steve', 'Panita#2026'), (error: unknown) => error instanceof ApiError);
+    await assert.rejects(activateAccount(ID, ACTIVATION), (error: unknown) => error instanceof ApiError);
   }
 });
 

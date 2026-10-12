@@ -58,14 +58,25 @@ export const syncProfile = async (discordId: string, fields: { username?: string
   return updated;
 };
 
+export interface ActivationInput {
+  ign: string;
+  minecraftStatus: MinecraftStatus;
+  /** The optional legacy password; without one the account signs in with codes only. */
+  password?: string;
+}
+
 /**
- * Enables the web account with its IGN and password (the API validates and hashes the password).
- * Throws `InvalidActivationError`, `IgnTakenError`, `AlreadyActivatedError` or `UserNotFoundError`
- * for the rejections the caller is expected to explain to the user.
+ * Enables the account with its IGN and Minecraft status, and a password when one is given (the API
+ * validates and hashes it). Throws `InvalidActivationError`, `IgnTakenError`, `AlreadyActivatedError` or
+ * `UserNotFoundError` for the rejections the caller is expected to explain to the user.
  */
-export const activateAccount = async (discordId: string, ign: string, password: string): Promise<void> => {
+export const activateAccount = async (
+  discordId: string,
+  { ign, minecraftStatus, password }: ActivationInput,
+): Promise<void> => {
   try {
-    await api.post('/v1/discord/users/{discordId}/activate', { ign, password }, { params: { discordId } });
+    const body = { ign, minecraft_status: minecraftStatus, ...(password === undefined ? {} : { password }) };
+    await api.post('/v1/discord/users/{discordId}/activate', body, { params: { discordId } });
   } catch (error) {
     if (error instanceof ApiError) {
       if (error.status === 404) throw new UserNotFoundError(discordId);
