@@ -25,9 +25,15 @@ export const confirmLogin = async (discordId: string, code: string): Promise<Con
   }
 };
 
-/** The member's open sessions, newest first (at most 20). */
-export const listSessions = (discordId: string): Promise<BotSession[]> =>
-  api.get<BotSession[]>('/v1/discord/users/{discordId}/sessions', { params: { discordId } });
+/** The member's open sessions, newest first (at most 20). A member with no account has none. */
+export const listSessions = async (discordId: string): Promise<BotSession[]> => {
+  try {
+    return await api.get<BotSession[]>('/v1/discord/users/{discordId}/sessions', { params: { discordId } });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return [];
+    throw error;
+  }
+};
 
 /** Closes one session. Returns false when it was already gone. */
 export const revokeSession = async (discordId: string, sessionId: string): Promise<boolean> => {
@@ -40,7 +46,13 @@ export const revokeSession = async (discordId: string, sessionId: string): Promi
   }
 };
 
-/** Closes every session of the member. */
-export const revokeAllSessions = async (discordId: string): Promise<void> => {
-  await api.delete('/v1/discord/users/{discordId}/sessions', { params: { discordId } });
+/** Closes every session of the member and returns how many were open. */
+export const revokeAllSessions = async (discordId: string): Promise<number> => {
+  try {
+    const { revoked } = await api.delete<{ revoked: number }>('/v1/discord/users/{discordId}/sessions', { params: { discordId } });
+    return revoked;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return 0;
+    throw error;
+  }
 };

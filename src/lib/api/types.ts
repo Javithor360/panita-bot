@@ -156,6 +156,12 @@ export interface BotSession {
   expires_at: string | null;
 }
 
+/** `GET /v1/discord/users/enabled-ids` */
+export interface EnabledIdsMeta extends ListMeta {
+  /** The `after` of the next page (an account id), or null on the last page. */
+  next_after: number | null;
+}
+
 /** `POST /v1/discord/users/{discordId}/deactivate` */
 export interface DeactivateResult {
   /** False when the account was already disabled or had never existed. */

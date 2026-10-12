@@ -89,8 +89,20 @@ test('listSessions reads the sessions of the member', async () => {
   assert.deepEqual(calls, [{ method: 'GET', path: `/v1/discord/users/${ID}/sessions`, body: undefined }]);
 });
 
-test('revokeSession deletes one session and reports it', async () => {
-  const calls = stubFetch(ok({ revoked: 1 }));
+test('listSessions treats a member with no account as having no sessions', async () => {
+  stubFetch(apiError(404, 'not_found'));
+
+  assert.deepEqual(await listSessions(ID), []);
+});
+
+test('listSessions lets other failures through', async () => {
+  stubFetch(apiError(500, 'internal_error'));
+
+  await assert.rejects(listSessions(ID), (error: unknown) => error instanceof ApiError && error.status === 500);
+});
+
+test('revokeSession deletes one session, which the API answers with an empty 204', async () => {
+  const calls = stubFetch(new Response(null, { status: 204 }));
 
   assert.equal(await revokeSession(ID, SESSION_ID), true);
   assert.deepEqual(calls, [{ method: 'DELETE', path: `/v1/discord/users/${ID}/sessions/${SESSION_ID}`, body: undefined }]);
@@ -108,9 +120,15 @@ test('revokeSession lets other failures through', async () => {
   await assert.rejects(revokeSession(ID, SESSION_ID), (error: unknown) => error instanceof ApiError && error.status === 401);
 });
 
-test('revokeAllSessions deletes the whole collection', async () => {
+test('revokeAllSessions deletes the collection and returns how many were open', async () => {
   const calls = stubFetch(ok({ revoked: 3 }));
 
-  await revokeAllSessions(ID);
+  assert.equal(await revokeAllSessions(ID), 3);
   assert.deepEqual(calls, [{ method: 'DELETE', path: `/v1/discord/users/${ID}/sessions`, body: undefined }]);
+});
+
+test('revokeAllSessions reports 0 for a member with no account', async () => {
+  stubFetch(apiError(404, 'not_found'));
+
+  assert.equal(await revokeAllSessions(ID), 0);
 });

@@ -207,6 +207,8 @@ export class ApiClient {
     }
 
     if (!response.ok) throw errorFrom(response.status, body, requestId);
+    // A 204 has no body by definition (closing one session); callers of such routes ignore the result
+    if (response.status === 204) return { body: { data: undefined }, status: response.status, requestId };
     if (!isEnvelope(body)) {
       throw new ApiError(response.status, 'invalid_response', 'The API answered with an unexpected body', undefined, requestId);
     }

@@ -312,30 +312,30 @@ test('deactivateAccount treats an unknown account as unchanged and throws other 
   await assert.rejects(deactivateAccount(ID), (error: unknown) => error instanceof ApiError && error.status === 401);
 });
 
-test('listEnabledDiscordIds reads one short page', async () => {
-  const calls = stubFetch(ok(['1', '2', '3'], { meta: { count: 3 } }));
+test('listEnabledDiscordIds reads one page when there is no next cursor', async () => {
+  const calls = stubFetch(ok(['1', '2', '3'], { meta: { count: 3, next_after: null } }));
 
   assert.deepEqual(await listEnabledDiscordIds(), ['1', '2', '3']);
-  assert.deepEqual(calls.map(c => [c.method, c.path]), [['GET', '/v1/discord/users/enabled-ids?limit=500']]);
+  assert.deepEqual(calls.map(c => [c.method, c.path]), [['GET', '/v1/discord/users/enabled-ids?after=0&limit=500']]);
 });
 
-test('listEnabledDiscordIds follows the last id of each full page and stops at a short one', async () => {
-  const first = Array.from({ length: 500 }, (_, i) => String(100000 + i));
-  const second = Array.from({ length: 500 }, (_, i) => String(200000 + i));
-  const calls = stubFetch(ok(first), ok(second), ok(['300000']));
+test('listEnabledDiscordIds follows meta.next_after (an account id) until it is null', async () => {
+  const calls = stubFetch(
+    ok(['111', '222'], { meta: { count: 2, next_after: 40 } }),
+    ok(['333'], { meta: { count: 1, next_after: 77 } }),
+    ok(['444'], { meta: { count: 1, next_after: null } }),
+  );
 
-  const ids = await listEnabledDiscordIds();
-
-  assert.equal(ids.length, 1001);
+  assert.deepEqual(await listEnabledDiscordIds(), ['111', '222', '333', '444']);
   assert.deepEqual(calls.map(c => c.path), [
-    '/v1/discord/users/enabled-ids?limit=500',
-    '/v1/discord/users/enabled-ids?after=100499&limit=500',
-    '/v1/discord/users/enabled-ids?after=200499&limit=500',
+    '/v1/discord/users/enabled-ids?after=0&limit=500',
+    '/v1/discord/users/enabled-ids?after=40&limit=500',
+    '/v1/discord/users/enabled-ids?after=77&limit=500',
   ]);
 });
 
 test('listEnabledDiscordIds returns an empty list for no accounts', async () => {
-  stubFetch(ok([]));
+  stubFetch(ok([], { meta: { count: 0, next_after: null } }));
 
   assert.deepEqual(await listEnabledDiscordIds(), []);
 });

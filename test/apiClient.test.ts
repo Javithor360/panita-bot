@@ -122,6 +122,20 @@ describe('requests', () => {
     assert.equal(await client.get('/v1/tickets/open'), null);
   });
 
+  test('a 204 without a body is a success', async () => {
+    sequence(new Response(null, { status: 204 }));
+    const { client } = makeClient();
+
+    assert.equal(await client.delete('/v1/x/{id}', { params: { id: '1' } }), undefined);
+  });
+
+  test('a 200 without a body is still an error', async () => {
+    sequence(new Response('', { status: 200 }));
+    const { client } = makeClient();
+
+    await assert.rejects(client.get('/v1/x'), (error: unknown) => isApiError(error, 200, 'invalid_response'));
+  });
+
   test('a success body that is not the envelope is an error', async () => {
     sequence(json(200, { hello: 'world' }));
     const { client } = makeClient();

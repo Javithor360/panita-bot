@@ -1,6 +1,13 @@
 import type { User } from 'discord.js';
 import { API_TIMEOUTS, api, ApiError } from '../lib/api';
-import type { BotUser, BulkDeleteResult, DeactivateResult, EnsureUserResult, MinecraftStatus } from '../lib/api/types';
+import type {
+  BotUser,
+  BulkDeleteResult,
+  DeactivateResult,
+  EnabledIdsMeta,
+  EnsureUserResult,
+  MinecraftStatus,
+} from '../lib/api/types';
 import { avatarUrlOf } from '../lib/discord';
 
 export type { BotUser };
@@ -153,15 +160,15 @@ const ENABLED_IDS_PAGE_SIZE = 500;
 /** The Discord ids of every enabled account, read page by page. */
 export const listEnabledDiscordIds = async (): Promise<string[]> => {
   const ids: string[] = [];
-  for (let after: string | undefined; ; ) {
-    const page = await api.get<string[]>('/v1/discord/users/enabled-ids', {
+  for (let after = 0; ; ) {
+    const page = await api.getEnvelope<string[], EnabledIdsMeta>('/v1/discord/users/enabled-ids', {
       query: { after, limit: ENABLED_IDS_PAGE_SIZE },
       timeoutMs: API_TIMEOUTS.bulk,
     });
-    ids.push(...page);
-    // A short page is the last one; otherwise the last id is the cursor of the next
-    if (page.length < ENABLED_IDS_PAGE_SIZE) return ids;
-    after = page[page.length - 1];
+    ids.push(...page.data);
+    // The cursor is an account id, not a Discord id; it is null on the last page
+    if (page.meta.next_after === null) return ids;
+    after = page.meta.next_after;
   }
 };
 
