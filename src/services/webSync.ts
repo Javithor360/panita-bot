@@ -89,7 +89,13 @@ export const createWebSync = (deps: WebSyncDeps): WebSync => {
     let next = POLL_INTERVAL_MS;
     try {
       if (cursor === null) {
-        cursor = (await deps.fetchEvents('latest', 1)).cursor;
+        const latest = (await deps.fetchEvents('latest', 1)).cursor;
+        // Every poll re-reads the newest events (the overlap), and only `handled` stops them from being applied again. It is
+        // empty at the start, so without this the last events would be replayed on every restart: a role someone removed
+        // by hand would come back, and an old removal could undo a newer change.
+        const { events } = await deps.fetchEvents(Math.max(0, latest - CURSOR_OVERLAP), PAGE_LIMIT);
+        for (const event of events) if (event.id <= latest) remember(event.id);
+        cursor = latest;
         logger.log(`[Web-Sync] Polling the API for web changes (cursor ${cursor})`);
       } else {
         for (let page = 0; page < MAX_PAGES_PER_POLL; page++) {

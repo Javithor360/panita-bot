@@ -94,9 +94,28 @@ test('starts from the latest cursor, applies nothing and schedules the next poll
 
   await h.poller.poll();
 
-  assert.deepEqual(h.requests, [{ after: 'latest', limit: 1 }]);
+  // the second request reads the overlap window, to mark what is already there as seen
+  assert.deepEqual(h.requests, [
+    { after: 'latest', limit: 1 },
+    { after: 22, limit: 100 },
+  ]);
   assert.deepEqual(h.scheduled, [5_000]);
   assert.match(h.logs[0], /cursor 42/);
+});
+
+test('the events already there when the bot starts are not replayed, not even through the overlap window', async () => {
+  const h = harness(100);
+  const member = fakeMember();
+  h.members.set('u1', member);
+  const old = event({ id: 95, action: 'add', discord_role_id: 'r1' });
+
+  h.respond([old]);
+  await h.poller.poll(); // the start
+  h.respond([old]); // the overlap window returns it again
+  await h.poller.poll();
+
+  assert.deepEqual(member.changes, []);
+  assert.deepEqual(h.locks, []);
 });
 
 test('applies a role the web added and removes one the web removed', async () => {
@@ -279,7 +298,7 @@ test('a failure while asking for the first cursor is retried until it works', as
   await poller.poll();
 
   assert.deepEqual(h.scheduled, [1_000, 5_000, 5_000]);
-  assert.deepEqual(h.requests.map(r => r.after), ['latest', 0]);
+  assert.deepEqual(h.requests.map(r => r.after), ['latest', 0, 0]);
 });
 
 test('the next poll is only scheduled once the current one has ended', async () => {
