@@ -17,6 +17,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
 - [Features](#features)
   - [Commands](#commands)
   - [Ticket system](#ticket-system)
+  - [Sign-in codes and sessions](#sign-in-codes-and-sessions)
   - [Panita Web synchronization](#panita-web-synchronization)
   - [Reliability](#reliability)
 - [Known issues and roadmap](#known-issues-and-roadmap)
@@ -27,7 +28,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
 
 - **Node.js 22** or newer.
 - A **service key of the `bot` client** of the [Panita API](https://api.panitacraft.com/docs). The bot never connects to the database: every read and write goes through the API.
-- A Discord application with a bot user and both **privileged gateway intents** enabled: *Server Members* and *Message Content*.
+- A Discord application with a bot user and both **privileged gateway intents** enabled: *Server Members* and *Message Content*. The bot also uses the non-privileged *Direct Messages* intent (members confirm sign-in codes by DM), which needs no switch in the Developer Portal.
 
 ## Installation
 
@@ -89,7 +90,7 @@ Register the commands again every time you add a command or change its options. 
 - **Global (default).** Commands are available in every server the bot is in, and Discord shows the **"Supports Commands"** badge on the bot's profile. That badge only appears for applications with global commands.
 - **Guild (`--guild`, or `/deploy guild:true`).** Commands are registered in `GUILD_ID` only and update instantly. Use it while testing changes.
 
-Each mode clears the other scope, so commands never show up twice. Commands are server-only in both modes: they don't appear in DMs. **Aliases are never registered as slash commands**; they only exist with the prefix.
+Each mode clears the other scope, so commands never show up twice. Commands are server-only in both modes: they don't appear in DMs, which is why the DM sign-in confirmation is a plain message (see [Sign-in codes and sessions](#sign-in-codes-and-sessions)). **Aliases are never registered as slash commands**; they only exist with the prefix.
 
 ## Deployment
 
@@ -139,9 +140,11 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 
 | Command | Description | Aliases |
 |---|---|---|
+| `confirm <code>` | Confirms a sign-in on the website or the launcher with the 4-digit code the app shows. The reply is private. Slash only. | — |
 | `donate [--simple]` | How to support the server through PayPal. `--simple` sends just the link. | `donar`, `donacion`, `donaciones`, `fund` |
 | `invite` | Invite link to the Discord server. | `invitacion`, `discord` |
-| `register` | Activates the member's Panita Web account through a private form (Minecraft IGN and password). Only the member who ran it can use the button. Alt accounts are rejected. | `registrar`, `activar` |
+| `register [--with_password]` | Activates the member's account: they say whether they play with a premium Minecraft account, then give their IGN in a private form. No password is needed; `with_password` adds or changes an optional one. A member who already has an account is only asked for what is missing (the status), and one who left and came back confirms the IGN they already had. Only the member who ran it can use the buttons. Alt accounts are rejected. | `registrar`, `activar` |
+| `sessions` | Lists the member's open sessions (web and launcher) and closes one or all of them. The reply is private. Slash only. | — |
 | `web` | Link to Panita Web. | `pagina`, `panel` |
 
 </details>
@@ -239,6 +242,16 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 - **Staff controls** on closed tickets: 📄 HTML transcript, 🔓 reopen and ⛔ delete. Only the panel's staff and administrators can use them.
 - **Backwards compatible:** panels and buttons posted before the current version keep working.
 
+### Sign-in codes and sessions
+
+Members sign in to the website and the launcher without a password. The app shows a 4-digit code and the member proves who they are from Discord:
+
+1. The member sends the code to the bot: `/confirm <code>` in the server (the reply is private), or a message that is only the 4 digits in a **DM** with the bot.
+2. The bot confirms the sign-in with the API and tells the member who is signing in, where and when. The app, which was waiting, receives its session.
+3. `/sessions` lists the open sessions and closes any of them.
+
+A code only confirms a sign-in created for the member who sends it, expires after 3 minutes and works once. Any other DM gets one short help reply per user per minute. Nothing about codes or sessions is stored by the bot; it all goes through the API.
+
 ### Panita Web synchronization
 
 The sync runs in both directions and needs no manual steps.
@@ -253,6 +266,8 @@ The sync runs in both directions and needs no manual steps.
 | A member's Discord roles change | Their web roles and editions are updated. Only roles linked to a Discord role are synced; web-only roles are never touched. |
 | Panita Web changes a user's roles or editions | The API records the change in an outbox. The bot polls it every few seconds and applies the matching Discord role, so a change reaches Discord within about 5 seconds. Polling backs off and recovers on its own if the API is down. |
 | A Discord role is deleted | The web role is unlinked from Discord, not deleted. |
+| A member leaves the server | Their account is deactivated and its sessions are closed. The IGN and status are kept, so they only confirm them if they come back. |
+| The bot starts | Accounts of members who left while it was offline are deactivated too. It is skipped (and logged, with counts only) if the member list looks incomplete or if it would deactivate more than 10% of the active accounts, so a bad list can never lock everyone out. |
 | A developer runs `/systemsync` | Every member is resynced. Missing accounts are created and nothing is deleted. |
 
 </details>

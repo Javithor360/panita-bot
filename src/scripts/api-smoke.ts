@@ -1,6 +1,6 @@
 import { env } from '../config/env';
 import { api, isApiError } from '../lib/api';
-import type { ListMeta, WhoAmI } from '../lib/api/types';
+import type { EnabledIdsMeta, ListMeta, WhoAmI } from '../lib/api/types';
 
 /**
  * Read-only check of the API from the bot's own environment: proves the key, the URL and the response
@@ -75,6 +75,29 @@ const checks: Array<{ name: string; run: () => Promise<string> }> = [
       assert(Array.isArray(data) && data.length === 0, 'after=latest should return no events');
       assert(Number.isInteger(meta.cursor), 'the response has no cursor');
       return `cursor ${meta.cursor}`;
+    },
+  },
+  {
+    name: 'discord/users/enabled-ids',
+    run: async () => {
+      const { data, meta } = await api.getEnvelope<unknown[], EnabledIdsMeta>('/v1/discord/users/enabled-ids', {
+        query: { after: 0, limit: 1 },
+      });
+      assert(Array.isArray(data) && data.every(id => typeof id === 'string'), 'unexpected ids shape');
+      assert(meta.next_after === null || Number.isInteger(meta.next_after), 'the response has no next_after cursor');
+      return `page of ${data.length}, next_after ${meta.next_after}`;
+    },
+  },
+  {
+    name: 'discord/users/{id}/sessions',
+    run: async () => {
+      try {
+        await api.get<unknown[]>('/v1/discord/users/{discordId}/sessions', { params: { discordId: UNKNOWN_SNOWFLAKE } });
+      } catch (error) {
+        if (isApiError(error, 404)) return 'unknown member is a 404, as expected';
+        throw error;
+      }
+      throw new Error('an unknown member should have no account, so 404');
     },
   },
 ];

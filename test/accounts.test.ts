@@ -8,10 +8,15 @@ import { unmapDiscordRole } from '../src/services/roles';
 import {
   activateAccount,
   AlreadyActivatedError,
+  deactivateAccount,
   deleteUsersByDiscordIds,
   ensureUser,
   IgnTakenError,
   InvalidActivationError,
+  listEnabledDiscordIds,
+  NotActivatedError,
+  setMinecraftStatus,
+  setPassword,
   syncProfile,
   UserNotFoundError,
 } from '../src/services/users';
@@ -20,7 +25,7 @@ beforeEach(() => silenceApiLogs());
 afterEach(() => mock.restoreAll());
 
 const ID = '812345678901234567';
-const user = { id: 42, discord_id: ID, enabled: false, ign: null };
+const user = { id: 42, discord_id: ID, enabled: false, ign: null, minecraft_status: null, has_password: false };
 
 test('ensureUser sends the profile with PUT and returns the answer', async () => {
   const calls = stubFetch(ok({ user, created: true }, {}, 201));
@@ -71,18 +76,28 @@ test('syncProfile makes no request when there is nothing to update, and 0 means 
   assert.equal(calls.length, 1);
 });
 
-test('activateAccount posts the ign and the password and never retries', async () => {
+const ACTIVATION = { ign: 'Steve', minecraftStatus: 'premium' as const, password: 'Panita#2026' };
+
+test('activateAccount posts the ign, the status and the password and never retries', async () => {
   const calls = stubFetch(apiError(503, 'http_503'));
 
-  await assert.rejects(activateAccount(ID, 'Steve', 'Panita#2026'), (error: unknown) => error instanceof ApiError && error.status === 503);
+  await assert.rejects(activateAccount(ID, ACTIVATION), (error: unknown) => error instanceof ApiError && error.status === 503);
 
-  assert.deepEqual(calls, [{ method: 'POST', path: `/v1/discord/users/${ID}/activate`, body: { ign: 'Steve', password: 'Panita#2026' } }]);
+  assert.deepEqual(calls, [{ method: 'POST', path: `/v1/discord/users/${ID}/activate`, body: { ign: 'Steve', minecraft_status: 'premium', password: 'Panita#2026' } }]);
+});
+
+test('activateAccount leaves the password out when there is none', async () => {
+  const calls = stubFetch(ok({ activated: true }));
+
+  await activateAccount(ID, { ign: 'Alex', minecraftStatus: 'cracked' });
+
+  assert.deepEqual(calls, [{ method: 'POST', path: `/v1/discord/users/${ID}/activate`, body: { ign: 'Alex', minecraft_status: 'cracked' } }]);
 });
 
 test('activateAccount succeeds on 200', async () => {
   stubFetch(ok({ activated: true }));
 
-  await activateAccount(ID, 'Steve', 'Panita#2026');
+  await activateAccount(ID, ACTIVATION);
 });
 
 test('activateAccount maps each rejection to a typed error', async () => {
@@ -99,7 +114,7 @@ test('activateAccount maps each rejection to a typed error', async () => {
     mock.restoreAll();
     silenceApiLogs();
     stubFetch(response);
-    await assert.rejects(activateAccount(ID, 'Steve', 'Panita#2026'), matches);
+    await assert.rejects(activateAccount(ID, ACTIVATION), matches);
   }
 });
 
@@ -108,7 +123,7 @@ test('activateAccount lets other failures through untouched', async () => {
     mock.restoreAll();
     silenceApiLogs();
     stubFetch(response);
-    await assert.rejects(activateAccount(ID, 'Steve', 'Panita#2026'), (error: unknown) => error instanceof ApiError);
+    await assert.rejects(activateAccount(ID, ACTIVATION), (error: unknown) => error instanceof ApiError);
   }
 });
 
@@ -222,4 +237,105 @@ test('deleteUsersByDiscordIds makes no request for an empty list', async () => {
 
   assert.deepEqual(await deleteUsersByDiscordIds([]), { deleted: 0, skipped: [] });
   assert.equal(calls.length, 0);
+});
+
+test('setMinecraftStatus puts the status', async () => {
+  const calls = stubFetch(ok({ ...user, enabled: true, minecraft_status: 'cracked' }));
+
+  await setMinecraftStatus(ID, 'cracked');
+  assert.deepEqual(calls, [{
+    method: 'PUT',
+    path: `/v1/discord/users/${ID}/minecraft-status`,
+    body: { minecraft_status: 'cracked' },
+  }]);
+});
+
+test('setMinecraftStatus maps its rejections', async () => {
+  const cases: Array<[Response, (error: unknown) => boolean]> = [
+    [apiError(409, 'conflict', { reason: 'not_activated' }), e => e instanceof NotActivatedError],
+    [apiError(409, 'not_activated'), e => e instanceof NotActivatedError],
+    [apiError(404, 'not_found'), e => e instanceof UserNotFoundError],
+    [apiError(400, 'invalid_request'), e => e instanceof ApiError && e.status === 400],
+  ];
+
+  for (const [response, matches] of cases) {
+    mock.restoreAll();
+    silenceApiLogs();
+    stubFetch(response);
+    await assert.rejects(setMinecraftStatus(ID, 'premium'), matches);
+  }
+});
+
+test('setPassword puts the password and maps the policy and state errors', async () => {
+  let calls = stubFetch(ok({ ...user, enabled: true, has_password: true }));
+  await setPassword(ID, 'Panita#2026');
+  assert.deepEqual(calls, [{ method: 'PUT', path: `/v1/discord/users/${ID}/password`, body: { password: 'Panita#2026' } }]);
+
+  const cases: Array<[Response, (error: unknown) => boolean]> = [
+    [apiError(400, 'invalid_request', { reason: 'special' }), e => e instanceof InvalidActivationError && e.reason === 'special'],
+    [apiError(400, 'invalid_request', { reason: 'length' }), e => e instanceof InvalidActivationError && e.reason === 'length'],
+    [apiError(409, 'conflict', { reason: 'not_activated' }), e => e instanceof NotActivatedError],
+    [apiError(404, 'not_found'), e => e instanceof UserNotFoundError],
+    [apiError(400, 'invalid_request', { reason: 'ign_format' }), e => e instanceof ApiError],
+  ];
+  for (const [response, matches] of cases) {
+    mock.restoreAll();
+    silenceApiLogs();
+    calls = stubFetch(response);
+    await assert.rejects(setPassword(ID, 'Panita#2026'), matches);
+  }
+});
+
+test('deactivateAccount posts without a body and returns whether anything changed', async () => {
+  const calls = stubFetch(ok({ deactivated: true }), ok({ deactivated: false }));
+
+  assert.equal(await deactivateAccount(ID), true);
+  assert.equal(await deactivateAccount(ID), false);
+  assert.deepEqual(calls[0], { method: 'POST', path: `/v1/discord/users/${ID}/deactivate`, body: undefined });
+});
+
+test('deactivateAccount is retried after a transient failure', async () => {
+  const calls = stubFetch(apiError(503, 'http_503'), ok({ deactivated: true }));
+  mock.method(globalThis, 'setTimeout', (fn: () => void) => { fn(); return 0 as unknown as NodeJS.Timeout; });
+
+  assert.equal(await deactivateAccount(ID), true);
+  assert.equal(calls.length, 2);
+});
+
+test('deactivateAccount treats an unknown account as unchanged and throws other failures', async () => {
+  stubFetch(apiError(404, 'not_found'));
+  assert.equal(await deactivateAccount(ID), false);
+
+  mock.restoreAll();
+  silenceApiLogs();
+  stubFetch(apiError(401, 'unauthenticated'));
+  await assert.rejects(deactivateAccount(ID), (error: unknown) => error instanceof ApiError && error.status === 401);
+});
+
+test('listEnabledDiscordIds reads one page when there is no next cursor', async () => {
+  const calls = stubFetch(ok(['1', '2', '3'], { meta: { count: 3, next_after: null } }));
+
+  assert.deepEqual(await listEnabledDiscordIds(), ['1', '2', '3']);
+  assert.deepEqual(calls.map(c => [c.method, c.path]), [['GET', '/v1/discord/users/enabled-ids?after=0&limit=500']]);
+});
+
+test('listEnabledDiscordIds follows meta.next_after (an account id) until it is null', async () => {
+  const calls = stubFetch(
+    ok(['111', '222'], { meta: { count: 2, next_after: 40 } }),
+    ok(['333'], { meta: { count: 1, next_after: 77 } }),
+    ok(['444'], { meta: { count: 1, next_after: null } }),
+  );
+
+  assert.deepEqual(await listEnabledDiscordIds(), ['111', '222', '333', '444']);
+  assert.deepEqual(calls.map(c => c.path), [
+    '/v1/discord/users/enabled-ids?after=0&limit=500',
+    '/v1/discord/users/enabled-ids?after=40&limit=500',
+    '/v1/discord/users/enabled-ids?after=77&limit=500',
+  ]);
+});
+
+test('listEnabledDiscordIds returns an empty list for no accounts', async () => {
+  stubFetch(ok([], { meta: { count: 0, next_after: null } }));
+
+  assert.deepEqual(await listEnabledDiscordIds(), []);
 });

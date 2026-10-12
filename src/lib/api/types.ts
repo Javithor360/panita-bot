@@ -70,12 +70,20 @@ export interface TicketWithPanel extends Ticket {
   panel: TicketPanel;
 }
 
+/** Whether a player signs in to the Minecraft server with a Microsoft (premium) account or not. */
+export type MinecraftStatus = 'premium' | 'cracked';
+
 /** The bot's view of an account (`/v1/discord/users`). */
 export interface BotUser {
   id: number;
   discord_id: string;
   enabled: boolean;
+  /** Kept when the account is deactivated, so a returning member already has one. */
   ign: string | null;
+  /** `null` until the member chooses it (everyone who was active before the status existed). */
+  minecraft_status: MinecraftStatus | null;
+  /** Whether a legacy password is set; never the hash. */
+  has_password: boolean;
 }
 
 /** `PUT /v1/discord/users/{discordId}` */
@@ -127,4 +135,35 @@ export interface RandomPhoto {
   user: { ign: string | null } | null;
   edition: { id: string; name: string } | null;
   categories: { id: string; name: string }[];
+}
+
+/** `POST /v1/discord/login-requests/confirm`: all the bot may show the member about the sign-in. */
+export interface ConfirmedLogin {
+  application: 'Web' | 'Launcher';
+  /** The member's IGN, or their Discord name when they have none. */
+  username: string;
+  requested_at: string;
+}
+
+/** An open session in `GET /v1/discord/users/{discordId}/sessions`. */
+export interface BotSession {
+  id: string;
+  client: 'web' | 'launcher';
+  label: string;
+  created_at: string;
+  last_used_at: string;
+  /** `null` for sessions that never expire (the launcher). */
+  expires_at: string | null;
+}
+
+/** `GET /v1/discord/users/enabled-ids` */
+export interface EnabledIdsMeta extends ListMeta {
+  /** The `after` of the next page (an account id), or null on the last page. */
+  next_after: number | null;
+}
+
+/** `POST /v1/discord/users/{discordId}/deactivate` */
+export interface DeactivateResult {
+  /** False when the account was already disabled or had never existed. */
+  deactivated: boolean;
 }
