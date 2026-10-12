@@ -5,6 +5,8 @@
 
 export const PROTOCOL_VERSION = 1;
 export const MAX_FRAME_BYTES = 16 * 1024;
+/** The longest line of chat that travels over the bridge, in characters. */
+export const MAX_CHAT_LENGTH = 256;
 
 /** WebSocket close codes of the bridge. */
 export const CLOSE = { replaced: 4000, protocol: 4002, frame: 4003 } as const;
@@ -174,7 +176,7 @@ export const parseModFrame = (raw: string): Parsed => {
     case 'chat': {
       const player = readPlayer(value.player);
       const { channel, text: line, emote } = value;
-      if (!player || typeof channel !== 'string' || !CHANNEL.test(channel) || !text(line, 256, 1) || typeof emote !== 'boolean') {
+      if (!player || typeof channel !== 'string' || !CHANNEL.test(channel) || !text(line, MAX_CHAT_LENGTH, 1) || typeof emote !== 'boolean') {
         return { ok: false, reason: 'bad chat' };
       }
       return { ok: true, frame: { type: 'chat', channel, player, text: line, emote } };
