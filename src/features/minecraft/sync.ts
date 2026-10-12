@@ -35,16 +35,12 @@ export interface NicknameChange {
 
 /**
  * Which members' nicknames must change so each is their Minecraft name, even if they changed it themselves. Members the bot
- * cannot rename are counted, not listed; when a pilot is set only those members are looked at.
+ * cannot rename are counted, not listed.
  */
-export const planNicknames = (
-  states: readonly NicknameState[],
-  pilot: readonly string[],
-): { changes: NicknameChange[]; unmanageable: number } => {
+export const planNicknames = (states: readonly NicknameState[]): { changes: NicknameChange[]; unmanageable: number } => {
   const changes: NicknameChange[] = [];
   let unmanageable = 0;
   for (const state of states) {
-    if (pilot.length > 0 && !pilot.includes(state.discordId)) continue;
     if (state.current === state.ign) continue;
     if (!state.manageable) {
       unmanageable++;
@@ -78,7 +74,6 @@ export interface SyncDeps {
   topicTemplate: string;
   /** While true nothing is changed; what would be is logged. */
   dryRun: boolean;
-  pilot: readonly string[];
   logger: Pick<Console, 'log' | 'error'>;
 }
 
@@ -101,13 +96,12 @@ const syncNicknames = async (deps: SyncDeps) => {
   await deps.directory.refresh();
   const states: NicknameState[] = [];
   for (const member of deps.directory.all()) {
-    if (deps.pilot.length > 0 && !deps.pilot.includes(member.discord_id)) continue;
     const guildMember = await deps.fetchMember(member.discord_id);
     if (guildMember) {
       states.push({ discordId: member.discord_id, ign: member.ign, current: guildMember.nickname, manageable: guildMember.manageable });
     }
   }
-  const { changes, unmanageable } = planNicknames(states, deps.pilot);
+  const { changes, unmanageable } = planNicknames(states);
   for (const change of changes) {
     if (deps.dryRun) {
       deps.logger.log(`[Minecraft] Dry run: would set the nickname of ${change.discordId} to ${change.ign} (it is ${change.from ?? 'not set'}).`);

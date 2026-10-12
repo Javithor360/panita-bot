@@ -47,12 +47,21 @@ export const createInbound = (deps: InboundDeps) => {
     });
   };
 
-  const event = async (frame: EventFrame) => {
+  const announce = async (frame: EventFrame) => {
     const channelId = deps.channels.main;
     if (!channelId) return;
     const embed = eventEmbed(frame, player => avatarOf(deps.avatars, player));
     if (embed) await deps.notify(channelId, embed);
-    if ((frame.kind === 'join' || frame.kind === 'first_join') && frame.player) await deps.onJoin(frame.player);
+  };
+
+  /** What happens at a join does not depend on the notification: a role is given even if the embed can not be posted. */
+  const event = async (frame: EventFrame) => {
+    const tasks = [announce(frame)];
+    if ((frame.kind === 'join' || frame.kind === 'first_join') && frame.player) tasks.push(deps.onJoin(frame.player));
+    const results = await Promise.allSettled(tasks);
+    for (const result of results) {
+      if (result.status === 'rejected') deps.logger.error('[Minecraft] Could not handle an event of the server:', result.reason);
+    }
   };
 
   return (frame: ModFrame): void => {

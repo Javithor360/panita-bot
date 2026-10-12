@@ -63,7 +63,6 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED` | — | Head templates for players with a Microsoft account and for those with a PIN, with `{uuid}`, `{name}` and `{nickname}`. Default to `mc-heads.net`. |
 | `MC_TOPIC_TEMPLATE` | — | The topic of the global channel, with `{online}`, `{max}`, `{tps}` and `{uptime}`. |
 | `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
-| `MC_SYNC_PILOT_IDS` | — | Comma-separated Discord ids. When set, the nickname sync and the join role only touch these members. |
 | `MC_SYNC_MINUTES` | — | Minutes between runs of the topic and nickname sync. At least 10. |
 
 <details>
@@ -274,7 +273,7 @@ The bot is the only Discord client of the Minecraft server. The server (the Enri
 - **Commands.** `/playerlist` and `/tps` ask the server live. If it is not connected they say so.
 - **Join role.** When a linked member joins the server they get `MC_JOINED_ROLE_ID` if they lack it. It is never removed by the bridge.
 - **Topic and nicknames.** Every `MC_SYNC_MINUTES` (10 at least) the topic of the global channel shows the server (or that it is down; it is only edited when the text changes), and each linked member's server nickname is set to their Minecraft name, even if they changed it. Members the bot cannot rename (the owner, higher roles) are skipped.
-- **Careful rollout.** The nickname sync and the join role are in dry run until `MC_SYNC_DRY_RUN=false`, and `MC_SYNC_PILOT_IDS` limits them to some members while testing.
+- **Careful rollout.** The join role, the nickname sync and the topic are in **dry run** until `MC_SYNC_DRY_RUN=false`: the log says what each would change and nothing changes. Set it to `false` to apply them.
 - **The game never depends on the bot.** If the bot is down, chat is just not mirrored.
 
 Never run a second copy of the production bot with its token: it would answer every command twice. Develop with a test application and guild, or turn the production bot off first.

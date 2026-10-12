@@ -38,7 +38,7 @@ const state = (overrides: Partial<NicknameState> = {}): NicknameState => ({
 });
 
 test('plans a change for a member whose nickname is not their Minecraft name', () => {
-  const { changes } = planNicknames([state({ current: 'otro' }), state({ discordId: '2', ign: 'Bravo', current: null })], []);
+  const { changes } = planNicknames([state({ current: 'otro' }), state({ discordId: '2', ign: 'Bravo', current: null })]);
 
   assert.deepEqual(changes, [
     { discordId: '100000000000000001', ign: 'Alpha', from: 'otro' },
@@ -47,24 +47,18 @@ test('plans a change for a member whose nickname is not their Minecraft name', (
 });
 
 test('plans nothing for a member whose nickname is already right', () => {
-  assert.deepEqual(planNicknames([state({ current: 'Alpha' })], []), { changes: [], unmanageable: 0 });
+  assert.deepEqual(planNicknames([state({ current: 'Alpha' })]), { changes: [], unmanageable: 0 });
 });
 
 test('a nickname that differs only in case is changed, since the name is exact', () => {
-  assert.equal(planNicknames([state({ current: 'alpha' })], []).changes.length, 1);
+  assert.equal(planNicknames([state({ current: 'alpha' })]).changes.length, 1);
 });
 
 test('counts the members the bot cannot rename instead of trying', () => {
-  assert.deepEqual(planNicknames([state({ current: 'x', manageable: false }), state({ discordId: '2', current: 'Alpha' })], []), {
+  assert.deepEqual(planNicknames([state({ current: 'x', manageable: false }), state({ discordId: '2', current: 'Alpha' })]), {
     changes: [],
     unmanageable: 1,
   });
-});
-
-test('with a pilot it only looks at the members in it', () => {
-  const states = [state({ current: 'x' }), state({ discordId: '2', ign: 'Bravo', current: 'y' })];
-
-  assert.deepEqual(planNicknames(states, ['2']).changes, [{ discordId: '2', ign: 'Bravo', from: 'y' }]);
 });
 
 // One run of the sync
@@ -89,7 +83,6 @@ const syncSetup = (options: { topic?: string | null; connected?: boolean; dryRun
     }),
     topicTemplate: TEMPLATE,
     dryRun: options.dryRun ?? false,
-    pilot: [],
     logger: { log: text => void log.push(text), error: text => void log.push(`ERROR ${text}`) },
   };
   return { deps, log, topics, renamed };

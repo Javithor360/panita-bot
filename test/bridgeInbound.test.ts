@@ -231,7 +231,7 @@ test('a failure while posting never reaches the bridge', async () => {
 
 const LINKED: EnabledMember = { discord_id: '222222222222222222', ign: 'Javithor360', minecraft_status: 'premium' };
 
-const roleSetup = (options: { has?: boolean; dryRun?: boolean; pilot?: string[]; roleId?: string | undefined; linked?: boolean; present?: boolean } = {}) => {
+const roleSetup = (options: { has?: boolean; dryRun?: boolean; roleId?: string | undefined; linked?: boolean; present?: boolean } = {}) => {
   const added: string[] = [];
   const logs: string[] = [];
   const member: RoleMember = { roles: { cache: { has: () => options.has ?? false }, add: async id => void added.push(id) } };
@@ -240,7 +240,6 @@ const roleSetup = (options: { has?: boolean; dryRun?: boolean; pilot?: string[];
     directory: { byIgn: async () => (options.linked === false ? undefined : LINKED) },
     fetchMember: async () => (options.present === false ? null : member),
     dryRun: options.dryRun ?? false,
-    pilot: options.pilot ?? [],
     logger: { log: (text: string) => void logs.push(text), error: () => {} },
   };
   return { deps, added, logs };
@@ -279,19 +278,69 @@ test('in dry run it only says what it would do', async () => {
   assert.match(logs[0], /would give the joined role to Javithor360/);
 });
 
-test('with a pilot it only touches the members in it', async () => {
-  const outside = roleSetup({ pilot: ['999999999999999999'] });
-  await grantJoinedRole(outside.deps, JAVI);
-  const inside = roleSetup({ pilot: [LINKED.discord_id] });
-  await grantJoinedRole(inside.deps, JAVI);
-
-  assert.deepEqual(outside.added, []);
-  assert.deepEqual(inside.added, ['333333333333333333']);
-});
-
 test('a failure giving the role is logged and not thrown', async () => {
   const { deps } = roleSetup();
   deps.fetchMember = async () => Promise.reject(new Error('boom'));
 
   await grantJoinedRole(deps, JAVI);
+});
+
+// The role does not depend on the notification
+
+const joinFrame: ModFrame = { type: 'event', kind: 'join', player: JAVI };
+const settled = () => new Promise(resolve => setImmediate(resolve));
+
+test('gives the role at a join even when the embed can not be posted', async () => {
+  const joined: BridgePlayer[] = [];
+  const errors: unknown[][] = [];
+  const handle = createInbound({
+    channels: channelMapOf({ global: GLOBAL }),
+    webhooks: { post: async () => {} },
+    notify: async () => Promise.reject(new Error('missing permissions')),
+    avatars: AVATARS,
+    onJoin: async player => void joined.push(player),
+    logger: { error: (...args: unknown[]) => void errors.push(args) },
+  });
+
+  handle(joinFrame);
+  await settled();
+
+  assert.deepEqual(joined, [JAVI]);
+  assert.equal(errors.length, 1, 'the failed embed is still reported');
+});
+
+test('gives the role at a join even when no channel is joined', async () => {
+  const joined: BridgePlayer[] = [];
+  const handle = createInbound({
+    channels: channelMapOf({}),
+    webhooks: { post: async () => {} },
+    notify: async () => {},
+    avatars: AVATARS,
+    onJoin: async player => void joined.push(player),
+    logger: { error: () => {} },
+  });
+
+  handle(joinFrame);
+  await settled();
+
+  assert.deepEqual(joined, [JAVI]);
+});
+
+test('says why no role was given: nobody linked has that name, or the member is not in the server', async () => {
+  const unlinked = roleSetup({ linked: false });
+  await grantJoinedRole(unlinked.deps, JAVI);
+  const absent = roleSetup({ present: false });
+  await grantJoinedRole(absent.deps, JAVI);
+
+  assert.match(unlinked.logs[0], /Javithor360 joined, but no linked account has that Minecraft name/);
+  assert.match(absent.logs[0], /is not in the server, so no role was given/);
+});
+
+test('a member who already has the role is not logged or touched', async () => {
+  const { deps, added, logs } = roleSetup({ has: true });
+
+  await grantJoinedRole(deps, JAVI);
+
+  assert.deepEqual(added, []);
+  assert.deepEqual(logs, []);
 });
