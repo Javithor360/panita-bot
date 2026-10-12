@@ -1,6 +1,6 @@
 import type { User } from 'discord.js';
 import { API_TIMEOUTS, api, ApiError } from '../lib/api';
-import type { BotUser, BulkDeleteResult, EnsureUserResult } from '../lib/api/types';
+import type { BotUser, BulkDeleteResult, DeactivateResult, EnsureUserResult, MinecraftStatus } from '../lib/api/types';
 import { avatarUrlOf } from '../lib/discord';
 
 export type { BotUser };
@@ -11,6 +11,8 @@ const BULK_DELETE_CHUNK_SIZE = 500;
 export class IgnTakenError extends Error {}
 export class UserNotFoundError extends Error {}
 export class AlreadyActivatedError extends Error {}
+/** The account exists but is disabled (or has no row yet), so the action needs `/register` first. */
+export class NotActivatedError extends Error {}
 /** The API refused the IGN or the password; `reason` says which rule failed. */
 export class InvalidActivationError extends Error {
   constructor(readonly reason: 'ign_format' | 'special' | 'length') {
@@ -75,6 +77,80 @@ export const activateAccount = async (discordId: string, ign: string, password: 
       }
     }
     throw error;
+  }
+};
+
+/** A `409` that says the account is not activated; the API puts the reason in `code` or in `details.reason`. */
+export const isNotActivated = (error: unknown): boolean =>
+  error instanceof ApiError &&
+  error.status === 409 &&
+  (error.code === 'not_activated' || error.details?.reason === 'not_activated');
+
+/** Records whether the member plays with a premium account. Throws `UserNotFoundError` or `NotActivatedError`. */
+export const setMinecraftStatus = async (discordId: string, minecraftStatus: MinecraftStatus): Promise<void> => {
+  try {
+    // Writing the same value again changes nothing, so PUT keeps the client's default retries
+    await api.put('/v1/discord/users/{discordId}/minecraft-status', { minecraft_status: minecraftStatus }, { params: { discordId } });
+  } catch (error) {
+    if (isNotActivated(error)) throw new NotActivatedError(discordId);
+    if (error instanceof ApiError && error.status === 404) throw new UserNotFoundError(discordId);
+    throw error;
+  }
+};
+
+/**
+ * Sets or replaces the legacy password of an active account (the API validates and hashes it, and closes
+ * every session when it replaces an existing one). Throws `InvalidActivationError` (`special` or `length`),
+ * `NotActivatedError` or `UserNotFoundError`.
+ */
+export const setPassword = async (discordId: string, password: string): Promise<void> => {
+  try {
+    await api.put('/v1/discord/users/{discordId}/password', { password }, { params: { discordId } });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      if (isNotActivated(error)) throw new NotActivatedError(discordId);
+      if (error.status === 404) throw new UserNotFoundError(discordId);
+      const reason = error.details?.reason;
+      if (error.status === 400 && (reason === 'special' || reason === 'length')) throw new InvalidActivationError(reason);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Disables the account and closes its sessions; the IGN, status and password are kept. Returns whether
+ * anything changed (false for an account that was already disabled or does not exist). Other failures are
+ * thrown for the caller to log; no member sees them.
+ */
+export const deactivateAccount = async (discordId: string): Promise<boolean> => {
+  try {
+    // The route is idempotent, so a failed call may be repeated
+    const { deactivated } = await api.post<DeactivateResult>('/v1/discord/users/{discordId}/deactivate', undefined, {
+      params: { discordId },
+      idempotent: true,
+    });
+    return deactivated;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return false;
+    throw error;
+  }
+};
+
+/** Largest page `GET /v1/discord/users/enabled-ids` returns. */
+const ENABLED_IDS_PAGE_SIZE = 500;
+
+/** The Discord ids of every enabled account, read page by page. */
+export const listEnabledDiscordIds = async (): Promise<string[]> => {
+  const ids: string[] = [];
+  for (let after: string | undefined; ; ) {
+    const page = await api.get<string[]>('/v1/discord/users/enabled-ids', {
+      query: { after, limit: ENABLED_IDS_PAGE_SIZE },
+      timeoutMs: API_TIMEOUTS.bulk,
+    });
+    ids.push(...page);
+    // A short page is the last one; otherwise the last id is the cursor of the next
+    if (page.length < ENABLED_IDS_PAGE_SIZE) return ids;
+    after = page[page.length - 1];
   }
 };
 
