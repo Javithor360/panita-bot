@@ -20,6 +20,9 @@ export const URLS = {
   ticketHelpChannel: 'https://discord.com/channels/707103390852710491/1406385534712156301/1521266058206511146',
 } as const;
 
+/** The webhook the bot makes in each channel it bridges to Minecraft. */
+export const MINECRAFT_BRIDGE = { webhookName: 'Enriquecraft' } as const;
+
 export const SERVER = {
   domain: 'mc.panitacraft.com',
   numericIp: '51.81.146.102:25593',
