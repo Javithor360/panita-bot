@@ -118,7 +118,6 @@ All optional: without `BRIDGE_KEY` the feature is off and the log says so once.
 | `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED` | Head URL templates with `{uuid}`, `{name}`, `{nickname}`. Defaults in `lib/minecraft.ts`: `https://mc-heads.net/avatar/{uuid}/128` and a fixed Steve head. |
 | `MC_TOPIC_TEMPLATE` | The topic, with `{online}`, `{max}`, `{tps}`, `{uptime}`. |
 | `MC_SYNC_DRY_RUN` | `true` by default: the job only logs what it would change. |
-| `MC_SYNC_PILOT_IDS` | When set, the job touches only these Discord ids. |
 | `MC_SYNC_MINUTES` | Interval of the job, at least 10. |
 
 The bot's `.env.example` and README are updated in the same commits.
@@ -144,7 +143,7 @@ At ready and then every `MC_SYNC_MINUTES` (never under 10), `sync.ts` builds a p
 
 The role is not part of the job. When a `join` or `first_join` event arrives, the bot finds the linked member of that IGN in its list of enabled users (kept in memory, refreshed by the job and on a miss) and adds the role if they lack it. It is never removed by the bridge, and it is granted again only at a later join, so it does not fight an admin who removed the edition on the web.
 
-Dry run logs "would set nickname of X to Y" and "would add the role to Z" and changes nothing; with `MC_SYNC_PILOT_IDS` only those members are touched. The plan is a pure function (members, enabled users, roster, config in; actions out) and is tested. The role is an edition role: the existing web sync turns it into the website edition, which is intended.
+Dry run logs "would set nickname of X to Y" and "would add the role to Z" and changes nothing; The plan is a pure function (members, enabled users, roster, config in; actions out) and is tested. The role is an edition role: the existing web sync turns it into the website edition, which is intended.
 
 ## 7. Implementation phases
 
@@ -163,7 +162,7 @@ Every phase is one or more commits (conventional subject, no attribution), each 
 
 **B4. Commands.** `playerlist`, `tps`, help and README. Tests: the pure formatting of the answers.
 
-**B5. Ten-minute job.** The API's bulk endpoint, `sync.ts`. Tests: the planner (nickname equal, different, unchangeable; role present or missing; pilot filter; dry run) and the topic text.
+**B5. Ten-minute job.** The API's bulk endpoint, `sync.ts`. Tests: the planner (nickname equal, different, unchangeable; role present or missing; dry run) and the topic text.
 
 **F. API relay fallback (only if B1's gate fails).** `RelayLink` in this repository polling the API; see the API plan.
 
@@ -171,7 +170,7 @@ Every phase is one or more commits (conventional subject, no attribution), each 
 
 ## 8. Tests
 
-Pure functions and the bridge server with an in-process `ws` client; no test needs Discord. Manual, in the test guild with a local mod: connect, wrong key, replace, kill the mod, chat both ways, a linked and an unlinked member, an `@everyone` in game, every event kind, `/playerlist` and `/tps` with the mod up and down, topic, dry run then pilot then everyone.
+Pure functions and the bridge server with an in-process `ws` client; no test needs Discord. Manual, in the test guild with a local mod: connect, wrong key, replace, kill the mod, chat both ways, a linked and an unlinked member, an `@everyone` in game, every event kind, `/playerlist` and `/tps` with the mod up and down, topic, dry run, then live.
 
 ## 9. Security
 
@@ -185,7 +184,7 @@ Pure functions and the bridge server with an in-process `ws` client; no test nee
 |---|---|
 | The host does not forward WebSocket upgrades | Gate in B1, then the API relay (F). |
 | The bot is offline | The game is unaffected; chat is not mirrored; commands say the server is not connected. |
-| The nickname job renames people by mistake | Dry run first, then a pilot of one member, then everyone; skips what the bot cannot change. |
+| The nickname job renames people by mistake | Dry run first, then live; skips what the bot cannot change. |
 | Webhook or topic rate limits | discord.js queues; the topic is edited only on change and not more than every 10 minutes. |
 | The role comes back after an admin removed the edition on the web | Accepted: it is re-added only the next time the player joins. |
 

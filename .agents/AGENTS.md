@@ -65,7 +65,7 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - `features/minecraft/` trabaja con interfaces pequeñas (`Hook`, `HookChannel`, `BridgeMessage`, `TopicChannel`, `NicknameMember`, `RoleMember`) y solo `discord.ts` toca objetos de discord.js, así todo se prueba sin Discord. El acceso a la API sigue en `services/` (`listEnabledMembers`).
 - Los comandos del puente (`/playerlist`, `/tps`) están en la categoría `minecraft`, se definen una vez y salen en `/help` y en el deploy como cualquier otro; usan `queryMinecraft`, que convierte "apagado", "no conectado" y "sin respuesta" en `UserError`.
 - **Nunca mencionar a nadie**: los webhooks y las notificaciones usan `allowedMentions: { parse: [] }`. Solo se escuchan los mensajes de miembros **vinculados** (cuenta habilitada con IGN, según la API); los demás reciben una reacción ❌.
-- La sincronización (tema, apodos) y el rol al entrar están en **modo de prueba** (`MC_SYNC_DRY_RUN=true`) por defecto y pueden limitarse con `MC_SYNC_PILOT_IDS`. El tema solo se edita si el texto cambió (Discord permite ~2 ediciones cada 10 minutos).
+- La sincronización (tema, apodos) y el rol al entrar están en **modo de prueba** (`MC_SYNC_DRY_RUN=true`) por defecto: solo se registra lo que se cambiaría hasta poner `MC_SYNC_DRY_RUN=false`. El tema solo se edita si el texto cambió (Discord permite ~2 ediciones cada 10 minutos).
 - **Nunca ejecutar una segunda copia del bot de producción con su token**: respondería cada comando dos veces. Para desarrollar, usar una aplicación y un servidor de prueba, o apagar antes el bot de producción.
 
 ### Sincronización con la web

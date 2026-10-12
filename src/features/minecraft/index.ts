@@ -54,7 +54,6 @@ export const startBridge = (http: Server, client: Client<true>) => {
             directory,
             fetchMember: members.role,
             dryRun: env.MC_SYNC_DRY_RUN,
-            pilot: env.MC_SYNC_PILOT_IDS,
             logger: console,
           },
           player,
@@ -71,10 +70,13 @@ export const startBridge = (http: Server, client: Client<true>) => {
       fetchMember: members.nickname,
       topicTemplate: env.MC_TOPIC_TEMPLATE,
       dryRun: env.MC_SYNC_DRY_RUN,
-      pilot: env.MC_SYNC_PILOT_IDS,
       logger: console,
     },
     env.MC_SYNC_MINUTES,
   );
-  if (env.MC_SYNC_DRY_RUN) console.log('[Minecraft] The sync is in dry run: it only logs what it would change.');
+  if (env.MC_SYNC_DRY_RUN) {
+    console.log('[Minecraft] DRY RUN: the join role, the nicknames and the topic are only logged, not changed. Set MC_SYNC_DRY_RUN=false to apply them.');
+  }
+  if (!env.MC_JOINED_ROLE_ID) console.log('[Minecraft] MC_JOINED_ROLE_ID is not set, so nobody gets the joined role.');
+  if (!channels.main) console.log('[Minecraft] MC_CHANNEL_GLOBAL is not set, so no event or chat is posted to Discord.');
 };

@@ -89,8 +89,6 @@ export const env = {
   MC_TOPIC_TEMPLATE: optional('MC_TOPIC_TEMPLATE') ?? '🟢 {online}/{max} jugadores · TPS {tps} · activo hace {uptime}',
   /** While true the sync only logs what it would change. */
   MC_SYNC_DRY_RUN: booleanFlag('MC_SYNC_DRY_RUN', true),
-  /** When set, the sync and the join role only touch these Discord ids. */
-  MC_SYNC_PILOT_IDS: (optional('MC_SYNC_PILOT_IDS') ?? '').split(',').map(id => id.trim()).filter(Boolean),
   MC_SYNC_MINUTES: syncMinutes(),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;
