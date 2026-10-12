@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
+import { DEFAULT_AVATAR_CRACKED, DEFAULT_AVATAR_PREMIUM } from '../lib/minecraft';
 import { URLS } from './constants';
 
 config();
@@ -30,6 +31,37 @@ const apiUrl = (): string => {
   return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
 };
 
+const SNOWFLAKE = /^\d{17,20}$/;
+
+/** An optional Discord id. */
+const optionalId = (name: string): string | undefined => {
+  const value = optional(name);
+  if (value !== undefined && !SNOWFLAKE.test(value)) throw new Error(`[Config] ${name} must be a Discord id`);
+  return value;
+};
+
+/** The secret of the Minecraft bridge. Long enough to be a random key, never logged. */
+const bridgeKey = (): string | undefined => {
+  const value = optional('BRIDGE_KEY');
+  if (value !== undefined && value.length < 16) throw new Error('[Config] BRIDGE_KEY must have at least 16 characters');
+  return value;
+};
+
+/** A head template. It is fetched by Discord, so only http and https are accepted. */
+const avatarTemplate = (name: string, fallback: string): string => {
+  const value = optional(name) ?? fallback;
+  if (!/^https?:\/\//.test(value)) throw new Error(`[Config] ${name} must be an http or https address`);
+  return value;
+};
+
+const booleanFlag = (name: string, fallback: boolean): boolean => {
+  const value = optional(name);
+  return value === undefined ? fallback : ['1', 'true', 'yes', 'si'].includes(value.toLowerCase());
+};
+
+/** Minutes between runs of the Minecraft sync. Discord allows about two topic edits every ten minutes. */
+const syncMinutes = (): number => Math.max(10, Number(optional('MC_SYNC_MINUTES') ?? 10) || 10);
+
 /**
  * Validated environment. This is the only module allowed to read `process.env`.
  */
@@ -45,5 +77,20 @@ export const env = {
   /** Optional override; otherwise resolved from the token's application. */
   CLIENT_ID: optional('CLIENT_ID'),
   PORT: Number(optional('PORT') ?? 3005),
+  /** Secret of the Minecraft bridge; without it the bridge is off. */
+  BRIDGE_KEY: bridgeKey(),
+  /** Discord channel of the global chat of the server, and (later) of its staff chat. */
+  MC_CHANNEL_GLOBAL: optionalId('MC_CHANNEL_GLOBAL'),
+  MC_CHANNEL_STAFF: optionalId('MC_CHANNEL_STAFF'),
+  /** Role given to a linked member when they join the Minecraft server. */
+  MC_JOINED_ROLE_ID: optionalId('MC_JOINED_ROLE_ID'),
+  MC_AVATAR_PREMIUM: avatarTemplate('MC_AVATAR_PREMIUM', DEFAULT_AVATAR_PREMIUM),
+  MC_AVATAR_CRACKED: avatarTemplate('MC_AVATAR_CRACKED', DEFAULT_AVATAR_CRACKED),
+  MC_TOPIC_TEMPLATE: optional('MC_TOPIC_TEMPLATE') ?? '🟢 {online}/{max} jugadores · TPS {tps} · activo hace {uptime}',
+  /** While true the sync only logs what it would change. */
+  MC_SYNC_DRY_RUN: booleanFlag('MC_SYNC_DRY_RUN', true),
+  /** When set, the sync and the join role only touch these Discord ids. */
+  MC_SYNC_PILOT_IDS: (optional('MC_SYNC_PILOT_IDS') ?? '').split(',').map(id => id.trim()).filter(Boolean),
+  MC_SYNC_MINUTES: syncMinutes(),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;
