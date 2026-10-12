@@ -10,6 +10,23 @@ export const isValidIgn = (ign: string) => IGN_PATTERN.test(ign);
 export const mcHeadUrl = (ign: string, size = 256) =>
   `https://mc-heads.net/avatar/${encodeURIComponent(ign)}/${size}`;
 
+/** Default head templates of the Minecraft bridge; `{uuid}` (no dashes), `{name}` and `{nickname}` are replaced. */
+export const DEFAULT_AVATAR_PREMIUM = 'https://mc-heads.net/avatar/{uuid}/128';
+export const DEFAULT_AVATAR_CRACKED = 'https://mc-heads.net/avatar/MHF_Steve/128';
+
+export interface AvatarSubject {
+  uuid: string;
+  name: string;
+  nickname: string | null;
+}
+
+/** The head of a player from a template. The names are encoded; the UUID has no dashes. */
+export const avatarFromTemplate = (template: string, { uuid, name, nickname }: AvatarSubject) =>
+  template
+    .replaceAll('{uuid}', uuid.replaceAll('-', ''))
+    .replaceAll('{name}', encodeURIComponent(name))
+    .replaceAll('{nickname}', encodeURIComponent(nickname ?? name));
+
 export const SKIN_VIEWS = [
   { label: 'Cuerpo Completo - 3D', value: '3d/full', description: 'Vista 3D del cuerpo completo', emoji: '🧍' },
   { label: 'Busto - 3D', value: '3d/bust', description: 'Vista 3D desde la cintura hacia arriba', emoji: '👤' },

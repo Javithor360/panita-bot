@@ -15,6 +15,8 @@ import { api, verifyApiAccess } from './lib/api';
 import { startWebSync } from './services/webSync';
 import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
+import { startBridge } from './features/minecraft';
+import { bridgeMessageEvent } from './events/bridgeMessage';
 
 const client = new Client({
   intents: [
@@ -36,7 +38,7 @@ const registry = getRegistry();
 client.once(Events.ClientReady, c => {
   readyEvent(c, registry);
   startWebSync(client);
-  keepAlive();
+  startBridge(keepAlive(), c);
 
   // Accounts of members who left while the bot was offline; it never blocks or breaks the start
   const home = env.GUILD_ID ? c.guilds.cache.get(env.GUILD_ID) : undefined;
@@ -52,6 +54,7 @@ client.on(Events.GuildRoleDelete, roleDeleteEvent);
 client.on(Events.InteractionCreate, createInteractionHandler(registry));
 client.on(Events.MessageCreate, createMessageHandler(registry));
 client.on(Events.MessageCreate, createDirectMessageHandler());
+client.on(Events.MessageCreate, bridgeMessageEvent);
 
 const start = async () => {
   if (!(await verifyApiAccess(api))) process.exit(1);
