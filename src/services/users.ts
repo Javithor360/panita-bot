@@ -5,6 +5,7 @@ import type {
   BulkDeleteResult,
   DeactivateResult,
   EnabledIdsMeta,
+  EnabledMember,
   EnsureUserResult,
   MinecraftStatus,
 } from '../lib/api/types';
@@ -168,6 +169,20 @@ export const listEnabledDiscordIds = async (): Promise<string[]> => {
     ids.push(...page.data);
     // The cursor is an account id, not a Discord id; it is null on the last page
     if (page.meta.next_after === null) return ids;
+    after = page.meta.next_after;
+  }
+};
+
+/** The enabled accounts that have a Minecraft name, read page by page (the cursor is an account id, as for the ids). */
+export const listEnabledMembers = async (): Promise<EnabledMember[]> => {
+  const members: EnabledMember[] = [];
+  for (let after = 0; ; ) {
+    const page = await api.getEnvelope<EnabledMember[], EnabledIdsMeta>('/v1/discord/users/enabled-members', {
+      query: { after, limit: ENABLED_IDS_PAGE_SIZE },
+      timeoutMs: API_TIMEOUTS.bulk,
+    });
+    members.push(...page.data);
+    if (page.meta.next_after === null) return members;
     after = page.meta.next_after;
   }
 };

@@ -162,6 +162,14 @@ export interface EnabledIdsMeta extends ListMeta {
   next_after: number | null;
 }
 
+/** An item of `GET /v1/discord/users/enabled-members`: an enabled account with its Minecraft name. */
+export interface EnabledMember {
+  discord_id: string;
+  ign: string;
+  /** `null` until the member chooses it. */
+  minecraft_status: MinecraftStatus | null;
+}
+
 /** `POST /v1/discord/users/{discordId}/deactivate` */
 export interface DeactivateResult {
   /** False when the account was already disabled or had never existed. */
