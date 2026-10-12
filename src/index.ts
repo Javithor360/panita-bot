@@ -8,10 +8,12 @@ import { createDirectMessageHandler } from './events/dmMessage';
 import { readyEvent } from './events/ready';
 import { userUpdateEvent } from './events/userUpdate';
 import { guildMemberAddEvent } from './events/guildMemberAdd';
+import { guildMemberRemoveEvent } from './events/guildMemberRemove';
 import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
 import { api, verifyApiAccess } from './lib/api';
 import { startWebSync } from './services/webSync';
+import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
 
 const client = new Client({
@@ -35,10 +37,16 @@ client.once(Events.ClientReady, c => {
   readyEvent(c, registry);
   startWebSync(client);
   keepAlive();
+
+  // Accounts of members who left while the bot was offline; it never blocks or breaks the start
+  const home = env.GUILD_ID ? c.guilds.cache.get(env.GUILD_ID) : undefined;
+  if (home) void reconcileLeftMembers(home);
+  else console.error('[Reconcile] GUILD_ID is not set or the guild was not found; skipping.');
 });
 
 client.on(Events.UserUpdate, userUpdateEvent);
 client.on(Events.GuildMemberAdd, guildMemberAddEvent);
+client.on(Events.GuildMemberRemove, guildMemberRemoveEvent);
 client.on(Events.GuildMemberUpdate, guildMemberUpdateEvent);
 client.on(Events.GuildRoleDelete, roleDeleteEvent);
 client.on(Events.InteractionCreate, createInteractionHandler(registry));
