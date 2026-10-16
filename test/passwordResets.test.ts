@@ -19,6 +19,7 @@ import {
   listPendingResets,
   reportDelivery,
   ResetNotAvailableError,
+  ResetNotReadyError,
 } from '../src/services/passwordResets';
 import { InvalidActivationError, NotActivatedError } from '../src/services/users';
 
@@ -70,6 +71,7 @@ test('completing maps the expected rejections', async () => {
   const cases: Array<[Response, unknown]> = [
     [apiError(410, 'gone', { reason: 'expired' }), ResetNotAvailableError],
     [apiError(404, 'not_found'), ResetNotAvailableError],
+    [apiError(409, 'conflict', { reason: 'not_delivered' }), ResetNotReadyError],
     [apiError(409, 'conflict', { reason: 'not_activated' }), NotActivatedError],
     [apiError(400, 'validation_error', { reason: 'length' }), InvalidActivationError],
     [apiError(400, 'validation_error', { reason: 'special' }), InvalidActivationError],
@@ -104,6 +106,7 @@ test('attemptReset turns every expected answer into an attempt', async () => {
 
   const cases: Array<[Response, string]> = [
     [apiError(410, 'gone'), 'unavailable'],
+    [apiError(409, 'conflict', { reason: 'not_delivered' }), 'not_ready'],
     [apiError(409, 'conflict', { reason: 'not_activated' }), 'not_activated'],
     [apiError(400, 'validation_error', { reason: 'length' }), 'length'],
     [apiError(400, 'validation_error', { reason: 'special' }), 'special'],

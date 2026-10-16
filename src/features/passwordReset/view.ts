@@ -28,6 +28,7 @@ export const RESET_MESSAGES = {
   ignored: 'Solicitud cancelada.',
   unavailable: 'Esta solicitud venció o ya fue atendida. Si todavía la necesitas, pídela de nuevo desde la web.',
   notActivated: 'Primero activa tu cuenta con `/register`.',
+  notReady: 'Todavía estamos registrando la solicitud. Espera unos segundos y vuelve a pulsar el botón.',
   modalTitle: 'Nueva contraseña',
   // Discord does not mask text inputs, so the field says so
   modalLabel: 'Nueva contraseña (se ve al escribir)',

@@ -1,12 +1,12 @@
 import { MessageFlags, type ButtonInteraction, type ModalSubmitInteraction } from 'discord.js';
 import { button, modal } from '../../core/command';
 import { PASSWORD_INPUT, PASSWORD_RULE_MESSAGES } from '../../lib/registration';
-import { completeReset, ignoreReset, ResetNotAvailableError } from '../../services/passwordResets';
+import { completeReset, ignoreReset, ResetNotAvailableError, ResetNotReadyError } from '../../services/passwordResets';
 import { InvalidActivationError, NotActivatedError } from '../../services/users';
 import { buildResetModal, endMessage, RESET_ACTIONS, RESET_MESSAGES, type ResetEnd, type ResetPlace } from './view';
 
 /** What came of a member typing their new password. */
-export type ResetAttempt = 'completed' | 'unavailable' | 'length' | 'special' | 'not_activated';
+export type ResetAttempt = 'completed' | 'unavailable' | 'length' | 'special' | 'not_activated' | 'not_ready';
 
 /**
  * Replaces the password with the one typed. The expected rejections become an attempt; `length` and `special`
@@ -19,6 +19,7 @@ export const attemptReset = async (requestId: string, discordId: string, passwor
   } catch (error) {
     if (error instanceof ResetNotAvailableError) return 'unavailable';
     if (error instanceof NotActivatedError) return 'not_activated';
+    if (error instanceof ResetNotReadyError) return 'not_ready';
     if (error instanceof InvalidActivationError && (error.reason === 'length' || error.reason === 'special')) return error.reason;
     throw error;
   }
@@ -29,6 +30,7 @@ const RETRY_MESSAGES = {
   length: PASSWORD_RULE_MESSAGES.length,
   special: PASSWORD_RULE_MESSAGES.special,
   not_activated: RESET_MESSAGES.notActivated,
+  not_ready: RESET_MESSAGES.notReady,
 } as const;
 
 const placeOf = (interaction: ButtonInteraction | ModalSubmitInteraction): ResetPlace => (interaction.inGuild() ? 'channel' : 'dm');
@@ -87,6 +89,8 @@ export const passwordResetComponents = {
       try {
         await ignoreReset(requestId, interaction.user.id);
       } catch (error) {
+        // Not recorded as delivered yet: the buttons stay, and pressing again in a moment works
+        if (error instanceof ResetNotReadyError) return interaction.followUp({ content: RESET_MESSAGES.notReady });
         if (!(error instanceof ResetNotAvailableError)) throw error;
         end = 'unavailable';
       }

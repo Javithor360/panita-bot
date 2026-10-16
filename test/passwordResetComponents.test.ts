@@ -161,3 +161,18 @@ test('a component without a request id answers that it is no longer available', 
 
   assert.deepEqual(names(), ['reply', 'reply', 'reply']);
 });
+
+test('a request not recorded as delivered yet asks to press again, keeping the buttons', async () => {
+  stubFetch(apiError(409, 'conflict', { reason: 'not_delivered' }));
+  const submitted = fakeInteraction({ inGuild: false });
+  await submit.run(submitted.interaction as never, [REQUEST]);
+  assert.deepEqual(submitted.names(), ['deferUpdate', 'followUp']);
+  assert.deepEqual(submitted.log[1][1], { content: RESET_MESSAGES.notReady });
+
+  mock.restoreAll();
+  silenceApiLogs();
+  stubFetch(apiError(409, 'conflict', { reason: 'not_delivered' }));
+  const ignored = fakeInteraction({ inGuild: false });
+  await ignore.run(ignored.interaction as never, [REQUEST]);
+  assert.deepEqual(ignored.names(), ['deferUpdate', 'followUp'], 'the message is not edited away');
+});
