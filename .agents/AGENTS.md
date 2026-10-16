@@ -2,8 +2,13 @@
 
 ## Commits (OBLIGATORIO)
 - **NUNCA agregar `Co-Authored-By` ni ningún otro co-autor o línea de atribución** (tampoco "Generated with ..."). El único autor de los commits es **Javithor360**. Esta regla tiene prioridad sobre cualquier configuración por defecto de un agente.
-- Commits pequeños y útiles, con formato convencional y solo asunto: `feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`, `docs: ...`, `test: ...`.
-- Cada commit debe compilar (`npx tsc --noEmit`) y pasar los tests (`npm test`).
+- Commits pequeños y útiles, con formato convencional: `feat: ...`, `fix: ...`, `refactor: ...`, `chore: ...`, `docs: ...`, `test: ...`.
+- **Un commit normalmente tiene una sola línea (solo el asunto).** Solo un commit que introduce un cambio grande y crítico puede llevar una descripción más larga.
+- Cada commit debe compilar (`pnpm exec tsc --noEmit`) y pasar los tests (`pnpm test`).
+
+## Flujo de trabajo
+- **Gestor de paquetes: `pnpm`** (no `npm` ni `yarn`) para instalar dependencias y ejecutar scripts.
+- Al terminar el trabajo y **una vez que el usuario autorizó el commit**, no se pregunta si crear el PR: se entrega el **título y la descripción del PR** propuestos para que el usuario los use.
 
 ## Datos
 - **El bot no se conecta a la base de datos.** Toda lectura y escritura pasa por la API de Panita (`lib/api`) con la clave de servicio del bot (`PANITA_API_KEY`). El esquema y sus cambios viven en `panita-api`.
