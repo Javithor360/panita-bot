@@ -42,7 +42,16 @@ export const STATUS_LABEL: Record<MinecraftStatus, string> = {
   cracked: 'cuenta no premium',
 };
 
-const textInput = (id: string, label: string, min: number, max: number, placeholder?: string) => {
+/** What the member is told when the API rejects a password (the rules themselves live in the API). */
+export const PASSWORD_RULE_MESSAGES = {
+  special: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.',
+  length: 'La contraseña debe tener entre 6 y 32 caracteres.',
+} as const;
+
+export const PASSWORD_PLACEHOLDER = '6 a 32 caracteres, con un carácter especial';
+
+/** One short, required line of a modal. */
+export const textInput = (id: string, label: string, min: number, max: number, placeholder?: string) => {
   const input = new TextInputBuilder()
     .setCustomId(id)
     .setLabel(label)
@@ -68,7 +77,7 @@ export const buildRegisterModal = (customId: string, title: string, { askIgn, as
   const rows = [];
   if (askIgn) rows.push(textInput(IGN_INPUT, 'IGN de Minecraft', 3, 16, 'Ej: Steve'));
   if (askPassword) {
-    rows.push(textInput(PASSWORD_INPUT, 'Contraseña', 6, 32, '6 a 32 caracteres, con un carácter especial'));
+    rows.push(textInput(PASSWORD_INPUT, 'Contraseña', 6, 32, PASSWORD_PLACEHOLDER));
     rows.push(textInput(CONFIRM_INPUT, 'Repetir contraseña', 6, 32));
   }
   return new ModalBuilder().setCustomId(customId).setTitle(title).addComponents(...rows);

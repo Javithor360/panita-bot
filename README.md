@@ -64,6 +64,7 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `MC_TOPIC_TEMPLATE` | — | The topic of the global channel, with `{online}`, `{max}`, `{tps}` and `{uptime}`. |
 | `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
 | `MC_SYNC_MINUTES` | — | Minutes between runs of the topic and nickname sync. At least 10. |
+| `PASSWORD_RESET_CHANNEL_ID` | — | Public channel (`#comandos`) where a password reset goes when the member's DMs are closed and they agree to it on the website. Without it that fallback is reported as failed. |
 
 <details>
 <summary>Example <code>.env</code></summary>
@@ -129,7 +130,7 @@ src/
   services/      business logic and every call to the Panita API
   lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
-  features/      large features split into modules (tickets, minecraft)
+  features/      large features split into modules (tickets, minecraft, login, passwordReset)
   commands/      one file per command, grouped by category
 test/            unit tests
 ```
@@ -263,6 +264,18 @@ Members sign in to the website and the launcher without a password. The app show
 3. `/sessions` lists the open sessions and closes any of them.
 
 A code only confirms a sign-in created for the member who sends it, expires after 3 minutes and works once. Any other DM gets one short help reply per user per minute. Nothing about codes or sessions is stored by the bot; it all goes through the API.
+
+### Password reset from the website
+
+A signed-in member who forgot their password asks for a reset in the website's settings, and the reset is confirmed from Discord:
+
+1. The API keeps the request (valid for 10 minutes, one every 10 minutes per member). The bot polls `GET /v1/discord/password-resets/pending` every 5 seconds and sends each request. That poll is also how the API knows the bot is alive: the website disables the option when the bot stops polling.
+2. The bot sends a **DM** with the buttons **Restablecer** and **Ignorar**, and reports `delivered`, or `dms_closed` when the member does not accept DMs.
+3. If the DMs are closed the website asks the member whether to use the public channel (`PASSWORD_RESET_CHANNEL_ID`). Only then does the bot post a minimal message there that pings that member and whose buttons only they can use. Discord cannot start an ephemeral message, so everything after the click (the form, the confirmation, the errors) is private, and the public message is edited to a neutral line without buttons. A channel that is missing or refuses is reported as `failed`.
+4. **Restablecer** opens a form with one field (Discord does not mask text inputs, so a repeat field would add nothing). The password goes form → bot → API; the bot never logs it and never retries that call. A password the API refuses (length, special character) leaves the request open to try again. **Ignorar** cancels the request.
+5. After a reset the member's other sessions are closed and they are told to review `/sessions`.
+
+The buttons and the form are components of `/register` (the router needs a command as namespace); the logic is in `src/features/passwordReset/` and `src/services/passwordResetSync.ts`. A request listed twice by the API is delivered once, and a report that failed is retried without sending the DM again.
 
 ### Minecraft bridge
 

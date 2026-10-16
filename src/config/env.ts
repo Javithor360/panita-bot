@@ -90,5 +90,7 @@ export const env = {
   /** While true the sync only logs what it would change. */
   MC_SYNC_DRY_RUN: booleanFlag('MC_SYNC_DRY_RUN', true),
   MC_SYNC_MINUTES: syncMinutes(),
+  /** Public channel (`#comandos`) for a password reset when the member's DMs are closed and they agree to it. Without it that fallback fails. */
+  PASSWORD_RESET_CHANNEL_ID: optionalId('PASSWORD_RESET_CHANNEL_ID'),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;

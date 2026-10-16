@@ -13,6 +13,7 @@ import { guildMemberUpdateEvent } from './events/guildMemberUpdate';
 import { roleDeleteEvent } from './events/roleEvents';
 import { api, verifyApiAccess } from './lib/api';
 import { startWebSync } from './services/webSync';
+import { startPasswordResetSync } from './services/passwordResetSync';
 import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
 import { startBridge } from './features/minecraft';
@@ -38,6 +39,7 @@ const registry = getRegistry();
 client.once(Events.ClientReady, c => {
   readyEvent(c, registry);
   startWebSync(client);
+  startPasswordResetSync(client);
   startBridge(keepAlive(), c);
 
   // Accounts of members who left while the bot was offline; it never blocks or breaks the start
