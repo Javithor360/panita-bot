@@ -3,7 +3,7 @@ import { button, modal } from '../../core/command';
 import { PASSWORD_INPUT, PASSWORD_RULE_MESSAGES } from '../../lib/registration';
 import { completeReset, ignoreReset, ResetNotAvailableError, ResetNotReadyError } from '../../services/passwordResets';
 import { InvalidActivationError, NotActivatedError } from '../../services/users';
-import { buildResetModal, endMessage, RESET_ACTIONS, RESET_MESSAGES, type ResetEnd, type ResetPlace } from './view';
+import { buildResetModal, endPayload, RESET_ACTIONS, RESET_MESSAGES, type ResetEnd, type ResetPlace } from './view';
 
 /** What came of a member typing their new password. */
 export type ResetAttempt = 'completed' | 'unavailable' | 'length' | 'special' | 'not_activated' | 'not_ready';
@@ -35,9 +35,9 @@ const RETRY_MESSAGES = {
 
 const placeOf = (interaction: ButtonInteraction | ModalSubmitInteraction): ResetPlace => (interaction.inGuild() ? 'channel' : 'dm');
 
-/** A request message in the public channel is edited to a neutral line; the member's own answer is private. */
-const closeRequestMessage = (interaction: ModalSubmitInteraction, text: string) =>
-  interaction.message?.edit({ content: text, components: [] }).catch(error => {
+/** A request message in the public channel is edited to a neutral card; the member's own answer is private. */
+const closeRequestMessage = (interaction: ModalSubmitInteraction, end: ResetEnd) =>
+  interaction.message?.edit(endPayload('channel', end)).catch(error => {
     console.error('[Password-Reset] Could not edit the request message:', error);
   });
 
@@ -73,8 +73,8 @@ export const passwordResetComponents = {
       if (attempt !== 'completed' && attempt !== 'unavailable') return tell(RETRY_MESSAGES[attempt]);
 
       const end: ResetEnd = attempt;
-      if (place === 'dm') return interaction.editReply({ content: endMessage('dm', end), components: [] });
-      await closeRequestMessage(interaction, endMessage('channel', end));
+      if (place === 'dm') return interaction.editReply(endPayload('dm', end));
+      await closeRequestMessage(interaction, end);
       await interaction.editReply({ content: RESET_MESSAGES[end] });
     },
   }),
@@ -94,7 +94,7 @@ export const passwordResetComponents = {
         if (!(error instanceof ResetNotAvailableError)) throw error;
         end = 'unavailable';
       }
-      await interaction.editReply({ content: endMessage(placeOf(interaction), end), components: [] });
+      await interaction.editReply(endPayload(placeOf(interaction), end));
     },
   }),
 };

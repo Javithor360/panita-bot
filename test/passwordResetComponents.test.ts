@@ -3,7 +3,7 @@ import { afterEach, beforeEach, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { passwordResetComponents } from '../src/features/passwordReset/components';
 import { PASSWORD_RULE_MESSAGES } from '../src/lib/registration';
-import { RESET_MESSAGES } from '../src/features/passwordReset/view';
+import { endPayload, RESET_MESSAGES } from '../src/features/passwordReset/view';
 import registerCommand from '../src/commands/general/register';
 
 beforeEach(() => silenceApiLogs());
@@ -62,7 +62,7 @@ test('in a DM a good password edits the request message and removes the buttons'
   await submit.run(interaction as never, [REQUEST]);
 
   assert.deepEqual(names(), ['deferUpdate', 'editReply']);
-  assert.deepEqual(log[1][1], { content: RESET_MESSAGES.completed, components: [] });
+  assert.deepEqual(log[1][1], endPayload('dm', 'completed'));
   assert.deepEqual(calls[0].body, { discord_id: ID, password: 'secret-pass!' });
 });
 
@@ -74,7 +74,7 @@ test('in the channel a good password is answered privately and the public messag
 
   assert.deepEqual(names(), ['deferReply', 'message.edit', 'editReply']);
   assert.deepEqual(log[0][1], { flags: 64 }, 'the acknowledgement is ephemeral');
-  assert.deepEqual(log[1][1], { content: 'Solicitud atendida.', components: [] });
+  assert.deepEqual(log[1][1], endPayload('channel', 'completed'));
   assert.deepEqual(log[2][1], { content: RESET_MESSAGES.completed });
 });
 
@@ -100,7 +100,7 @@ test('an expired request closes the message in both places', async () => {
   stubFetch(apiError(410, 'gone', { reason: 'expired' }));
   const dm = fakeInteraction({ inGuild: false });
   await submit.run(dm.interaction as never, [REQUEST]);
-  assert.deepEqual(dm.log[1][1], { content: RESET_MESSAGES.unavailable, components: [] });
+  assert.deepEqual(dm.log[1][1], endPayload('dm', 'unavailable'));
 
   mock.restoreAll();
   silenceApiLogs();
@@ -108,7 +108,7 @@ test('an expired request closes the message in both places', async () => {
   const channel = fakeInteraction({ inGuild: true });
   await submit.run(channel.interaction as never, [REQUEST]);
   assert.deepEqual(channel.names(), ['deferReply', 'message.edit', 'editReply']);
-  assert.deepEqual(channel.log[1][1], { content: 'Esta solicitud ya no está disponible.', components: [] });
+  assert.deepEqual(channel.log[1][1], endPayload('channel', 'unavailable'));
   assert.deepEqual(channel.log[2][1], { content: RESET_MESSAGES.unavailable });
 });
 
@@ -135,7 +135,7 @@ test('"Ignorar" cancels and edits the message without buttons', async () => {
   await ignore.run(dm.interaction as never, [REQUEST]);
 
   assert.deepEqual(dm.names(), ['deferUpdate', 'editReply']);
-  assert.deepEqual(dm.log[1][1], { content: RESET_MESSAGES.ignored, components: [] });
+  assert.deepEqual(dm.log[1][1], endPayload('dm', 'ignored'));
   assert.deepEqual(calls[0].body, { discord_id: ID });
 
   mock.restoreAll();
@@ -143,7 +143,7 @@ test('"Ignorar" cancels and edits the message without buttons', async () => {
   stubFetch(ok({ status: 'ignored' }));
   const channel = fakeInteraction({ inGuild: true });
   await ignore.run(channel.interaction as never, [REQUEST]);
-  assert.deepEqual(channel.log[1][1], { content: 'Solicitud cancelada.', components: [] });
+  assert.deepEqual(channel.log[1][1], endPayload('channel', 'ignored'));
 });
 
 test('"Ignorar" on a request that is gone still removes the buttons', async () => {
@@ -152,7 +152,7 @@ test('"Ignorar" on a request that is gone still removes the buttons', async () =
 
   await ignore.run(interaction as never, [REQUEST]);
 
-  assert.deepEqual(log[1][1], { content: RESET_MESSAGES.unavailable, components: [] });
+  assert.deepEqual(log[1][1], endPayload('dm', 'unavailable'));
 });
 
 test('a component without a request id answers that it is no longer available', async () => {
