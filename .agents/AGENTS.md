@@ -75,6 +75,11 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - `/systemsync` **nunca elimina datos**: crea cuentas faltantes, actualiza perfiles y roles, y solo agrega ediciones.
 - TODO: al quitar un rol de edición en Discord se elimina el `UserEdition` (se pierde `history_text`). A futuro debería desactivarse con un campo `enabled` en lugar de borrarse.
 
+### Restablecer contraseña desde la web
+- La web crea la solicitud en la API; el bot la entrega. **La API no puede empujar al bot**: `services/passwordResetSync` consulta `GET /v1/discord/password-resets/pending` cada 5 s (la lista es estado, no eventos) y esa consulta es además el latido con el que la API sabe que el bot está vivo; por eso el siguiente poll se agenda antes de entregar y una entrega lenta nunca lo retrasa.
+- La entrega vive en `features/passwordReset/` (`view` = textos, botones y formulario; `delivery` = DM o canal; `components` = handlers). El DM va primero; el error `50007` (DMs cerrados) se reporta como `dms_closed`. El canal público (`PASSWORD_RESET_CHANNEL_ID`) solo se usa cuando la API pide `delivery: "channel"`, es decir, después de que la persona aceptó en la web; su mensaje no lleva ningún secreto y solo menciona a ese miembro.
+- Los botones y el formulario son componentes del comando **`register`** (el namespace debe ser un comando). Todos llevan el id de la solicitud y el `|ownerId`. El formulario tiene un solo campo; **la contraseña nunca se registra, se devuelve ni se reintenta** (`completeReset` es un POST de un solo uso). Todo lo posterior al clic en el canal es efímero y el mensaje público se edita a una línea neutra.
+
 ### Agregar un comando
 ```ts
 import { SlashCommandBuilder } from 'discord.js';
