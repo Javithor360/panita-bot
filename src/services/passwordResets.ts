@@ -7,6 +7,13 @@ export type { PendingReset, ReportedDelivery };
 /** The request expired, was already used or cancelled, or does not belong to this member. */
 export class ResetNotAvailableError extends Error {}
 
+/** The request exists but its delivery has not been recorded yet (a report still being retried): trying again in a moment works. */
+export class ResetNotReadyError extends Error {}
+
+/** A `409` whose `details.reason` says the delivery was never reported. */
+const isNotDelivered = (error: unknown): boolean =>
+  error instanceof ApiError && error.status === 409 && error.details?.reason === 'not_delivered';
+
 /** A request the API answers `404` or `410` for can no longer be used, whichever of the two it was. */
 const isGone = (error: unknown): boolean => error instanceof ApiError && (error.status === 404 || error.status === 410);
 
@@ -25,13 +32,14 @@ export const reportDelivery = async (id: string, status: ReportedDelivery): Prom
 /**
  * Replaces the member's password with the one they typed in Discord, once. Throws `InvalidActivationError`
  * (`length` or `special`; the request stays open so they can try again), `ResetNotAvailableError` or
- * `NotActivatedError`. Never retried: the password travels in the body and the request is single use.
+ * `ResetNotReadyError` or `NotActivatedError`. Never retried: the password travels in the body and the request is single use.
  */
 export const completeReset = async (id: string, discordId: string, password: string): Promise<void> => {
   try {
     await api.post('/v1/discord/password-resets/{id}/complete', { discord_id: discordId, password }, { params: { id } });
   } catch (error) {
     if (isGone(error)) throw new ResetNotAvailableError(id);
+    if (isNotDelivered(error)) throw new ResetNotReadyError(id);
     if (isNotActivated(error)) throw new NotActivatedError(discordId);
     if (error instanceof ApiError && error.status === 400) {
       const reason = error.details?.reason;
@@ -41,12 +49,13 @@ export const completeReset = async (id: string, discordId: string, password: str
   }
 };
 
-/** Cancels the request ("Ignorar"). Throws `ResetNotAvailableError` when it can no longer be cancelled. */
+/** Cancels the request ("Ignorar"). Throws `ResetNotAvailableError` when it can no longer be cancelled, or `ResetNotReadyError`. */
 export const ignoreReset = async (id: string, discordId: string): Promise<void> => {
   try {
     await api.post('/v1/discord/password-resets/{id}/ignore', { discord_id: discordId }, { params: { id } });
   } catch (error) {
     if (isGone(error)) throw new ResetNotAvailableError(id);
+    if (isNotDelivered(error)) throw new ResetNotReadyError(id);
     throw error;
   }
 };

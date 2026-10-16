@@ -1,5 +1,5 @@
 import type { PendingReset, ReportedDelivery } from '../../lib/api/types';
-import { buildChannelMessage, buildDmMessage, type ResetMessage } from './view';
+import { buildChannelMessage, buildDmMessage, RESET_TTL_MS, type ResetMessage } from './view';
 
 /** Discord's answer when a member does not accept DMs from the bot (`CannotSendMessagesToThisUser`). */
 const DMS_CLOSED_CODE = 50007;
@@ -26,13 +26,15 @@ export interface DeliveryTargets {
 export const deliverReset = async (
   request: PendingReset,
   targets: DeliveryTargets,
-  logger: Pick<Console, 'error'> = console,
+  { logger = console, now = Date.now }: { logger?: Pick<Console, 'error'>; now?: () => number } = {},
 ): Promise<ReportedDelivery> => {
+  // The API does not say when the request ends; it lives 10 minutes from its creation, a few seconds before this
+  const expiresAt = new Date(now() + RESET_TTL_MS);
   if (request.delivery === 'channel') {
     try {
       const channel = await targets.fetchChannel();
       if (!channel) return 'failed';
-      await channel.send(buildChannelMessage(request.id, request.discord_id));
+      await channel.send(buildChannelMessage(request.id, request.discord_id, expiresAt));
       return 'delivered';
     } catch (error) {
       logger.error(`[Password-Reset] Could not post request ${request.id} in the channel:`, error);
@@ -42,7 +44,7 @@ export const deliverReset = async (
 
   try {
     const user = await targets.fetchUser(request.discord_id);
-    await user.send(buildDmMessage(request.id, request.discord_id));
+    await user.send(buildDmMessage(request.id, request.discord_id, expiresAt));
     return 'delivered';
   } catch (error) {
     if (isDmsClosed(error)) return 'dms_closed';

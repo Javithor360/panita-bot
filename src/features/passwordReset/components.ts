@@ -1,12 +1,12 @@
 import { MessageFlags, type ButtonInteraction, type ModalSubmitInteraction } from 'discord.js';
 import { button, modal } from '../../core/command';
 import { PASSWORD_INPUT, PASSWORD_RULE_MESSAGES } from '../../lib/registration';
-import { completeReset, ignoreReset, ResetNotAvailableError } from '../../services/passwordResets';
+import { completeReset, ignoreReset, ResetNotAvailableError, ResetNotReadyError } from '../../services/passwordResets';
 import { InvalidActivationError, NotActivatedError } from '../../services/users';
-import { buildResetModal, endMessage, RESET_ACTIONS, RESET_MESSAGES, type ResetEnd, type ResetPlace } from './view';
+import { buildResetModal, endPayload, RESET_ACTIONS, RESET_MESSAGES, type ResetEnd, type ResetPlace } from './view';
 
 /** What came of a member typing their new password. */
-export type ResetAttempt = 'completed' | 'unavailable' | 'length' | 'special' | 'not_activated';
+export type ResetAttempt = 'completed' | 'unavailable' | 'length' | 'special' | 'not_activated' | 'not_ready';
 
 /**
  * Replaces the password with the one typed. The expected rejections become an attempt; `length` and `special`
@@ -19,6 +19,7 @@ export const attemptReset = async (requestId: string, discordId: string, passwor
   } catch (error) {
     if (error instanceof ResetNotAvailableError) return 'unavailable';
     if (error instanceof NotActivatedError) return 'not_activated';
+    if (error instanceof ResetNotReadyError) return 'not_ready';
     if (error instanceof InvalidActivationError && (error.reason === 'length' || error.reason === 'special')) return error.reason;
     throw error;
   }
@@ -29,13 +30,14 @@ const RETRY_MESSAGES = {
   length: PASSWORD_RULE_MESSAGES.length,
   special: PASSWORD_RULE_MESSAGES.special,
   not_activated: RESET_MESSAGES.notActivated,
+  not_ready: RESET_MESSAGES.notReady,
 } as const;
 
 const placeOf = (interaction: ButtonInteraction | ModalSubmitInteraction): ResetPlace => (interaction.inGuild() ? 'channel' : 'dm');
 
-/** A request message in the public channel is edited to a neutral line; the member's own answer is private. */
-const closeRequestMessage = (interaction: ModalSubmitInteraction, text: string) =>
-  interaction.message?.edit({ content: text, components: [] }).catch(error => {
+/** A request message in the public channel is edited to a neutral card; the member's own answer is private. */
+const closeRequestMessage = (interaction: ModalSubmitInteraction, end: ResetEnd) =>
+  interaction.message?.edit(endPayload('channel', end)).catch(error => {
     console.error('[Password-Reset] Could not edit the request message:', error);
   });
 
@@ -71,8 +73,8 @@ export const passwordResetComponents = {
       if (attempt !== 'completed' && attempt !== 'unavailable') return tell(RETRY_MESSAGES[attempt]);
 
       const end: ResetEnd = attempt;
-      if (place === 'dm') return interaction.editReply({ content: endMessage('dm', end), components: [] });
-      await closeRequestMessage(interaction, endMessage('channel', end));
+      if (place === 'dm') return interaction.editReply(endPayload('dm', end));
+      await closeRequestMessage(interaction, end);
       await interaction.editReply({ content: RESET_MESSAGES[end] });
     },
   }),
@@ -87,10 +89,12 @@ export const passwordResetComponents = {
       try {
         await ignoreReset(requestId, interaction.user.id);
       } catch (error) {
+        // Not recorded as delivered yet: the buttons stay, and pressing again in a moment works
+        if (error instanceof ResetNotReadyError) return interaction.followUp({ content: RESET_MESSAGES.notReady });
         if (!(error instanceof ResetNotAvailableError)) throw error;
         end = 'unavailable';
       }
-      await interaction.editReply({ content: endMessage(placeOf(interaction), end), components: [] });
+      await interaction.editReply(endPayload(placeOf(interaction), end));
     },
   }),
 };

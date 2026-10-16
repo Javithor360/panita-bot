@@ -9,7 +9,7 @@ import {
   buildChannelMessage,
   buildDmMessage,
   buildResetModal,
-  endMessage,
+  endPayload,
   RESET_ACTIONS,
   RESET_MESSAGES,
 } from '../src/features/passwordReset/view';
@@ -19,6 +19,7 @@ import {
   listPendingResets,
   reportDelivery,
   ResetNotAvailableError,
+  ResetNotReadyError,
 } from '../src/services/passwordResets';
 import { InvalidActivationError, NotActivatedError } from '../src/services/users';
 
@@ -27,6 +28,7 @@ afterEach(() => mock.restoreAll());
 
 const ID = '812345678901234567';
 // The longest id a request can plausibly have: a UUID
+const EXPIRES = new Date('2026-10-16T15:52:00.000Z');
 const REQUEST = '3f1c2b9e-7a44-4d0e-9b57-0c1d2e3f4a5b';
 
 // --- service ---
@@ -70,6 +72,7 @@ test('completing maps the expected rejections', async () => {
   const cases: Array<[Response, unknown]> = [
     [apiError(410, 'gone', { reason: 'expired' }), ResetNotAvailableError],
     [apiError(404, 'not_found'), ResetNotAvailableError],
+    [apiError(409, 'conflict', { reason: 'not_delivered' }), ResetNotReadyError],
     [apiError(409, 'conflict', { reason: 'not_activated' }), NotActivatedError],
     [apiError(400, 'validation_error', { reason: 'length' }), InvalidActivationError],
     [apiError(400, 'validation_error', { reason: 'special' }), InvalidActivationError],
@@ -104,6 +107,7 @@ test('attemptReset turns every expected answer into an attempt', async () => {
 
   const cases: Array<[Response, string]> = [
     [apiError(410, 'gone'), 'unavailable'],
+    [apiError(409, 'conflict', { reason: 'not_delivered' }), 'not_ready'],
     [apiError(409, 'conflict', { reason: 'not_activated' }), 'not_activated'],
     [apiError(400, 'validation_error', { reason: 'length' }), 'length'],
     [apiError(400, 'validation_error', { reason: 'special' }), 'special'],
@@ -123,12 +127,20 @@ test('attemptReset turns every expected answer into an attempt', async () => {
 
 // --- messages and components ---
 
-test('the DM names what to press and where to check sessions, and has two owned buttons', () => {
-  const message = buildDmMessage(REQUEST, ID);
+/** Everything a message says: its content and the text of its embeds. */
+const textOf = (message: { content?: string; embeds: Array<{ toJSON(): unknown }> }) =>
+  `${message.content ?? ''} ${JSON.stringify(message.embeds.map(embed => embed.toJSON()))}`;
 
-  assert.match(message.content, /Solicitud para restablecer tu contraseña/);
-  assert.match(message.content, /10 minutos/);
-  assert.match(message.content, /`\/sessions`/);
+test('the DM names what to press and where to check sessions, and has two owned buttons', () => {
+  const message = buildDmMessage(REQUEST, ID, EXPIRES);
+
+  assert.equal(message.embeds.length, 1, 'the request is an embed');
+  assert.equal(message.content, undefined);
+  assert.match(textOf(message), /Solicitud para restablecer tu contraseña/);
+  assert.match(textOf(message), /Vence <t:1792165920:R>/);
+  assert.match(textOf(message), /`\/sessions`/);
+  assert.match(textOf(message), /Restablecer/);
+  assert.match(textOf(message), /Ignorar/);
 
   const buttons = message.components[0].toJSON().components as Array<{ label: string; custom_id: string }>;
   assert.deepEqual(buttons.map(b => b.label), ['Restablecer', 'Ignorar']);
@@ -145,11 +157,12 @@ test('the DM names what to press and where to check sessions, and has two owned 
 });
 
 test('the channel message pings only the member and says nothing secret', () => {
-  const message = buildChannelMessage(REQUEST, ID);
+  const message = buildChannelMessage(REQUEST, ID, EXPIRES);
 
-  assert.match(message.content, new RegExp(`<@${ID}>`));
+  assert.equal(message.content, `<@${ID}>`, 'the mention is in the content, where it notifies');
+  assert.doesNotMatch(JSON.stringify(message.embeds.map(e => e.toJSON())), /<@/);
   assert.deepEqual(message.allowedMentions, { users: [ID] });
-  assert.doesNotMatch(message.content, /contraseña es|nueva contraseña/i);
+  assert.doesNotMatch(textOf(message), /contraseña es|nueva contraseña/i);
   assert.equal(message.components.length, 1);
 });
 
@@ -169,11 +182,17 @@ test('the form has one password field, titled and labelled as plain text', () =>
 });
 
 test('a used request message is neutral in the channel and explicit in the DM', () => {
-  assert.equal(endMessage('channel', 'completed'), 'Solicitud atendida.');
-  assert.equal(endMessage('dm', 'completed'), RESET_MESSAGES.completed);
-  assert.match(endMessage('dm', 'completed'), /`\/sessions`/);
+  const dm = endPayload('dm', 'completed');
+  assert.match(textOf(dm), /Contraseña actualizada/);
+  assert.match(textOf(dm), /`\/sessions`/);
+  assert.deepEqual(dm.components, [], 'no buttons');
+  assert.equal(dm.content, '', 'the old content is cleared');
+
+  assert.match(textOf(endPayload('channel', 'completed')), /Solicitud atendida/);
   for (const end of ['completed', 'ignored', 'unavailable'] as const) {
-    assert.doesNotMatch(endMessage('channel', end), /<@|contraseña/);
+    const channel = endPayload('channel', end);
+    assert.doesNotMatch(textOf(channel), /<@|contraseña/);
+    assert.deepEqual(channel.components, []);
   }
 });
 
@@ -183,7 +202,7 @@ const dmsClosed = Object.assign(new Error('Cannot send messages to this user'), 
 
 const targets = (overrides: Partial<{ user: Recipient; channel: Recipient | null }> = {}) => {
   const sent: string[] = [];
-  const recipient = (name: string): Recipient => ({ send: async message => void sent.push(`${name}:${message.content.includes(`<@${ID}>`) ? 'mention' : 'plain'}`) });
+  const recipient = (name: string): Recipient => ({ send: async message => void sent.push(`${name}:${message.content?.includes(`<@${ID}>`) ? 'mention' : 'plain'}`) });
   const value: DeliveryTargets = {
     fetchUser: async () => overrides.user ?? recipient('dm'),
     fetchChannel: async () => (overrides.channel === undefined ? recipient('channel') : overrides.channel),
@@ -226,9 +245,26 @@ test('a channel that is missing or refuses is a final failure', async () => {
   const logger = { error: (...args: unknown[]) => void errors.push(args) };
 
   const missing = targets({ channel: null });
-  assert.equal(await deliverReset({ id: REQUEST, discord_id: ID, delivery: 'channel' }, missing.value, logger), 'failed');
+  assert.equal(await deliverReset({ id: REQUEST, discord_id: ID, delivery: 'channel' }, missing.value, { logger }), 'failed');
 
   const refusing = targets({ channel: { send: async () => { throw new Error('Missing Access'); } } });
-  assert.equal(await deliverReset({ id: REQUEST, discord_id: ID, delivery: 'channel' }, refusing.value, logger), 'failed');
+  assert.equal(await deliverReset({ id: REQUEST, discord_id: ID, delivery: 'channel' }, refusing.value, { logger }), 'failed');
   assert.equal(errors.length, 1, 'the refusal is logged');
+});
+
+test('the expiry is a Discord timestamp ten minutes after sending, in the DM and the channel message', async () => {
+  const sentAt = Date.parse('2026-10-16T15:42:00.000Z');
+  const expected = '<t:1792165920:R>'; // 15:52 UTC
+  const messages: string[] = [];
+  const recipient: Recipient = { send: async message => void messages.push(textOf(message)) };
+  const value: DeliveryTargets = { fetchUser: async () => recipient, fetchChannel: async () => recipient };
+
+  await deliverReset({ id: REQUEST, discord_id: ID, delivery: 'dm' }, value, { now: () => sentAt });
+  await deliverReset({ id: REQUEST, discord_id: ID, delivery: 'channel' }, value, { now: () => sentAt });
+
+  assert.equal(messages.length, 2);
+  for (const text of messages) {
+    assert.ok(text.includes(expected), text);
+    assert.doesNotMatch(text, /Vence en 10 minutos/);
+  }
 });
