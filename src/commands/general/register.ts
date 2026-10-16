@@ -18,6 +18,7 @@ import {
   IGN_INPUT,
   parseStatus,
   PASSWORD_INPUT,
+  PASSWORD_RULE_MESSAGES,
   registerStep,
   STATUS_LABEL,
   validateFields,
@@ -25,6 +26,7 @@ import {
   type MinecraftStatus,
 } from '../../lib/registration';
 import { SERVICE_UNAVAILABLE_ERROR } from '../../core/errors';
+import { passwordResetComponents } from '../../features/passwordReset/components';
 import { ApiError } from '../../lib/api';
 import {
   activateAccount,
@@ -49,8 +51,8 @@ const MESSAGES = {
   invalidIgn: 'El IGN no es válido. Debe tener entre 3 y 16 caracteres y solo puede contener letras, números y guiones bajos (`_`).',
   ignTaken: (ign: string) => `❌ El IGN \`${ign}\` ya está registrado por otra cuenta. Si crees que es un error, contacta al Staff.`,
   passwordMismatch: 'Las contraseñas no coinciden. Vuelve a ejecutar `/register with_password` para intentarlo de nuevo.',
-  passwordSpecial: 'La contraseña debe contener al menos un carácter especial (por ejemplo: !, @, #, $, -, _). Por favor, inténtalo de nuevo.',
-  passwordLength: 'La contraseña debe tener entre 6 y 32 caracteres.',
+  passwordSpecial: PASSWORD_RULE_MESSAGES.special,
+  passwordLength: PASSWORD_RULE_MESSAGES.length,
   notActivated: 'Primero activa tu cuenta con `/register`.',
   lostIgn: 'No pudimos recuperar tu IGN guardado. Vuelve a ejecutar `/register`.',
   failure: 'Ocurrió un error al activar tu cuenta. Por favor inténtalo de nuevo más tarde.',
@@ -203,6 +205,8 @@ export default defineCommand({
     });
   },
   components: {
+    // The buttons and form of a password reset started from the web (see `features/passwordReset`)
+    ...passwordResetComponents,
     // Args: status, password requested (1|0), step (new|status_only|returning), stored IGN (returning only)
     status: button({
       async run(interaction, [statusArg, withPassword, step, storedIgn]) {
