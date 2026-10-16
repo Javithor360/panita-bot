@@ -92,5 +92,7 @@ export const env = {
   /** When set, the sync and the join role only touch these Discord ids. */
   MC_SYNC_PILOT_IDS: (optional('MC_SYNC_PILOT_IDS') ?? '').split(',').map(id => id.trim()).filter(Boolean),
   MC_SYNC_MINUTES: syncMinutes(),
+  /** Public channel (`#comandos`) for a password reset when the member's DMs are closed and they agree to it. Without it that fallback fails. */
+  PASSWORD_RESET_CHANNEL_ID: optionalId('PASSWORD_RESET_CHANNEL_ID'),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;

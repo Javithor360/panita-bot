@@ -175,3 +175,16 @@ export interface DeactivateResult {
   /** False when the account was already disabled or had never existed. */
   deactivated: boolean;
 }
+
+/** How the bot must deliver a password reset: by DM first, in the public channel once the member agreed. */
+export type ResetDelivery = 'dm' | 'channel';
+
+/** An item of `GET /v1/discord/password-resets/pending`. The same call tells the API the bot is alive. */
+export interface PendingReset {
+  id: string;
+  discord_id: string;
+  delivery: ResetDelivery;
+}
+
+/** What the bot reports in `POST /v1/discord/password-resets/{id}/delivery`. */
+export type ReportedDelivery = 'delivered' | 'dms_closed' | 'failed';
