@@ -2,6 +2,7 @@ import type { GuildMember } from 'discord.js';
 import { API_TIMEOUTS, api, isApiError } from '../lib/api';
 import type { ResyncSummary, RoleSyncCounts } from '../lib/api/types';
 import { avatarUrlOf, isAltAccount } from '../lib/discord';
+import { syncProfile } from './users';
 
 export type { ResyncSummary };
 export type MemberSyncResult = RoleSyncCounts;
@@ -38,6 +39,47 @@ export const syncMemberRoles = async (
     if (isApiError(error, 404)) return null;
     throw error;
   }
+};
+
+export interface AvatarSyncSummary {
+  /** Accounts whose stored avatar was written. */
+  updated: number;
+  /** Members the API left alone: no account, or nothing to change. */
+  unchanged: number;
+  /** Members whose call failed; the rest still went through. */
+  failed: number;
+  /** Bots and alt accounts. */
+  skipped: number;
+}
+
+/** How many profile updates run at once; the API has no bulk route for profiles. */
+const AVATAR_SYNC_CONCURRENCY = 5;
+
+/**
+ * Writes the current Discord avatar (the server one when the member has it, like the live events do)
+ * of every member that has an account. Never creates accounts. A failed member is counted and does
+ * not stop the rest.
+ */
+export const syncAvatars = async (members: GuildMember[]): Promise<AvatarSyncSummary> => {
+  const eligible = members.filter(m => !m.user.bot && !isAltAccount(m));
+  const summary: AvatarSyncSummary = { updated: 0, unchanged: 0, failed: 0, skipped: members.length - eligible.length };
+
+  for (let i = 0; i < eligible.length; i += AVATAR_SYNC_CONCURRENCY) {
+    const batch = eligible.slice(i, i + AVATAR_SYNC_CONCURRENCY);
+    const results = await Promise.allSettled(batch.map(member => syncProfile(member.id, { avatarUrl: avatarUrlOf(member) })));
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        if (result.value > 0) summary.updated += 1;
+        else summary.unchanged += 1;
+      } else {
+        summary.failed += 1;
+        console.error(`[AvatarSync] Failed for ${batch[index].id}:`, result.reason);
+      }
+    });
+  }
+
+  return summary;
 };
 
 /**
