@@ -78,6 +78,7 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - Web → Discord: `services/webSync` consulta cada pocos segundos el outbox de la API (`GET /v1/discord/sync-events`, con cursor en memoria) y aplica roles; `lib/syncLock` evita bucles.
 - Solo se sincronizan roles con `discord_role_id`; los roles exclusivos de la web nunca se tocan.
 - `/systemsync` **nunca elimina datos**: crea cuentas faltantes, actualiza perfiles y roles, y solo agrega ediciones.
+- `/avatarsync [usuario]` solo escribe el avatar (el del servidor si lo tiene, como los eventos en vivo) de los miembros que ya tienen cuenta, vía `syncProfile` de 5 en 5 (la API no tiene ruta masiva de perfiles); nunca crea cuentas y un fallo no detiene al resto. No usa el lock global: no cambia roles.
 - TODO: al quitar un rol de edición en Discord se elimina el `UserEdition` (se pierde `history_text`). A futuro debería desactivarse con un campo `enabled` en lugar de borrarse.
 
 ### Restablecer contraseña desde la web
