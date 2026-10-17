@@ -3,7 +3,7 @@ import { afterEach, beforeEach, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { GuildMember } from 'discord.js';
 import { ApiError } from '../src/lib/api/errors';
-import { resyncMembers, syncMemberRoles } from '../src/services/memberSync';
+import { resyncMembers, syncAvatars, syncMemberRoles } from '../src/services/memberSync';
 import { unmapDiscordRole } from '../src/services/roles';
 import {
   activateAccount,
@@ -215,6 +215,51 @@ test('resyncMembers stops at the first failing chunk', async () => {
 
   await assert.rejects(resyncMembers(Array.from({ length: 150 }, (_, i) => fakeMember(i))), ApiError);
   assert.equal(calls.length, 2);
+});
+
+/** A member whose server avatar differs from the global one of their user. */
+const avatarMember = (index: number, options: { bot?: boolean; alt?: boolean } = {}) => {
+  const member = fakeMember(index, options) as unknown as { displayAvatarURL: () => string };
+  member.displayAvatarURL = () => `https://cdn.discordapp.com/guilds/1/users/${index}/avatars/server.png`;
+  return member as unknown as GuildMember;
+};
+
+test('syncAvatars writes the server avatar of each member with a profile patch and counts the answers', async () => {
+  const calls = stubFetch(ok({ updated: 1 }), ok({ updated: 0 }));
+
+  const summary = await syncAvatars([avatarMember(1), avatarMember(2)]);
+
+  assert.deepEqual(summary, { updated: 1, unchanged: 1, failed: 0, skipped: 0 });
+  assert.deepEqual(calls.map(c => [c.method, c.path]), [
+    ['PATCH', '/v1/discord/users/100001/profile'],
+    ['PATCH', '/v1/discord/users/100002/profile'],
+  ]);
+  assert.deepEqual(calls[0].body, { avatar_url: 'https://cdn.discordapp.com/guilds/1/users/1/avatars/server.png' });
+});
+
+test('syncAvatars skips bots and alts without calling the API', async () => {
+  const calls = stubFetch(ok({ updated: 1 }));
+
+  const summary = await syncAvatars([avatarMember(1), avatarMember(2, { bot: true }), avatarMember(3, { alt: true })]);
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(summary, { updated: 1, unchanged: 0, failed: 0, skipped: 2 });
+});
+
+test('syncAvatars counts a failing member and still processes the others', async () => {
+  const calls = stubFetch(ok({ updated: 1 }), apiError(400, 'invalid_request'), ok({ updated: 1 }));
+
+  const summary = await syncAvatars([avatarMember(1), avatarMember(2), avatarMember(3)]);
+
+  assert.equal(calls.length, 3);
+  assert.deepEqual(summary, { updated: 2, unchanged: 0, failed: 1, skipped: 0 });
+});
+
+test('syncAvatars makes no request when nobody is eligible', async () => {
+  const calls = stubFetch(ok({ updated: 1 }));
+
+  assert.deepEqual(await syncAvatars([avatarMember(1, { bot: true })]), { updated: 0, unchanged: 0, failed: 0, skipped: 1 });
+  assert.equal(calls.length, 0);
 });
 
 test('deleteUsersByDiscordIds sends chunks of 500 and adds up deleted and skipped', async () => {
