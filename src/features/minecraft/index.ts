@@ -5,6 +5,7 @@ import { env } from '../../config/env';
 import { listEnabledMembers } from '../../services/users';
 import { createAnnouncer } from './announcer';
 import { channelMapOf } from './channels';
+import { watchForCrashes } from './crashWatch';
 import { MemberDirectory } from './directory';
 import { hookChannelsOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
 import { createInbound } from './inbound';
@@ -75,6 +76,15 @@ export const startBridge = (http: Server, client: Client<true>) => {
       logger: console,
     }),
   );
+
+  watchForCrashes({
+    link: bridge,
+    graceSeconds: messages.crashAfterSeconds,
+    onStarted: () => {},
+    onStopping: () => {},
+    onCrash: () => announce('crashed'),
+    logger: console,
+  });
 
   startSync(
     {

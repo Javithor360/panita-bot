@@ -2,7 +2,7 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
-import { BridgeQueryError, BridgeUnavailableError, type BridgeLink } from './link';
+import { BridgeQueryError, BridgeUnavailableError, type BridgeLink, type ConnectionEvent } from './link';
 import {
   CLOSE,
   MAX_FRAME_BYTES,
@@ -74,6 +74,7 @@ const digest = (value: string) => createHash('sha256').update(value).digest();
 export class BridgeServer implements BridgeLink {
   private readonly sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
   private readonly handlers: Array<(frame: ModFrame) => void> = [];
+  private readonly connectionHandlers: Array<(event: ConnectionEvent) => void> = [];
   private readonly pending = new Map<string, Pending>();
   private readonly keyDigest: Buffer;
   private readonly pingMs: number;
@@ -126,6 +127,10 @@ export class BridgeServer implements BridgeLink {
 
   onFrame(handler: (frame: ModFrame) => void) {
     this.handlers.push(handler);
+  }
+
+  onConnection(handler: (event: ConnectionEvent) => void) {
+    this.connectionHandlers.push(handler);
   }
 
   send(frame: BotFrame): boolean {
@@ -219,6 +224,8 @@ export class BridgeServer implements BridgeLink {
     if (this.current !== connection) return;
     this.current = null;
     this.logger.log('[Bridge] The Minecraft server disconnected.');
+    // A connection that never said hello was never the server
+    if (connection.hello) this.tell({ type: 'disconnected' });
     for (const [id, pending] of this.pending) {
       clearTimeout(pending.timer);
       pending.reject(new BridgeUnavailableError());
@@ -277,6 +284,17 @@ export class BridgeServer implements BridgeLink {
       JSON.stringify({ type: 'welcome', protocol: PROTOCOL_VERSION, channels: this.options.channels() } satisfies BotFrame),
     );
     this.logger.log(`[Bridge] The Minecraft server connected (mod ${hello.modVersion}, Minecraft ${hello.minecraftVersion}).`);
+    this.tell({ type: 'connected', hello });
+  }
+
+  private tell(event: ConnectionEvent) {
+    for (const handler of this.connectionHandlers) {
+      try {
+        handler(event);
+      } catch (error) {
+        this.logger.error('[Bridge] A connection handler failed:', error);
+      }
+    }
   }
 
   private answer(frame: ReplyFrame) {
