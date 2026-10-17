@@ -1,6 +1,6 @@
 # Minecraft messages: a config file for what the bot says (plan)
 
-Status: proposal, 2026-10-17. Not started. Extends `minecraft-bridge-plan.md`; the protocol and the bridge are defined there. Section 9 lists what the mod must do (the mod's own plan is in `Enriquecraft/docs`, a local file of that repository).
+Status: implemented 2026-10-17 on the bot's side; the mod's part (section 9) is pending. Extends `minecraft-bridge-plan.md`; the protocol and the bridge are defined there. Section 9 lists what the mod must do (the mod's own plan is in `Enriquecraft/docs`, a local file of that repository).
 
 ## 1. Context and reason
 
@@ -56,7 +56,7 @@ events:
     description: "{message}"
   started: ":rayThumbsup: **Server despierto**"
   stopping: ":rayEdgy: **El server se ha puesto a mimir.**"
-  crashed: "{date} {guildowner}, el servidor ha colapsado :fire::bangbang:"
+  crashed: "{date} {guildowner}, el servidor ha colapsado 🔥‼️"
 
 # What a player does with /me: the webhook name and, in italics, the text.
 chat:
@@ -76,7 +76,7 @@ Rules:
 - **Player events** (`join`, `first_join`, `leave`, `death`, `advancement`) show the player's head as the icon of the author when `author` is a string. Other events have no player.
 - **`{servericon}`** is the icon of the Minecraft server. The mod sends `server-icon.png` (base64, at most 10,000 bytes) in the optional `icon` field of the `hello`; the bot checks it (base64, size, PNG signature), and a bad icon is dropped without refusing the hello. When a message uses `{servericon}` and an icon exists, the text becomes `attachment://server-icon.png` and the message carries the file; with no icon the field is left out, never sent empty. It is allowed only in `icon`, `thumbnail` and `image` fields.
 - **`/me`** is a chat line with `emote: true`, posted by the webhook like any chat: the webhook name is `chat.emote_name` and the text is in italics (an `*` inside the text is escaped).
-- **Emoji** written `:name:` are turned into `<:name:id>` from the home guild's emoji; a name the guild lacks stays as written. Works in messages and topics.
+- **Emoji** written `:name:` are turned into `<:name:id>` from the home guild's emoji; a name the guild lacks stays as written. Works in messages and topics. Standard emoji must be written as the character (🔥): Discord does not turn `:fire:` into one in a message sent by a bot.
 - **Escaping.** A placeholder holds text from the game, so it is escaped for Discord markdown where markdown is shown (`description`, field values, `content`, plain messages) and left as is where it is not (author, title, footer).
 - **`{date}`** is a Discord timestamp (`<t:unix:f>`, in each reader's timezone, from `lib/format.ts`). It does not render inside backticks or in an embed author, so the default has no backticks.
 - **`{guildowner}`** is the mention of the guild's owner. It is the only mention the bot ever allows, and only in `crashed`; every other message mentions nobody.
