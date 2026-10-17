@@ -1,21 +1,26 @@
-import { formatDuration } from '../../lib/format';
 import type { MemberDirectory } from './directory';
 import type { BridgeLink } from './link';
-import { MC_TEXT } from './messages';
+import type { MessageConfig } from './messageConfig';
 import type { StatusData } from './protocol';
+import { clip, fill, resolveEmojis } from './template';
 
 /** A Discord topic holds at most this many characters. */
 const MAX_TOPIC = 1024;
 
-/** The topic of the channel: the template with the server's numbers, or a line saying the server is down. */
-export const renderTopic = (template: string, status: StatusData | null): string => {
-  if (!status) return MC_TEXT.topicDown;
-  return template
-    .replaceAll('{online}', String(status.online))
-    .replaceAll('{max}', String(status.max))
-    .replaceAll('{tps}', status.tps.toFixed(1))
-    .replaceAll('{uptime}', formatDuration(status.uptimeSeconds * 1000))
-    .slice(0, MAX_TOPIC);
+/** The topic of the channel: the online text with the server's numbers, or the offline text when there is no status. */
+export const renderTopic = (topic: MessageConfig['topic'], status: StatusData | null, emoji: (name: string) => string | undefined): string => {
+  if (!status) return clip(resolveEmojis(topic.offline, emoji), MAX_TOPIC);
+  const raw = {
+    playercount: String(status.online),
+    playermax: String(status.max),
+    tps: status.tps.toFixed(1),
+    uptimemins: String(Math.floor(status.uptimeSeconds / 60)),
+    uptimehours: String(Math.floor(status.uptimeSeconds / 3600)),
+    serverversion: status.version,
+    // A mod that does not report it yet leaves a question mark
+    totalplayers: status.totalPlayers === undefined ? '?' : String(status.totalPlayers),
+  };
+  return clip(fill(resolveEmojis(topic.online, emoji), { raw }, false), MAX_TOPIC);
 };
 
 export interface NicknameState {
@@ -71,19 +76,25 @@ export interface SyncDeps {
   directory: Pick<MemberDirectory, 'refresh' | 'all'>;
   /** The guild member, or null when they left or can't be fetched. */
   fetchMember(discordId: string): Promise<NicknameMember | null>;
-  topicTemplate: string;
+  /** The texts of the topic, online and offline. */
+  topic: MessageConfig['topic'];
+  /** The emoji of the guild with that name, as Discord writes it. */
+  emoji(name: string): string | undefined;
   /** While true nothing is changed; what would be is logged. */
   dryRun: boolean;
   logger: Pick<Console, 'log' | 'error'>;
 }
 
-/** Updates the topic, but only when the text changed: Discord allows about two edits every ten minutes. */
-const syncTopic = async (deps: SyncDeps) => {
+/**
+ * Updates the topic, but only when the text changed: Discord allows about two edits every ten minutes. `down` writes the offline
+ * text without asking, for the moment the server says it is stopping and its line is still open.
+ */
+export const syncTopic = async (deps: SyncDeps, options: { down?: boolean } = {}) => {
   const channel = await deps.topicChannel();
   if (!channel) return;
   let status: StatusData | null = null;
-  if (deps.link.connected) status = await deps.link.request('status').catch(() => null);
-  const text = renderTopic(deps.topicTemplate, status);
+  if (!options.down && deps.link.connected) status = await deps.link.request('status').catch(() => null);
+  const text = renderTopic(deps.topic, status, deps.emoji);
   if (channel.topic === text) return;
   if (deps.dryRun) {
     deps.logger.log(`[Minecraft] Dry run: would set the topic to "${text}".`);

@@ -7,24 +7,36 @@ import { playerListEmbed, tpsColor, tpsEmbed } from '../src/features/minecraft/e
 import { BridgeQueryError, BridgeUnavailableError } from '../src/features/minecraft/link';
 import type { StatusData } from '../src/features/minecraft/protocol';
 import { queryMinecraft } from '../src/features/minecraft/queries';
-import { planNicknames, renderTopic, runSync, type NicknameMember, type NicknameState, type SyncDeps } from '../src/features/minecraft/sync';
+import { planNicknames, renderTopic, runSync, syncTopic, type NicknameMember, type NicknameState, type SyncDeps } from '../src/features/minecraft/sync';
 import type { EnabledMember } from '../src/lib/api/types';
 
 const STATUS: StatusData = { online: 3, max: 20, tps: 19.84, mspt: 12.1, uptimeSeconds: 3 * 3600 + 120, version: '26.3' };
-const TEMPLATE = '🟢 {online}/{max} jugadores · TPS {tps} · activo hace {uptime}';
+const TOPIC = {
+  online: '🟢 {playercount}/{playermax} jugadores · TPS {tps} · {uptimehours}h {uptimemins}m · v{serverversion} · {totalplayers} en total',
+  offline: '🔴 Servidor sin conexión :rayEdgy:',
+};
+const EMOJI = (name: string) => (name === 'rayEdgy' ? '<:rayEdgy:2>' : undefined);
+// 3 hours and 2 minutes of uptime are 182 minutes in all
+const ONLINE_TEXT = '🟢 3/20 jugadores · TPS 19.8 · 3h 182m · v26.3 · ? en total';
 
 // The topic
 
-test('writes the topic from the template and the status of the server', () => {
-  assert.equal(renderTopic(TEMPLATE, STATUS), '🟢 3/20 jugadores · TPS 19.8 · activo hace 3h 2m 0s');
+test('writes the topic from the online text and the status of the server', () => {
+  assert.equal(renderTopic(TOPIC, STATUS, EMOJI), ONLINE_TEXT);
 });
 
-test('says the server is down when there is no status', () => {
-  assert.equal(renderTopic(TEMPLATE, null), '🔴 Servidor sin conexión');
+test('shows how many players the server knows when the mod reports it, and a question mark when it does not', () => {
+  assert.match(renderTopic(TOPIC, { ...STATUS, totalPlayers: 87 }, EMOJI), /87 en total$/);
+  assert.ok(renderTopic(TOPIC, STATUS, EMOJI).endsWith('· ? en total'));
+});
+
+test('says the server is down with the offline text when there is no status, and turns its emoji', () => {
+  assert.equal(renderTopic(TOPIC, null, EMOJI), '🔴 Servidor sin conexión <:rayEdgy:2>');
 });
 
 test('cuts a topic to what Discord accepts', () => {
-  assert.equal(renderTopic('x'.repeat(2000), STATUS).length, 1024);
+  assert.equal(renderTopic({ online: 'x'.repeat(2000), offline: 'y' }, STATUS, EMOJI).length, 1024);
+  assert.equal(renderTopic({ online: 'x', offline: 'y'.repeat(2000) }, null, EMOJI).length, 1024);
 });
 
 // The nicknames
@@ -81,7 +93,8 @@ const syncSetup = (options: { topic?: string | null; connected?: boolean; dryRun
       manageable: true,
       setNickname: async nickname => void renamed.push(`${id}=${nickname}`),
     }),
-    topicTemplate: TEMPLATE,
+    topic: TOPIC,
+    emoji: EMOJI,
     dryRun: options.dryRun ?? false,
     logger: { log: text => void log.push(text), error: text => void log.push(`ERROR ${text}`) },
   };
@@ -93,12 +106,12 @@ test('sets the topic and fixes the nicknames that are wrong', async () => {
 
   await runSync(deps);
 
-  assert.deepEqual(topics, ['🟢 3/20 jugadores · TPS 19.8 · activo hace 3h 2m 0s']);
+  assert.deepEqual(topics, [ONLINE_TEXT]);
   assert.deepEqual(renamed, ['100000000000000001=Alpha']);
 });
 
 test('leaves the topic alone when it already says the same, to spare Discord an edit', async () => {
-  const { deps, topics } = syncSetup({ topic: '🟢 3/20 jugadores · TPS 19.8 · activo hace 3h 2m 0s' });
+  const { deps, topics } = syncSetup({ topic: ONLINE_TEXT });
 
   await runSync(deps);
 
@@ -111,8 +124,8 @@ test('says the server is down in the topic when it is not connected or does not 
   const silent = syncSetup({ request: () => Promise.reject(new Error('timeout')) });
   await runSync(silent.deps);
 
-  assert.deepEqual(notConnected.topics, ['🔴 Servidor sin conexión']);
-  assert.deepEqual(silent.topics, ['🔴 Servidor sin conexión']);
+  assert.deepEqual(notConnected.topics, ['🔴 Servidor sin conexión <:rayEdgy:2>']);
+  assert.deepEqual(silent.topics, ['🔴 Servidor sin conexión <:rayEdgy:2>']);
 });
 
 test('in dry run it changes nothing and says what it would', async () => {
@@ -134,6 +147,37 @@ test('a topic that fails does not stop the nicknames', async () => {
 
   assert.deepEqual(renamed, ['100000000000000001=Alpha']);
   assert.ok(log.some(line => line.startsWith('ERROR [Minecraft] The topic sync failed')));
+});
+
+// The topic when the server starts, stops or crashes
+
+test('writes the offline text at once when the server says it is stopping, without asking it, while its line is still open', async () => {
+  let asked = 0;
+  const { deps, topics } = syncSetup({ request: async () => (asked++, STATUS) });
+
+  await syncTopic(deps, { down: true });
+
+  assert.equal(asked, 0);
+  assert.deepEqual(topics, ['🔴 Servidor sin conexión <:rayEdgy:2>']);
+});
+
+test('writes the online topic when the server starts, and nothing when it already says so', async () => {
+  const first = syncSetup();
+  await syncTopic(first.deps);
+  const second = syncSetup({ topic: ONLINE_TEXT });
+  await syncTopic(second.deps);
+
+  assert.deepEqual(first.topics, [ONLINE_TEXT]);
+  assert.deepEqual(second.topics, []);
+});
+
+test('in dry run the topic of a stop is only logged', async () => {
+  const { deps, topics, log } = syncSetup({ dryRun: true });
+
+  await syncTopic(deps, { down: true });
+
+  assert.deepEqual(topics, []);
+  assert.ok(log.some(line => line.includes('would set the topic')));
 });
 
 // The commands

@@ -12,6 +12,4 @@ export const MC_TEXT = {
   tpsTitle: '📈 Rendimiento del servidor',
   tpsField: 'TPS',
   msptField: 'Tiempo por tick',
-
-  topicDown: '🔴 Servidor sin conexión',
 } as const;

@@ -60,7 +60,7 @@ const booleanFlag = (name: string, fallback: boolean): boolean => {
 };
 
 /** Minutes between runs of the Minecraft sync. Discord allows about two topic edits every ten minutes. */
-const syncMinutes = (): number => Math.max(10, Number(optional('MC_SYNC_MINUTES') ?? 10) || 10);
+const syncMinutes = (): number => Math.max(10, Number(optional('MC_SYNC_MINUTES') ?? 15) || 15);
 
 /** The Cloudinary account of the website, which the quick upload of the gallery stores its photos in. */
 export interface CloudinaryConfig {
@@ -118,7 +118,8 @@ export const env = {
   MC_JOINED_ROLE_ID: optionalId('MC_JOINED_ROLE_ID'),
   MC_AVATAR_PREMIUM: avatarTemplate('MC_AVATAR_PREMIUM', DEFAULT_AVATAR_PREMIUM),
   MC_AVATAR_CRACKED: avatarTemplate('MC_AVATAR_CRACKED', DEFAULT_AVATAR_CRACKED),
-  MC_TOPIC_TEMPLATE: optional('MC_TOPIC_TEMPLATE') ?? '🟢 {online}/{max} jugadores · TPS {tps} · activo hace {uptime}',
+  /** The topic moved to `config/minecraft-messages.yml`; this only lets the bot say that the variable is no longer read. */
+  MC_TOPIC_TEMPLATE_IGNORED: optional('MC_TOPIC_TEMPLATE') !== undefined,
   /** While true the sync only logs what it would change. */
   MC_SYNC_DRY_RUN: booleanFlag('MC_SYNC_DRY_RUN', true),
   MC_SYNC_MINUTES: syncMinutes(),
