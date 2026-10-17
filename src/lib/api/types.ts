@@ -84,6 +84,8 @@ export interface BotUser {
   minecraft_status: MinecraftStatus | null;
   /** Whether a legacy password is set; never the hash. */
   has_password: boolean;
+  /** May upload photos to the gallery from Discord (with `enabled`). */
+  trusted_author: boolean;
 }
 
 /** `PUT /v1/discord/users/{discordId}` */
@@ -135,6 +137,30 @@ export interface RandomPhoto {
   user: { ign: string | null } | null;
   edition: { id: string; name: string } | null;
   categories: { id: string; name: string }[];
+}
+
+/** `GET /v1/discord/users/{discordId}/upload-options`: empty lists when `can_upload` is false. */
+export interface UploadOptions {
+  can_upload: boolean;
+  /** Names the member's Cloudinary folder, exactly as the website does. */
+  discord_name: string;
+  editions: { id: string; name: string; restricted: boolean }[];
+  categories: { id: string; name: string }[];
+}
+
+/** `POST /v1/discord/photos` */
+export interface DiscordPhotoRequest {
+  discord_id: string;
+  url: string;
+  title: string;
+  description?: string | null;
+  edition_id: string;
+  category_ids: string[];
+}
+
+/** The photo `POST /v1/discord/photos` created (the bot only needs its id). */
+export interface CreatedPhoto {
+  id: string;
 }
 
 /** `POST /v1/discord/login-requests/confirm`: all the bot may show the member about the sign-in. */

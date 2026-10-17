@@ -62,6 +62,27 @@ const booleanFlag = (name: string, fallback: boolean): boolean => {
 /** Minutes between runs of the Minecraft sync. Discord allows about two topic edits every ten minutes. */
 const syncMinutes = (): number => Math.max(10, Number(optional('MC_SYNC_MINUTES') ?? 10) || 10);
 
+/** The Cloudinary account of the website, which the quick upload of the gallery stores its photos in. */
+export interface CloudinaryConfig {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+}
+
+/** Without a gallery channel there is no quick upload, so Cloudinary is only required together with it. */
+const cloudinaryConfig = (galleryChannelId: string | undefined): CloudinaryConfig | undefined => {
+  const cloudName = optional('CLOUDINARY_CLOUD_NAME');
+  const apiKey = optional('CLOUDINARY_API_KEY');
+  const apiSecret = optional('CLOUDINARY_API_SECRET');
+  if (cloudName && apiKey && apiSecret) return { cloudName, apiKey, apiSecret };
+  if (galleryChannelId) {
+    throw new Error('[Config] GALLERY_CHANNEL_ID needs CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET');
+  }
+  return undefined;
+};
+
+const GALLERY_CHANNEL_ID = optionalId('GALLERY_CHANNEL_ID');
+
 /**
  * Validated environment. This is the only module allowed to read `process.env`.
  */
@@ -92,5 +113,8 @@ export const env = {
   MC_SYNC_MINUTES: syncMinutes(),
   /** Public channel (`#comandos`) for a password reset when the member's DMs are closed and they agree to it. Without it that fallback fails. */
   PASSWORD_RESET_CHANNEL_ID: optionalId('PASSWORD_RESET_CHANNEL_ID'),
+  /** Channel where a trusted author's photo post can be sent to the gallery with their own 👍. Without it the quick upload is off. */
+  GALLERY_CHANNEL_ID,
+  CLOUDINARY: cloudinaryConfig(GALLERY_CHANNEL_ID),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;
