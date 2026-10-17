@@ -108,7 +108,7 @@ test('closed DMs are reported, and the channel request of the same id is deliver
   assert.deepEqual(h.reports, ['a:dms_closed', 'a:delivered']);
 });
 
-test('a DM that fails for another reason is tried again, then reported as failed', async () => {
+test('a DM that fails for another reason is tried again, then reported as closed so the channel can be offered', async () => {
   const h = harness();
   h.deliverWith(new Error('boom'));
   h.list([request('a')]);
@@ -120,7 +120,7 @@ test('a DM that fails for another reason is tried again, then reported as failed
   await h.poller.poll();
 
   assert.equal(h.delivered.length, 3, 'three attempts, no more');
-  assert.deepEqual(h.reports, ['a:failed']);
+  assert.deepEqual(h.reports, ['a:dms_closed']);
 });
 
 test('a failed delivery to one request does not stop the others', async () => {
@@ -196,4 +196,14 @@ test('the backoff is capped', async () => {
   for (let i = 0; i < 10; i++) await h.poller.poll();
 
   assert.equal(Math.max(...h.scheduled), 60_000);
+});
+
+test('a channel request that keeps failing is still a final failure', async () => {
+  const h = harness();
+  h.deliverWith(new Error('Missing Access'));
+  h.list([request('a', 'channel')]);
+
+  for (let i = 0; i < 4; i++) await h.poller.poll();
+
+  assert.deepEqual(h.reports, ['a:failed']);
 });

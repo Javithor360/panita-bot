@@ -19,7 +19,7 @@ import { listPendingResets, reportDelivery } from './passwordResets';
 /** Shorter than the API's window for calling the bot alive, with room for a slow answer. */
 const POLL_INTERVAL_MS = 5_000;
 const MAX_BACKOFF_MS = 60_000;
-/** DM attempts that fail for a reason other than closed DMs, before the request is reported `failed`. */
+/** DM attempts that fail for a reason other than closed DMs, before the request is reported as `dms_closed` anyway. */
 const MAX_DM_ATTEMPTS = 3;
 const STATES_MAX = 200;
 
@@ -82,7 +82,9 @@ export const createPasswordResetSync = (deps: PasswordResetSyncDeps): PasswordRe
           state.attempts++;
           logger.error(`[Password-Reset] Could not deliver request ${request.id} (attempt ${state.attempts}):`, error);
           if (state.attempts < MAX_DM_ATTEMPTS) return;
-          state.outcome = 'failed';
+          // A DM that cannot be delivered is, for the member, a closed DM: reporting `failed` (final) would take the
+          // public-channel fallback away from someone who has no other way to get the message
+          state.outcome = request.delivery === 'dm' ? 'dms_closed' : 'failed';
         }
       }
 
