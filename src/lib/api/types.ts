@@ -196,6 +196,14 @@ export interface EnabledMember {
   minecraft_status: MinecraftStatus | null;
 }
 
+/** An item of `GET /v1/discord/users/birthdays`. The API never returns the year of birth or an age. */
+export interface BirthdayMember {
+  discord_id: string;
+  /** `null` when the member has no Minecraft name. */
+  ign: string | null;
+  discord_name: string;
+}
+
 /** `POST /v1/discord/users/{discordId}/deactivate` */
 export interface DeactivateResult {
   /** False when the account was already disabled or had never existed. */

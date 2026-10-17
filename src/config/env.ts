@@ -81,6 +81,17 @@ const cloudinaryConfig = (galleryChannelId: string | undefined): CloudinaryConfi
   return undefined;
 };
 
+/** An integer from the environment within `[min, max]`, or the fallback when it is not set. */
+const integerInRange = (name: string, fallback: number, min: number, max: number): number => {
+  const raw = optional(name);
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`[Config] ${name} must be an integer between ${min} and ${max}`);
+  }
+  return value;
+};
+
 const GALLERY_CHANNEL_ID = optionalId('GALLERY_CHANNEL_ID');
 
 /**
@@ -116,5 +127,11 @@ export const env = {
   /** Channel where a trusted author's photo post can be sent to the gallery with their own 👍. Without it the quick upload is off. */
   GALLERY_CHANNEL_ID,
   CLOUDINARY: cloudinaryConfig(GALLERY_CHANNEL_ID),
+  /** General channel where the daily birthday greeting is posted. Without it there is no greeting. */
+  BIRTHDAY_CHANNEL_ID: optionalId('BIRTHDAY_CHANNEL_ID'),
+  /** Offset from UTC of the day the greeting follows. A fixed offset is enough: UTC-6 has no daylight saving. */
+  BIRTHDAY_UTC_OFFSET_HOURS: integerInRange('BIRTHDAY_UTC_OFFSET_HOURS', -6, -12, 14),
+  /** Hour (0-23, in that offset) from which the greeting is due. */
+  BIRTHDAY_HOUR: integerInRange('BIRTHDAY_HOUR', 10, 0, 23),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;

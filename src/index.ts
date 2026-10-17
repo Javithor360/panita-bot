@@ -14,6 +14,7 @@ import { roleDeleteEvent } from './events/roleEvents';
 import { api, verifyApiAccess } from './lib/api';
 import { startWebSync } from './services/webSync';
 import { startPasswordResetSync } from './services/passwordResetSync';
+import { startBirthdayScheduler } from './services/birthdayScheduler';
 import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
 import { startBridge } from './features/minecraft';
@@ -43,6 +44,7 @@ client.once(Events.ClientReady, c => {
   readyEvent(c, registry);
   startWebSync(client);
   startPasswordResetSync(client);
+  startBirthdayScheduler(client);
   startBridge(keepAlive(), c);
 
   // Accounts of members who left while the bot was offline; it never blocks or breaks the start

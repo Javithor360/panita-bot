@@ -31,7 +31,7 @@ src/
     errors.ts          UserError, respuestas seguras y handlers de proceso
   handlers/            interactionCreate (slash + componentes) y messageCreate (prefijo)
   events/              listeners del gateway, delgados; delegan en services/
-  services/            lógica de negocio y TODO el acceso a la API (users, memberSync, webSync, tickets, tags, gallery, roles, commandDeploy)
+  services/            lógica de negocio y TODO el acceso a la API (users, memberSync, webSync, birthdays, birthdayScheduler, tickets, tags, gallery, roles, commandDeploy)
   lib/                 helpers: discord, minecraft, embeds, format, galactic, syncLock
   lib/api/             cliente de la API de Panita (client, errors, types, startup)
   data/                contenido estático (Tezzlar, minieventos, recetas, encantamientos, comida, comandos del server)
@@ -93,6 +93,13 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - **Carpeta de Cloudinary: `panita-web/gallery/{edition_id}/{discord_name}`** (la de la web; su importación de carpetas lee exactamente esa ruta). Sin preset, sin `public_id`, sin transformaciones. `discord_name` sale de `upload-options`, nunca del mensaje. Límite de **8 MB** comprobado sobre los bytes reales; solo PNG, JPEG, WebP o GIF.
 - **Limpieza:** si la API **rechaza** la foto (4xx) se borra el archivo de Cloudinary; si el resultado es **desconocido** (timeout, error de red, 5xx, `ApiError.transient`) el archivo **se conserva** y la oferta termina, porque reintentar podría guardar la foto dos veces. Un fallo de descarga o de Cloudinary deja la oferta abierta. Nunca se registran las claves de Cloudinary ni la firma.
 - Necesita el permiso *Añadir reacciones* en el canal, el intent `GuildMessageReactions` y las partials `Message`, `Reaction` y `User` (los 👍 de mensajes anteriores al arranque llegan parciales).
+
+### Saludo de cumpleaños
+- La fecha de cumpleaños se define en la web; el bot **solo la consulta**. `services/birthdays` llama a `GET /v1/discord/users/birthdays?date=YYYY-MM-DD` y recibe `discord_id`, `ign` y `discord_name`: **nunca el año ni la edad**, y el saludo nunca menciona una edad. La regla del 29 de febrero (se lista el 28 en años no bisiestos) la decide la API, no el bot.
+- **El bot es dueño del horario, la zona horaria y el canal**: `BIRTHDAY_CHANNEL_ID` (sin él no hay saludo), `BIRTHDAY_UTC_OFFSET_HOURS` (`-6`) y `BIRTHDAY_HOUR` (`10`). La API recibe un día, nunca una hora.
+- `services/birthdayScheduler` (dependencias inyectadas, se inicia en `ClientReady`) hace un tick por minuto. El saludo toca **desde** la hora (`>=`), no **a** la hora. El día se cierra **solo después de publicar** o con la lista vacía; si falla la API o Discord se reintenta en el siguiente tick y el fallo se registra una sola vez por racha.
+- **El bot no guarda estado**: tras un reinicio lee los últimos 100 mensajes del canal y no repite si encuentra su propio saludo de ese día (`features/birthdays/greeting`: `isGreetingOf`). Si no puede leer el canal, no publica (podría duplicar) y reintenta.
+- El mensaje es uno por día, menciona a todos y solo a ellos (`allowedMentions`). Helpers puros en `features/birthdays/` (`time`, `greeting`), probados con reloj falso.
 
 ### Agregar un comando
 ```ts
