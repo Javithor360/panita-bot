@@ -3,10 +3,12 @@ import type { Client } from 'discord.js';
 import { MINECRAFT_BRIDGE } from '../../config/constants';
 import { env } from '../../config/env';
 import { listEnabledMembers } from '../../services/users';
+import { createAnnouncer } from './announcer';
 import { channelMapOf } from './channels';
 import { MemberDirectory } from './directory';
-import { hookChannelsOf, memberFetcherOf, notifierOf, topicChannelOf } from './discord';
+import { hookChannelsOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
 import { createInbound } from './inbound';
+import { MESSAGES_FILE, loadMessageConfig } from './messageConfig';
 import { createOutbound } from './outbound';
 import { RateLimiter } from './rateLimit';
 import { grantJoinedRole } from './roles';
@@ -21,6 +23,9 @@ export const channels = channelMapOf({ global: env.MC_CHANNEL_GLOBAL, staff: env
 export const bridge: BridgeServer | null = env.BRIDGE_KEY
   ? new BridgeServer({ key: env.BRIDGE_KEY, channels: () => channels.chatChannels() })
   : null;
+
+/** What the bot says for the Minecraft server, from `config/minecraft-messages.yml`. */
+export const messages = loadMessageConfig(MESSAGES_FILE, console);
 
 /** The linked members and their Minecraft names. */
 export const directory = new MemberDirectory({ fetchAll: listEnabledMembers });
@@ -41,12 +46,21 @@ export const startBridge = (http: Server, client: Client<true>) => {
   console.log(`[Bridge] Waiting for the Minecraft server on ${BRIDGE_PATH}.`);
 
   const members = memberFetcherOf(client);
+  const avatars = { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED };
+  const announce = createAnnouncer({
+    channels,
+    config: messages,
+    avatars,
+    surroundings: surroundingsOf(client, bridge),
+    notify: notifierOf(client),
+  });
   bridge.onFrame(
     createInbound({
       channels,
       webhooks: new WebhookPoster(hookChannelsOf(client), MINECRAFT_BRIDGE.webhookName),
-      notify: notifierOf(client),
-      avatars: { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED },
+      messages,
+      announce,
+      avatars,
       onJoin: player =>
         grantJoinedRole(
           {

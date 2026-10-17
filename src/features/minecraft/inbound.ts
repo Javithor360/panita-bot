@@ -1,8 +1,8 @@
-import type { EmbedBuilder } from 'discord.js';
 import { avatarFromTemplate } from '../../lib/minecraft';
 import type { ChannelMap } from './channels';
-import { displayNameOf, eventEmbed } from './notifications';
+import type { EventName, MessageConfig } from './messageConfig';
 import type { BridgePlayer, ChatFrame, EventFrame, ModFrame } from './protocol';
+import { displayNameOf, emoteNameOf } from './render';
 import type { PostedMessage } from './webhook';
 
 export interface AvatarTemplates {
@@ -13,8 +13,9 @@ export interface AvatarTemplates {
 export interface InboundDeps {
   channels: ChannelMap;
   webhooks: { post(channelId: string, message: PostedMessage): Promise<void> };
-  /** Posts an embed as the bot. */
-  notify(channelId: string, embed: EmbedBuilder): Promise<void>;
+  messages: MessageConfig;
+  /** Posts what happened to the server in the main channel. */
+  announce(kind: EventName, frame: EventFrame): Promise<void>;
   avatars: AvatarTemplates;
   /** A player joined; gives the role to the member they are. */
   onJoin(player: BridgePlayer): Promise<void>;
@@ -34,29 +35,22 @@ const emoteText = (text: string) => `*${text.replaceAll('*', '\\*')}*`;
 
 /**
  * Handles what the Minecraft server tells the bot: chat lines become webhook messages with the player's name and head, and
- * events become embeds. A failure while posting is logged and never reaches the bridge.
+ * events become the messages of the config. A failure while posting is logged and never reaches the bridge.
  */
 export const createInbound = (deps: InboundDeps) => {
   const chat = async (frame: ChatFrame) => {
     const channelId = deps.channels.discordIdOf(frame.channel);
     if (!channelId) return;
     await deps.webhooks.post(channelId, {
-      username: displayNameOf(frame.player),
+      username: frame.emote ? emoteNameOf(deps.messages, frame.player) : displayNameOf(frame.player),
       avatarUrl: avatarOf(deps.avatars, frame.player),
       content: frame.emote ? emoteText(frame.text) : frame.text,
     });
   };
 
-  const announce = async (frame: EventFrame) => {
-    const channelId = deps.channels.main;
-    if (!channelId) return;
-    const embed = eventEmbed(frame, player => avatarOf(deps.avatars, player));
-    if (embed) await deps.notify(channelId, embed);
-  };
-
-  /** What happens at a join does not depend on the notification: a role is given even if the embed can not be posted. */
+  /** What happens at a join does not depend on the notification: a role is given even if the message can not be posted. */
   const event = async (frame: EventFrame) => {
-    const tasks = [announce(frame)];
+    const tasks = [deps.announce(frame.kind, frame)];
     if ((frame.kind === 'join' || frame.kind === 'first_join') && frame.player) tasks.push(deps.onJoin(frame.player));
     const results = await Promise.allSettled(tasks);
     for (const result of results) {

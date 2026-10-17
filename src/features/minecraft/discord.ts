@@ -1,5 +1,7 @@
-import { TextChannel, type Client, type EmbedBuilder, type Guild } from 'discord.js';
+import { AttachmentBuilder, TextChannel, type Client, type Guild } from 'discord.js';
 import { env } from '../../config/env';
+import type { BridgeLink } from './link';
+import type { Rendered, Surroundings } from './render';
 import type { RoleMember } from './roles';
 import type { NicknameMember, TopicChannel } from './sync';
 import type { HookChannelResolver } from './webhook';
@@ -36,12 +38,31 @@ export const hookChannelsOf =
     };
   };
 
-/** Posts an embed as the bot, mentioning nobody. */
+/** Posts a message as the bot. It may mention only the users the message names, which is nobody but the owner at a crash. */
 export const notifierOf =
   (client: Client<true>) =>
-  async (channelId: string, embed: EmbedBuilder): Promise<void> => {
+  async (channelId: string, message: Rendered): Promise<void> => {
     const channel = await textChannel(client, channelId);
-    await channel?.send({ embeds: [embed], allowedMentions: { parse: [] } });
+    await channel?.send({
+      content: message.content,
+      embeds: message.embeds,
+      files: message.files.map(file => new AttachmentBuilder(file.data, { name: file.name })),
+      allowedMentions: { parse: [], users: message.mentions },
+    });
+  };
+
+/** What the messages need from Discord and from the icon of the server. */
+export const surroundingsOf =
+  (client: Client<true>, link: Pick<BridgeLink, 'serverIcon'>) =>
+  (): Surroundings => {
+    const guild = homeGuild(client);
+    return {
+      botName: client.user.displayName,
+      botAvatar: client.user.displayAvatarURL(),
+      ownerId: guild?.ownerId,
+      serverIcon: link.serverIcon,
+      emoji: name => guild?.emojis.cache.find(emoji => emoji.name === name)?.toString(),
+    };
   };
 
 /** The guild members the sync and the join role touch. */
