@@ -83,6 +83,7 @@ export class BridgeServer implements BridgeLink {
   private readonly maxFramesPerSecond: number;
   private readonly logger: Pick<Console, 'log' | 'error'>;
   private current: Connection | null = null;
+  private icon: Buffer | null = null;
   private framesIn = 0;
   private framesDropped = 0;
   private rejected = 0;
@@ -105,6 +106,10 @@ export class BridgeServer implements BridgeLink {
 
   get connected() {
     return this.current?.hello != null && this.current.socket.readyState === WebSocket.OPEN;
+  }
+
+  get serverIcon() {
+    return this.icon;
   }
 
   status(): BridgeStatus {
@@ -267,6 +272,7 @@ export class BridgeServer implements BridgeLink {
       return;
     }
     connection.hello = hello;
+    this.icon = hello.icon ?? null;
     connection.socket.send(
       JSON.stringify({ type: 'welcome', protocol: PROTOCOL_VERSION, channels: this.options.channels() } satisfies BotFrame),
     );

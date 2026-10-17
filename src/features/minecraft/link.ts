@@ -16,6 +16,8 @@ export class BridgeQueryError extends Error {}
  */
 export interface BridgeLink {
   readonly connected: boolean;
+  /** The icon of the Minecraft server as its last hello gave it, kept while the server is away; null when it sent none. */
+  readonly serverIcon: Buffer | null;
   /** Sends a frame; false when nobody is connected. */
   send(frame: BotFrame): boolean;
   /** Asks the mod something and waits for its answer. */
