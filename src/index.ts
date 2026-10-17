@@ -18,6 +18,7 @@ import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
 import { startBridge } from './features/minecraft';
 import { bridgeMessageEvent } from './events/bridgeMessage';
+import { galleryPostEvent, galleryReactionEvent } from './events/galleryUpload';
 
 const client = new Client({
   intents: [
@@ -27,9 +28,11 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     // Members confirm sign-in codes by DM
     GatewayIntentBits.DirectMessages,
+    // The author's own 👍 on a photo in the gallery channel starts the quick upload
+    GatewayIntentBits.GuildMessageReactions,
   ],
-  // DM channels reach the bot as partials
-  partials: [Partials.Channel],
+  // DM channels reach the bot as partials, and so do reactions on messages from before it started
+  partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],
 });
 
 installProcessHandlers(client);
@@ -57,6 +60,8 @@ client.on(Events.InteractionCreate, createInteractionHandler(registry));
 client.on(Events.MessageCreate, createMessageHandler(registry));
 client.on(Events.MessageCreate, createDirectMessageHandler());
 client.on(Events.MessageCreate, bridgeMessageEvent);
+client.on(Events.MessageCreate, galleryPostEvent);
+client.on(Events.MessageReactionAdd, galleryReactionEvent);
 
 const start = async () => {
   if (!(await verifyApiAccess(api))) process.exit(1);

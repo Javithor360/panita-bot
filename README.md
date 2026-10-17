@@ -18,6 +18,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
   - [Commands](#commands)
   - [Ticket system](#ticket-system)
   - [Sign-in codes and sessions](#sign-in-codes-and-sessions)
+  - [Quick upload to the gallery](#quick-upload-to-the-gallery)
   - [Minecraft bridge](#minecraft-bridge)
   - [Panita Web synchronization](#panita-web-synchronization)
   - [Reliability](#reliability)
@@ -65,6 +66,8 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
 | `MC_SYNC_MINUTES` | — | Minutes between runs of the topic and nickname sync. At least 10. |
 | `PASSWORD_RESET_CHANNEL_ID` | — | Public channel (`#comandos`) where a password reset goes when the member's DMs are closed and they agree to it on the website. Without it that fallback is reported as failed. |
+| `GALLERY_CHANNEL_ID` | — | Gallery channel (`903017941300281344`). A trusted author's photo post there gets the bot's 👍, and the author's own 👍 offers the quick upload. Without it the quick upload is off. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | With `GALLERY_CHANNEL_ID` | The website's Cloudinary account (cloud name `panita`; the API only accepts photos from `res.cloudinary.com/panita`). The bot signs its uploads with them and never logs them. |
 
 <details>
 <summary>Example <code>.env</code></summary>
@@ -130,7 +133,7 @@ src/
   services/      business logic and every call to the Panita API
   lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
-  features/      large features split into modules (tickets, minecraft, login, passwordReset)
+  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload)
   commands/      one file per command, grouped by category
 test/            unit tests
 ```
@@ -276,6 +279,19 @@ A signed-in member who forgot their password asks for a reset in the website's s
 5. After a reset the member's other sessions are closed and they are told to review `/sessions`.
 
 The buttons and the form are components of `/register` (the router needs a command as namespace); the logic is in `src/features/passwordReset/` and `src/services/passwordResetSync.ts`. A request listed twice by the API is delivered once, and a report that failed is retried without sending the DM again.
+
+### Quick upload to the gallery
+
+A **trusted author** (an enabled member with that flag on the website; admins and mods need it too) can send a photo to the gallery from Discord, in the gallery channel (`GALLERY_CHANNEL_ID`):
+
+1. A post from a member with an image attachment gets the bot's 👍 when its author is a trusted author (`GET /v1/discord/users/{id}`). Other posts get nothing, and a failed lookup is only logged.
+2. Anyone's 👍 is just a Discord reaction: **nothing is stored and it is not a gallery like** (those exist only on the website). When the **author** adds their own 👍, the bot asks `GET /v1/discord/users/{id}/upload-options` (4 s limit). If that fails it uses the last options it remembers (1 hour) and otherwise says so briefly. Nothing happens for an author who cannot upload, for a message with a ✅ from the bot, or while an offer for that message is up.
+3. The bot replies, mentioning only the author, with **Subir a la galería**, a button only the author can press. The reply goes away after about 2 minutes or when the upload ends. The offers live in memory, so after a restart their buttons say they are gone.
+4. The button opens a form straight away (Discord gives 3 seconds): title (up to 200), description (optional, up to 2000), edition (one, the newest preselected, at most 25) and categories (one or more). The bot hides `others`, `lost_media`, `logos` and `textures` on top of what the API leaves out (never `members_choice`; `epic_build` only for admins and mods).
+5. On submit the bot checks the image (PNG, JPEG, WebP or GIF, **8 MB at most**, checked on the real bytes), uploads it to Cloudinary into `panita-web/gallery/{edition_id}/{discord_name}` (the website's folder, which its folder import reads, with no preset or transformation) and saves it with `POST /v1/discord/photos`. On success it adds ✅, removes the offer and sends the author the link, privately.
+6. **A refusal from the API (4xx) removes the file from Cloudinary; a timeout, a lost connection or a 5xx keeps it**, because the photo may have been saved. In that case the offer ends and the author is told to check the gallery before trying again. A Cloudinary or download failure leaves the offer up for another try. A double click or a double submit uploads once.
+
+The logic is in `src/features/quickUpload/` (`flow` has the rules, `view` the texts and the form, `offers` the held offers), the Cloudinary calls in `src/lib/cloudinary.ts` (signed `fetch`, no SDK) and the API calls in `src/services/gallery.ts`. The button and the form are components of `/gallery`. The bot needs the **Add Reactions** permission in the channel and the `GuildMessageReactions` intent; a pinned note in the channel should say that the author's own 👍 starts the upload and that Discord reactions are not gallery likes.
 
 ### Minecraft bridge
 
