@@ -1,10 +1,9 @@
 import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { EmbedBuilder } from 'discord.js';
 import { channelMapOf } from '../src/features/minecraft/channels';
 import { createInbound } from '../src/features/minecraft/inbound';
-import { eventEmbed } from '../src/features/minecraft/notifications';
+import { DEFAULT_MESSAGES, type EventName } from '../src/features/minecraft/messageConfig';
 import type { BridgePlayer, EventFrame, ModFrame } from '../src/features/minecraft/protocol';
 import { grantJoinedRole, type RoleMember } from '../src/features/minecraft/roles';
 import { WebhookPoster, safeUsername, type Hook, type HookChannel, type HookMessage } from '../src/features/minecraft/webhook';
@@ -125,51 +124,23 @@ test('hides the words Discord refuses in a webhook name with an invisible space'
   assert.equal(safeUsername('a'.repeat(100)).length, 80);
 });
 
-// Notifications
-
-const embed = (frame: EventFrame) => eventEmbed(frame, player => `https://heads.test/${player.name}`)?.data;
-
-test('writes a join, a first join and a leave under the name the player shows', () => {
-  assert.equal(embed({ type: 'event', kind: 'join', player: JAVI })?.description, '**Javithor360** se unió al servidor');
-  assert.equal(embed({ type: 'event', kind: 'first_join', player: TEZ })?.description, '¡**Tez** se unió al servidor por primera vez!');
-  assert.equal(embed({ type: 'event', kind: 'leave', player: JAVI })?.description, '**Javithor360** salió del servidor');
-  const author = embed({ type: 'event', kind: 'join', player: TEZ })?.author;
-  assert.equal(author?.name, 'Tez');
-  assert.equal(author?.icon_url, 'https://heads.test/Tezzlar');
-});
-
-test('writes deaths, advancements and broadcasts with the text the game gave', () => {
-  assert.equal(embed({ type: 'event', kind: 'death', player: JAVI, text: 'Javithor360 was slain by Zombie' })?.description, '💀 Javithor360 was slain by Zombie');
-  assert.equal(embed({ type: 'event', kind: 'advancement', player: JAVI, text: 'Javi made [Stone Age]' })?.description, '🏆 Javi made [Stone Age]');
-  assert.equal(embed({ type: 'event', kind: 'broadcast', text: 'Reinicio en 5 minutos' })?.description, '📢 Reinicio en 5 minutos');
-});
-
-test('writes when the server starts and stops', () => {
-  assert.equal(embed({ type: 'event', kind: 'started' })?.description, '🟢 El servidor está en línea');
-  assert.equal(embed({ type: 'event', kind: 'stopping' })?.description, '🔴 El servidor se está apagando');
-});
-
-test('posts nothing for a death, advancement or broadcast without a text', () => {
-  assert.equal(eventEmbed({ type: 'event', kind: 'death', player: JAVI }, () => ''), null);
-  assert.equal(eventEmbed({ type: 'event', kind: 'broadcast' }, () => ''), null);
-});
-
 // The inbound handler
 
 const inbound = () => {
   const posted: Array<{ channelId: string; username: string; avatarUrl: string; content: string }> = [];
-  const notified: Array<{ channelId: string; embed: EmbedBuilder }> = [];
+  const announced: Array<{ kind: EventName; frame: EventFrame }> = [];
   const joined: BridgePlayer[] = [];
   const handle = createInbound({
     channels: channelMapOf({ global: GLOBAL }),
     webhooks: { post: async (channelId, message) => void posted.push({ channelId, ...message }) },
-    notify: async (channelId, embed) => void notified.push({ channelId, embed }),
+    messages: DEFAULT_MESSAGES,
+    announce: async (kind, frame) => void announced.push({ kind, frame }),
     avatars: AVATARS,
     onJoin: async player => void joined.push(player),
     logger: { error: () => {} },
   });
   const settle = () => new Promise(resolve => setImmediate(resolve));
-  return { handle: async (frame: ModFrame) => (handle(frame), settle()), posted, notified, joined };
+  return { handle: async (frame: ModFrame) => (handle(frame), settle()), posted, announced, joined };
 };
 
 test('posts a chat line under the nickname with the head of how the player logs in', async () => {
@@ -192,6 +163,18 @@ test('posts what a player does with an emote in italics', async () => {
   assert.equal(posted[0].content, '*saluda \\*a todos\\**');
 });
 
+test('posts what a player does with /me under a name that starts with an asterisk, and a normal line under the plain name', async () => {
+  const { handle, posted } = inbound();
+
+  await handle({ type: 'chat', channel: 'global', player: TEZ, text: 'se ríe', emote: true });
+  await handle({ type: 'chat', channel: 'global', player: TEZ, text: 'hola', emote: false });
+
+  assert.deepEqual(posted.map(item => [item.username, item.content]), [
+    ['* Tez', '*se ríe*'],
+    ['Tez', 'hola'],
+  ]);
+});
+
 test('ignores a chat line of a channel that is not joined', async () => {
   const { handle, posted } = inbound();
 
@@ -200,15 +183,18 @@ test('ignores a chat line of a channel that is not joined', async () => {
   assert.deepEqual(posted, []);
 });
 
-test('posts events in the main channel and gives the role at a join only', async () => {
-  const { handle, notified, joined } = inbound();
+test('announces every event with its own kind and gives the role at a join only', async () => {
+  const { handle, announced, joined } = inbound();
+  const frames: EventFrame[] = [
+    { type: 'event', kind: 'join', player: JAVI },
+    { type: 'event', kind: 'first_join', player: TEZ },
+    { type: 'event', kind: 'leave', player: JAVI },
+    { type: 'event', kind: 'broadcast', text: 'hola' },
+  ];
 
-  await handle({ type: 'event', kind: 'join', player: JAVI });
-  await handle({ type: 'event', kind: 'first_join', player: TEZ });
-  await handle({ type: 'event', kind: 'leave', player: JAVI });
+  for (const frame of frames) await handle(frame);
 
-  assert.equal(notified.length, 3);
-  assert.ok(notified.every(item => item.channelId === GLOBAL));
+  assert.deepEqual(announced, frames.map(frame => ({ kind: frame.kind, frame })));
   assert.deepEqual(joined, [JAVI, TEZ]);
 });
 
@@ -216,7 +202,8 @@ test('a failure while posting never reaches the bridge', async () => {
   const handle = createInbound({
     channels: channelMapOf({ global: GLOBAL }),
     webhooks: { post: async () => Promise.reject(new Error('boom')) },
-    notify: async () => Promise.reject(new Error('boom')),
+    messages: DEFAULT_MESSAGES,
+    announce: async () => Promise.reject(new Error('boom')),
     avatars: AVATARS,
     onJoin: async () => {},
     logger: { error: () => {} },
@@ -296,7 +283,8 @@ test('gives the role at a join even when the embed can not be posted', async () 
   const handle = createInbound({
     channels: channelMapOf({ global: GLOBAL }),
     webhooks: { post: async () => {} },
-    notify: async () => Promise.reject(new Error('missing permissions')),
+    messages: DEFAULT_MESSAGES,
+    announce: async () => Promise.reject(new Error('missing permissions')),
     avatars: AVATARS,
     onJoin: async player => void joined.push(player),
     logger: { error: (...args: unknown[]) => void errors.push(args) },
@@ -314,7 +302,8 @@ test('gives the role at a join even when no channel is joined', async () => {
   const handle = createInbound({
     channels: channelMapOf({}),
     webhooks: { post: async () => {} },
-    notify: async () => {},
+    messages: DEFAULT_MESSAGES,
+    announce: async () => {},
     avatars: AVATARS,
     onJoin: async player => void joined.push(player),
     logger: { error: () => {} },

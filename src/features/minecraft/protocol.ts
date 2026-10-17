@@ -35,6 +35,8 @@ export interface HelloFrame {
   minecraftVersion: string;
   startedAt: string;
   maxPlayers: number;
+  /** The icon of the server (a PNG), when the mod sent a valid one. */
+  icon?: Buffer;
 }
 
 export interface ChatFrame {
@@ -114,6 +116,8 @@ export interface StatusData {
   mspt: number;
   uptimeSeconds: number;
   version: string;
+  /** How many different players the server knows; a mod that does not report it leaves it out. */
+  totalPlayers?: number;
 }
 
 export interface QueryData {
@@ -138,6 +142,20 @@ const text = (value: unknown, max: number, min = 0): value is string =>
 
 const wholeNumber = (value: unknown, max: number): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= max;
+
+/** The largest icon that fits in a frame once it is base64: 10,000 bytes are about 13,400 characters of the 16 KiB. */
+export const MAX_ICON_BYTES = 10_000;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/** The icon of a hello, or undefined when it is not a PNG of a size the bridge accepts. Never fails the hello. */
+const readIcon = (value: unknown): Buffer | undefined => {
+  if (typeof value !== 'string' || value.length % 4 !== 0 || value.length > Math.ceil(MAX_ICON_BYTES / 3) * 4 || !BASE64.test(value)) {
+    return undefined;
+  }
+  const bytes = Buffer.from(value, 'base64');
+  return bytes.length <= MAX_ICON_BYTES && bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ? bytes : undefined;
+};
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 const PLAYER_NAME = /^[A-Za-z0-9_]{1,16}$/;
@@ -171,7 +189,8 @@ export const parseModFrame = (raw: string): Parsed => {
       const { protocol, modVersion, minecraftVersion, startedAt, maxPlayers } = value;
       if (!wholeNumber(protocol, 1000) || !text(modVersion, 64) || !text(minecraftVersion, 32)) return { ok: false, reason: 'bad hello' };
       if (!text(startedAt, 40, 1) || Number.isNaN(Date.parse(startedAt)) || !wholeNumber(maxPlayers, 100_000)) return { ok: false, reason: 'bad hello' };
-      return { ok: true, frame: { type: 'hello', protocol, modVersion, minecraftVersion, startedAt, maxPlayers } };
+      const icon = readIcon(value.icon);
+      return { ok: true, frame: { type: 'hello', protocol, modVersion, minecraftVersion, startedAt, maxPlayers, ...(icon ? { icon } : {}) } };
     }
     case 'chat': {
       const player = readPlayer(value.player);
@@ -235,10 +254,12 @@ export const readQueryData = <K extends QueryKind>(what: K, data: Record<string,
         return finite(tps, 0, 1000) && finite(mspt, 0, 100_000) ? { tps, mspt } : null;
       }
       case 'status': {
-        const { online, max, tps, mspt, uptimeSeconds, version } = data;
+        const { online, max, tps, mspt, uptimeSeconds, version, totalPlayers } = data;
         if (!wholeNumber(online, 100_000) || !wholeNumber(max, 100_000) || !finite(tps, 0, 1000) || !finite(mspt, 0, 100_000)) return null;
         if (!wholeNumber(uptimeSeconds, 10 ** 9) || !text(version, 32)) return null;
-        return { online, max, tps, mspt, uptimeSeconds, version };
+        // Optional and cosmetic: one that is not a number is ignored instead of failing the whole answer
+        const total = wholeNumber(totalPlayers, 10_000_000) ? { totalPlayers } : {};
+        return { online, max, tps, mspt, uptimeSeconds, version, ...total };
       }
     }
   })();

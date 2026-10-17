@@ -1,7 +1,7 @@
 import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_FRAME_BYTES, parseModFrame, readQueryData, withoutControlCharacters } from '../src/features/minecraft/protocol';
+import { MAX_FRAME_BYTES, MAX_ICON_BYTES, parseModFrame, readQueryData, withoutControlCharacters } from '../src/features/minecraft/protocol';
 
 const player = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true };
 const hello = { type: 'hello', protocol: 1, modVersion: '0.0.1', minecraftVersion: '26.3', startedAt: '2026-10-12T10:00:00Z', maxPlayers: 20 };
@@ -9,6 +9,33 @@ const parse = (value: unknown) => parseModFrame(typeof value === 'string' ? valu
 
 test('reads a hello', () => {
   assert.deepEqual(parse(hello), { ok: true, frame: hello });
+});
+
+const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('rest of the image')]);
+
+test('reads the icon of the server from a hello and keeps it as bytes', () => {
+  const parsed = parse({ ...hello, icon: PNG.toString('base64') });
+
+  assert.ok(parsed.ok && parsed.frame?.type === 'hello');
+  assert.ok(parsed.ok && parsed.frame?.type === 'hello' && parsed.frame.icon?.equals(PNG));
+});
+
+test('drops an icon that is not a PNG, too big or not base64, and still accepts the hello', () => {
+  const big = Buffer.concat([PNG, Buffer.alloc(10_000)]);
+  const bad = [Buffer.from('not an image at all').toString('base64'), big.toString('base64'), 'not base64!', '', 12, null, '@@@@'];
+  for (const icon of bad) {
+    const parsed = parse({ ...hello, icon });
+    assert.ok(parsed.ok, JSON.stringify(icon));
+    assert.deepEqual(parsed.ok && parsed.frame, hello, 'the frame has no icon at all');
+  }
+});
+
+test('accepts an icon of exactly the largest size', () => {
+  const edge = Buffer.concat([PNG, Buffer.alloc(MAX_ICON_BYTES - PNG.length)]);
+
+  const parsed = parse({ ...hello, icon: edge.toString('base64') });
+
+  assert.ok(parsed.ok && parsed.frame?.type === 'hello' && parsed.frame.icon?.length === MAX_ICON_BYTES);
 });
 
 test('rejects a hello with the wrong shape', () => {
@@ -110,5 +137,10 @@ test('reads the answers of the queries and rejects the ones with another shape',
     uptimeSeconds: 3600,
     version: '26.3',
   });
+  const status = { online: 2, max: 20, tps: 20, mspt: 8, uptimeSeconds: 3600, version: '26.3' };
+  assert.equal(readQueryData('status', { ...status, totalPlayers: 87 })?.totalPlayers, 87);
+  for (const totalPlayers of ['87', -1, 1.5, null]) {
+    assert.deepEqual(readQueryData('status', { ...status, totalPlayers }), status, `${totalPlayers} is ignored, not an error`);
+  }
   assert.equal(readQueryData('status', { online: 2 }), null);
 });

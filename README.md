@@ -63,9 +63,8 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `MC_CHANNEL_STAFF` | — | Optional channel joined to the server's staff chat. |
 | `MC_JOINED_ROLE_ID` | — | Role given to a linked member when they join the Minecraft server. |
 | `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED` | — | Head templates for players with a Microsoft account and for those with a PIN, with `{uuid}`, `{name}` and `{nickname}`. Default to `mc-heads.net`. |
-| `MC_TOPIC_TEMPLATE` | — | The topic of the global channel, with `{online}`, `{max}`, `{tps}` and `{uptime}`. |
 | `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
-| `MC_SYNC_MINUTES` | — | Minutes between runs of the topic and nickname sync. At least 10. |
+| `MC_SYNC_MINUTES` | 15 | Minutes between runs of the topic and nickname sync. At least 10. |
 | `PASSWORD_RESET_CHANNEL_ID` | — | Public channel (`#comandos`) where a password reset goes when the member's DMs are closed and they agree to it on the website. Without it that fallback is reported as failed. |
 | `GALLERY_CHANNEL_ID` | — | Gallery channel (`903017941300281344`). A trusted author's photo post there gets the bot's 👍, and the author's own 👍 offers the quick upload. Without it the quick upload is off. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | With `GALLERY_CHANNEL_ID` | The website's Cloudinary account (cloud name `panita`; the API only accepts photos from `res.cloudinary.com/panita`). The bot signs its uploads with them and never logs them. |
@@ -314,15 +313,26 @@ The logic is in `src/features/birthdays/` (`time` has the local day and the due 
 
 The bot is the only Discord client of the Minecraft server. The server (the Enriquecraft mod) keeps one authenticated WebSocket to the bot on `/bridge` of its HTTP server, with `BRIDGE_KEY` as the bearer token, and the two exchange small JSON frames. The mod never talks to Discord and holds no Discord token. The protocol is in [`docs/minecraft-bridge-plan.md`](docs/minecraft-bridge-plan.md).
 
-- **Game to Discord.** Chat lines are posted through the bot's own webhook in the joined channel (it makes it the first time and finds it again), under the player's chat nickname or name, with their head. Joins, leaves, first joins, deaths, advancements, `/broadcast` and the server starting and stopping are posted as the bot. Nobody is ever mentioned.
+- **Game to Discord.** Chat lines are posted through the bot's own webhook in the joined channel (it makes it the first time and finds it again), under the player's chat nickname or name, with their head. Joins, leaves, first joins, deaths, advancements, `/broadcast`, the server starting and stopping, and the server crashing are posted as the bot, with the messages of [`config/minecraft-messages.yml`](#minecraft-messages). What a player does with `/me` is posted like chat, with `* ` before the name and the text in italics. Nobody is ever mentioned, except the owner of the server when it crashes.
 - **Discord to game.** What a **linked** member writes in a joined channel goes to the server under their Minecraft name. Anyone else gets a ❌ on their message and nothing else. Commands (`!`), bots and webhooks are never bridged, and each member is heard at most five times in ten seconds.
 - **Commands.** `/playerlist` and `/tps` ask the server live. If it is not connected they say so.
 - **Join role.** When a linked member joins the server they get `MC_JOINED_ROLE_ID` if they lack it. It is never removed by the bridge.
-- **Topic and nicknames.** Every `MC_SYNC_MINUTES` (10 at least) the topic of the global channel shows the server (or that it is down; it is only edited when the text changes), and each linked member's server nickname is set to their Minecraft name, even if they changed it. Members the bot cannot rename (the owner, higher roles) are skipped.
+- **Crashes.** The server says it is stopping before it closes the line. A line that is lost without that is a crash if it does not come back within `crash_after_seconds` (90 by default), or if the server comes back as a new run; the bot then posts the `crashed` message once. A server that hangs but stays connected is not noticed.
+- **Topic and nicknames.** Every `MC_SYNC_MINUTES` (15 by default, 10 at least), and at once when the server starts, stops or crashes, the topic of the global channel shows the server (or that it is down; it is only edited when the text changes), and each linked member's server nickname is set to their Minecraft name, even if they changed it. Members the bot cannot rename (the owner, higher roles) are skipped.
 - **Careful rollout.** The join role, the nickname sync and the topic are in **dry run** until `MC_SYNC_DRY_RUN=false`: the log says what each would change and nothing changes. Set it to `false` to apply them.
 - **The game never depends on the bot.** If the bot is down, chat is just not mirrored.
 
 Never run a second copy of the production bot with its token: it would answer every command twice. Develop with a test application and guild, or turn the production bot off first.
+
+#### Minecraft messages
+
+What the bot posts about the server and the text of the topic are in [`config/minecraft-messages.yml`](config/minecraft-messages.yml), which is committed with the defaults and documents its own keys and placeholders. Change it, then restart the bot (a deploy does).
+
+- Each **event** (`join`, `first_join`, `leave`, `death`, `advancement`, `broadcast`, `started`, `stopping`, `crashed`) is `false` (nothing is posted), a text (a plain message) or an embed (`color`, `author`, `title`, `description`, `thumbnail`, `image`, `footer`, `fields`, `timestamp`, `content`).
+- **Placeholders** are written `{name}`: `{displayname}`, `{username}`, `{avatar}`, `{deathmessage}`, `{achievement}`, `{message}`, `{guildowner}`, `{date}`, `{botname}`, `{botavatar}` and, in the topic, `{playercount}`, `{playermax}`, `{tps}`, `{uptimemins}`, `{uptimehours}`, `{serverversion}` and `{totalplayers}`. `{servericon}` is the icon of the Minecraft server (its `server-icon.png`, which the mod sends), for the icon, thumbnail and image keys.
+- **Emoji** of the Discord server are written `:name:`. Standard emoji must be written as the character (🔥), since Discord does not turn `:fire:` into one in a message from a bot.
+- **A mistake never stops the bridge.** A missing file, a YAML error, or a wrong value (a bad color, an unknown placeholder, a link that is not one) falls back to the default of that key and is written to the log at startup as `[Minecraft] messages: …`.
+- `MC_TOPIC_TEMPLATE` is gone; the bot says so at startup if it is still set. `config/` must be deployed with the bot.
 
 ### Panita Web synchronization
 

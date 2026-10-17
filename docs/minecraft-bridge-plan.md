@@ -72,7 +72,7 @@ Bot to mod:
 | `query` | `id`, `what` (`playerlist`, `tps`, `status`). |
 | `error` | `code` (`protocol`, `rate`, `frame`), `message`. Sent before closing. |
 
-Answers of a `query` (`reply.data`): `playerlist` is `{ online: [{ name, nickname }], max }`; `tps` is `{ tps, mspt }`; `status` is `{ online, max, tps, mspt, uptimeSeconds, version }`. The bot waits 5 s and then tells the member the server did not answer.
+Answers of a `query` (`reply.data`): `playerlist` is `{ online: [{ name, nickname }], max }`; `tps` is `{ tps, mspt }`; `status` is `{ online, max, tps, mspt, uptimeSeconds, version }` and, from the messages config (`minecraft-messages-plan.md`), an optional `totalPlayers`. The bot waits 5 s and then tells the member the server did not answer.
 
 Close codes: `4000` replaced, `4002` protocol mismatch (the mod then stays disconnected and says so in `/discord status`), `4003` invalid frame.
 
@@ -98,7 +98,8 @@ src/features/minecraft/
   inbound.ts       frames from the mod: chat to webhook, events to notifications, the role at join
   outbound.ts      Discord messages to frames: linked check, conversion, rate limit
   webhook.ts       the bot's own webhook per channel: find or create, send, recreate when deleted
-  notifications.ts the embeds for join, leave, death, advancement, first join, broadcast, start, stop
+  render.ts        the messages for the events, from the config; announcer.ts posts them; crashWatch.ts tells a crash from a stop
+  messageConfig.ts reads `config/minecraft-messages.yml` (see `minecraft-messages-plan.md`)
   sync.ts          the ten-minute job: pure planning of topic, nicknames and roles, then applying (dry run)
   messages.ts      Spanish texts
 src/events/bridgeMessage.ts   thin: delegates to features/minecraft/outbound
@@ -116,9 +117,8 @@ All optional: without `BRIDGE_KEY` the feature is off and the log says so once.
 | `MC_CHANNEL_STAFF` | Optional channel for the staff chat. |
 | `MC_JOINED_ROLE_ID` | Role given to a linked member when they join the server. First value: `1559056709094342688`. |
 | `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED` | Head URL templates with `{uuid}`, `{name}`, `{nickname}`. Defaults in `lib/minecraft.ts`: `https://mc-heads.net/avatar/{uuid}/128` and a fixed Steve head. |
-| `MC_TOPIC_TEMPLATE` | The topic, with `{online}`, `{max}`, `{tps}`, `{uptime}`. |
 | `MC_SYNC_DRY_RUN` | `true` by default: the job only logs what it would change. |
-| `MC_SYNC_MINUTES` | Interval of the job, at least 10. |
+| `MC_SYNC_MINUTES` | Interval of the job, 15 by default, at least 10. |
 
 The bot's `.env.example` and README are updated in the same commits.
 
@@ -138,7 +138,7 @@ The bot's `.env.example` and README are updated in the same commits.
 
 At ready and then every `MC_SYNC_MINUTES` (never under 10), `sync.ts` builds a plan and applies it:
 
-1. **Topic.** Asks the mod for `status` and renders `MC_TOPIC_TEMPLATE`; when the bridge is down the topic says so. It edits only when the text changed (Discord allows about two edits per ten minutes).
+1. **Topic.** Asks the mod for `status` and renders the topic of `config/minecraft-messages.yml`; when the bridge is down the topic says so. It edits only when the text changed (Discord allows about two edits per ten minutes).
 2. **Nicknames.** For every enabled linked member (from the new bulk endpoint of the API), the guild nickname must equal the IGN; others are corrected, even if they changed it. Members the bot cannot change (the owner, higher roles) are skipped and counted.
 
 The role is not part of the job. When a `join` or `first_join` event arrives, the bot finds the linked member of that IGN in its list of enabled users (kept in memory, refreshed by the job and on a miss) and adds the role if they lack it. It is never removed by the bridge, and it is granted again only at a later join, so it does not fight an admin who removed the edition on the web.

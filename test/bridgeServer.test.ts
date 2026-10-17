@@ -103,6 +103,61 @@ test('welcomes a mod that says hello with the chat channels the bot bridges', as
   assert.equal(bridge.status().hello?.modVersion, '0.0.1');
 });
 
+test('keeps the icon of the server from its hello, also while it is away, and drops it when a later hello has none', async () => {
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('icon')]);
+  const { bridge, url } = await start();
+  assert.equal(bridge.serverIcon, null);
+
+  const first = await connect(url);
+  first.socket.send(JSON.stringify({ ...hello, icon: png.toString('base64') }));
+  await first.next();
+  assert.ok(bridge.serverIcon?.equals(png));
+
+  first.socket.close();
+  await first.closed;
+  assert.ok(bridge.serverIcon?.equals(png), 'still there while the server is away');
+
+  await connected(url);
+  assert.equal(bridge.serverIcon, null, 'a mod that no longer sends one has none');
+});
+
+test('tells when the server connects and when it is lost, but not about a connection that was replaced or never said hello', async () => {
+  const { bridge, url } = await start({ helloMs: 60 });
+  const events: string[] = [];
+  bridge.onConnection(event => void events.push(event.type === 'connected' ? `connected ${event.hello.startedAt}` : 'disconnected'));
+
+  const silent = await connect(url);
+  await silent.closed;
+  assert.deepEqual(events, [], 'a connection that never said hello was never the server');
+
+  const first = await connected(url);
+  assert.deepEqual(events, ['connected 2026-10-12T10:00:00Z']);
+
+  const second = await connected(url);
+  await first.closed;
+  assert.deepEqual(events, ['connected 2026-10-12T10:00:00Z', 'connected 2026-10-12T10:00:00Z'], 'replacing is not a loss');
+
+  second.socket.close();
+  await second.closed;
+  await sleep(20);
+  assert.deepEqual(events.slice(2), ['disconnected']);
+});
+
+test('a handler of connection events that fails does not stop the others', async () => {
+  const errors: unknown[][] = [];
+  const { bridge, url } = await start({ logger: { log: () => {}, error: (...args: unknown[]) => void errors.push(args) } });
+  const seen: string[] = [];
+  bridge.onConnection(() => {
+    throw new Error('boom');
+  });
+  bridge.onConnection(event => void seen.push(event.type));
+
+  await connected(url);
+
+  assert.deepEqual(seen, ['connected']);
+  assert.equal(errors.length, 1);
+});
+
 test('closes a mod with another protocol after telling it so', async () => {
   const { bridge, url } = await start();
   const client = await connect(url);

@@ -36,7 +36,7 @@ src/
   lib/api/             cliente de la API de Panita (client, errors, types, startup)
   data/                contenido estático (Tezzlar, minieventos, recetas, encantamientos, comida, comandos del server)
   features/tickets/    sistema de tickets dividido: permissions, embeds, panel, components, context
-  features/minecraft/  puente con el servidor de Minecraft: protocol, link, server (WebSocket), inbound, outbound, webhook, notifications, roles, sync, directory, queries, embeds, discord (los únicos adaptadores de discord.js)
+  features/minecraft/  puente con el servidor de Minecraft: protocol, link, server (WebSocket), inbound, outbound, webhook, messageConfig (lee `config/minecraft-messages.yml`), template, render, announcer, crashWatch, roles, sync, directory, queries, embeds, discord (los únicos adaptadores de discord.js)
   commands/<cat>/      un archivo por comando (`export default defineCommand({...})`)
   scripts/             deploy-commands.ts (registro de comandos slash)
 test/                  tests unitarios (node:test) del parser y del customId

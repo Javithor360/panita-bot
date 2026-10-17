@@ -1,0 +1,73 @@
+# What the bot says in Discord for the Minecraft server.
+#
+# This file is read when the bot starts: restart the bot after changing it. A key that is missing or wrong falls back to its
+# default and is reported in the log, so a typo never stops the bridge.
+#
+# EVENTS
+# An event is one of:
+#   false              nothing is posted
+#   "text"             a plain message (markdown works)
+#   an embed           any of these keys, all optional:
+#     color:           "#rrggbb" (in quotes, # starts a comment in YAML) or a number
+#     content:         text sent above the embed
+#     author:          "text", or { text, icon, url }. On player events a plain text gets the player's head as its icon.
+#     title:           "text", or { text, url }
+#     description:     text
+#     thumbnail:       link to an image
+#     image:           link to an image
+#     footer:          "text", or { text, icon }
+#     fields:          a list of { name, value, inline } (inline is true or false)
+#     timestamp:       true to show the time the message was sent
+# A key left out of an embed is simply not shown; "" turns off what a default would show.
+#
+# PLACEHOLDERS, written {name}
+#   everywhere:                         {botname} {botavatar} {date} (date and time, shown in each reader's timezone)
+#   join, first_join, leave:            {displayname} (nickname, or name) {username} {avatar} (the player's head)
+#   death:                              the above and {deathmessage}
+#   advancement:                        the above and {achievement}
+#   broadcast:                          {message}
+#   crashed:                            {guildowner} (mentions the owner of the server; the only mention the bot makes)
+#   {servericon}                        the icon of the Minecraft server; only in icon, thumbnail and image keys
+#
+# EMOJI
+# Write the emoji of this Discord server as :name: and the bot turns them into the real emoji. Standard emoji must be written
+# as the character itself (🔥), because Discord does not turn :fire: into one in a message sent by a bot.
+events:
+  join:
+    color: "#00ff00"
+    author: "{displayname} entró al servidor"
+  first_join:
+    color: "#ffd700"
+    author: "{displayname} entró al servidor por primera vez. ¡Bienvenido!"
+  leave:
+    color: "#ff0000"
+    author: "{displayname} salió del servidor"
+  death:
+    color: "#000000"
+    author: "{deathmessage}"
+  advancement:
+    color: "#ffd700"
+    author: "{displayname} completó el logro {achievement}"
+  # A message of the server itself, such as /say.
+  broadcast:
+    color: "#5865f2"
+    author: { text: "Anuncio Oficial", icon: "{servericon}" }
+    description: "{message}"
+  started: ":rayThumbsup: **Server despierto**"
+  stopping: ":rayEdgy: **El server se ha puesto a mimir.**"
+  # Posted when the connection to the server is lost without it saying it was stopping.
+  crashed: "{date} {guildowner}, el servidor ha colapsado 🔥‼️"
+
+# What a player does with /me is posted like chat, with this as the name of the webhook and the text in italics.
+chat:
+  emote_name: "* {displayname}"
+
+# Seconds without the server before it counts as crashed. A reconnection within this time is not a crash.
+crash_after_seconds: 90
+
+# The topic of the main channel, updated every MC_SYNC_MINUTES and when the server starts, stops or crashes.
+#   online placeholders: {playercount} {playermax} {tps} {uptimemins} {uptimehours} {serverversion} {totalplayers}
+#   offline: used while the server is not connected
+topic:
+  online: "{playercount}/{playermax} jugadores en línea | Versión: {serverversion} | Activo por {uptimemins}m"
+  offline: "Server mimido <:rayEdgy:745510357715517560>"
