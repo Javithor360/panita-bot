@@ -249,6 +249,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 |---|---|---|
 | `bridge` | State of the connection with the Minecraft server: version, joined channels, traffic and last error. | — |
 | `systemsync` | Full sync with the server: creates missing accounts and updates profiles, roles and editions. **It never deletes data.** Slash only. | — |
+| `avatarsync [usuario]` | Forces the Discord avatar (the server one when the member has it) into the database for every member with an account, or only for one. It never creates accounts or touches other data. Slash only. | — |
 | `cleanalts` | Deletes the accounts of alt members from the database. Slash only. | — |
 | `deploy [--guild]` | Registers the slash commands (globally, or in this server only with `--guild`). | `deploycommands` |
 
