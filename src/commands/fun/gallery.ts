@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlag
 import { CATEGORIES, COLORS, URLS } from '../../config/constants';
 import { button, defineCommand } from '../../core/command';
 import { encodeCustomId } from '../../core/customId';
+import { quickUpload } from '../../features/quickUpload';
 import { discordTimestamp } from '../../lib/format';
 import { resolveEmbedImage } from '../../lib/images';
 import { mcHeadUrl } from '../../lib/minecraft';
@@ -74,6 +75,8 @@ export default defineCommand({
     await ctx.reply(await buildGalleryMessage(photo, ctx.user.id));
   },
   components: {
+    // The quick upload's button and form: their namespace has to be a command, and this is the gallery's
+    ...quickUpload.components,
     reroll: button({
       async run(interaction) {
         await interaction.deferUpdate();
