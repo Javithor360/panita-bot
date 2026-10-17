@@ -24,8 +24,7 @@ export const FIELDS = { title: 'title', description: 'description', edition: 'ed
 
 export const UPLOAD_MESSAGES = {
   open: (ownerId: string, images: number) =>
-    `<@${ownerId}> ¿Quieres subir ${images > 1 ? 'la primera imagen de este mensaje' : 'esta foto'} a la galería de la web? Pulsa el botón y completa los datos. ` +
-    '*Los 👍 de Discord no cuentan como likes de la galería.*',
+    `<@${ownerId}> ¿Quieres subir ${images > 1 ? 'la primera imagen de este mensaje' : 'esta foto'} a la galería de la web? Pulsa el botón y completa los datos.`,
   button: 'Subir a la galería',
   modalTitle: 'Subir a la galería',
   titleLabel: 'Título',
