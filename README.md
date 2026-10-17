@@ -19,6 +19,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
   - [Ticket system](#ticket-system)
   - [Sign-in codes and sessions](#sign-in-codes-and-sessions)
   - [Quick upload to the gallery](#quick-upload-to-the-gallery)
+  - [Birthday greeting](#birthday-greeting)
   - [Minecraft bridge](#minecraft-bridge)
   - [Panita Web synchronization](#panita-web-synchronization)
   - [Reliability](#reliability)
@@ -68,6 +69,9 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `PASSWORD_RESET_CHANNEL_ID` | — | Public channel (`#comandos`) where a password reset goes when the member's DMs are closed and they agree to it on the website. Without it that fallback is reported as failed. |
 | `GALLERY_CHANNEL_ID` | — | Gallery channel (`903017941300281344`). A trusted author's photo post there gets the bot's 👍, and the author's own 👍 offers the quick upload. Without it the quick upload is off. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | With `GALLERY_CHANNEL_ID` | The website's Cloudinary account (cloud name `panita`; the API only accepts photos from `res.cloudinary.com/panita`). The bot signs its uploads with them and never logs them. |
+| `BIRTHDAY_CHANNEL_ID` | — | General channel (`707103391167545422`) where the daily birthday greeting is posted. Without it there is no greeting. |
+| `BIRTHDAY_UTC_OFFSET_HOURS` | — | Offset from UTC of the day the greeting follows, from -12 to 14. Defaults to `-6` (no daylight saving). |
+| `BIRTHDAY_HOUR` | — | Hour (0-23, in that offset) from which the greeting is sent. Defaults to `10`, so 16:00 UTC. |
 
 <details>
 <summary>Example <code>.env</code></summary>
@@ -133,7 +137,7 @@ src/
   services/      business logic and every call to the Panita API
   lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
-  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload)
+  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload, birthdays)
   commands/      one file per command, grouped by category
 test/            unit tests
 ```
@@ -292,6 +296,18 @@ A **trusted author** (an enabled member with that flag on the website; admins an
 6. **A refusal from the API (4xx) removes the file from Cloudinary; a timeout, a lost connection or a 5xx keeps it**, because the photo may have been saved. In that case the offer ends and the author is told to check the gallery before trying again. A Cloudinary or download failure leaves the offer up for another try. A double click or a double submit uploads once.
 
 The logic is in `src/features/quickUpload/` (`flow` has the rules, `view` the texts and the form, `offers` the held offers), the Cloudinary calls in `src/lib/cloudinary.ts` (signed `fetch`, no SDK) and the API calls in `src/services/gallery.ts`. The button and the form are components of `/gallery`. The bot needs the **Add Reactions** permission in the channel and the `GuildMessageReactions` intent; a pinned note in the channel should say that the author's own 👍 starts the upload and that Discord reactions are not gallery likes.
+
+### Birthday greeting
+
+Members set their birthday in the website's settings (there is no Discord command for it). On the day, the bot posts one greeting in the general channel (`BIRTHDAY_CHANNEL_ID`) that mentions everyone who has a birthday, so the rest can congratulate them.
+
+- **Schedule.** The bot owns it: a tick every minute, and the greeting is due from 10:00 in UTC-6 (16:00 UTC; `BIRTHDAY_HOUR` and `BIRTHDAY_UTC_OFFSET_HOURS`). It is "from", not "at": a bot that was down at 10:00 greets when it comes back the same day.
+- **The API only answers "who has a birthday on this date".** The bot sends the local day (`GET /v1/discord/users/birthdays?date=YYYY-MM-DD`) and gets `discord_id`, `ign` and `discord_name` per enabled member. The API decides the February 29 rule (it lists them on Feb 28 in years without a Feb 29) and never returns a year or an age, so the greeting never mentions one.
+- **One greeting per day.** The day is closed only after the message was posted, or when the list is empty. If the API or Discord fails the day stays open and the next tick retries; the failure is logged once, not every minute. The bot keeps no state: after a restart it reads the channel's last 100 messages and does not greet again if its own greeting of that day is there (it also does not post when it cannot read the channel, since that could be a duplicate).
+- **Mentions.** The message pings only the listed members (`allowedMentions`).
+- The bot needs **View Channel**, **Send Messages**, **Read Message History** and **Mention Users** in the channel.
+
+The logic is in `src/features/birthdays/` (`time` has the local day and the due rule, `greeting` the text) and `src/services/birthdayScheduler.ts`; the API call is in `src/services/birthdays.ts`.
 
 ### Minecraft bridge
 
