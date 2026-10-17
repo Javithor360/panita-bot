@@ -103,6 +103,24 @@ test('welcomes a mod that says hello with the chat channels the bot bridges', as
   assert.equal(bridge.status().hello?.modVersion, '0.0.1');
 });
 
+test('keeps the icon of the server from its hello, also while it is away, and drops it when a later hello has none', async () => {
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('icon')]);
+  const { bridge, url } = await start();
+  assert.equal(bridge.serverIcon, null);
+
+  const first = await connect(url);
+  first.socket.send(JSON.stringify({ ...hello, icon: png.toString('base64') }));
+  await first.next();
+  assert.ok(bridge.serverIcon?.equals(png));
+
+  first.socket.close();
+  await first.closed;
+  assert.ok(bridge.serverIcon?.equals(png), 'still there while the server is away');
+
+  await connected(url);
+  assert.equal(bridge.serverIcon, null, 'a mod that no longer sends one has none');
+});
+
 test('closes a mod with another protocol after telling it so', async () => {
   const { bridge, url } = await start();
   const client = await connect(url);
