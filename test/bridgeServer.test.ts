@@ -70,7 +70,7 @@ const connect = async (url: string, headers: Record<string, string> = { Authoriz
 const connected = async (url: string) => {
   const client = await connect(url);
   client.socket.send(JSON.stringify(hello));
-  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global'] });
+  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global'], features: ['media'] });
   return client;
 };
 
@@ -98,7 +98,7 @@ test('welcomes a mod that says hello with the chat channels the bot bridges', as
 
   client.socket.send(JSON.stringify(hello));
 
-  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global', 'staff'] });
+  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global', 'staff'], features: ['media'] });
   assert.equal(bridge.connected, true);
   assert.equal(bridge.status().hello?.modVersion, '0.0.1');
 });
@@ -310,4 +310,23 @@ test('keeps a connection that answers the pings', async () => {
   await sleep(250);
 
   assert.equal(bridge.connected, true);
+});
+
+test('knows the features of the mod that is connected, and none for a mod that announced none or while it is away', async () => {
+  const { bridge, url } = await start();
+  assert.deepEqual(bridge.features, []);
+
+  const plain = await connect(url);
+  plain.socket.send(JSON.stringify(hello));
+  await plain.next();
+  assert.deepEqual(bridge.features, [], 'an older mod announces nothing');
+
+  const modded = await connect(url);
+  modded.socket.send(JSON.stringify({ ...hello, features: ['media', 'later_one'] }));
+  await modded.next();
+  assert.deepEqual(bridge.features, ['media', 'later_one']);
+
+  modded.socket.close();
+  await modded.closed;
+  assert.deepEqual(bridge.features, [], 'nothing is promised for a mod that is away');
 });

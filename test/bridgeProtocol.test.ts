@@ -1,14 +1,14 @@
 import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_FRAME_BYTES, MAX_ICON_BYTES, parseModFrame, readQueryData, withoutControlCharacters } from '../src/features/minecraft/protocol';
+import { MAX_FRAME_BYTES, MAX_ICON_BYTES, MAX_MEDIA, mediaOf, parseModFrame, toMediaEntry, readQueryData, withoutControlCharacters } from '../src/features/minecraft/protocol';
 
 const player = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true, skin: null };
 const hello = { type: 'hello', protocol: 1, modVersion: '0.0.1', minecraftVersion: '26.3', startedAt: '2026-10-12T10:00:00Z', maxPlayers: 20 };
 const parse = (value: unknown) => parseModFrame(typeof value === 'string' ? value : JSON.stringify(value));
 
 test('reads a hello', () => {
-  assert.deepEqual(parse(hello), { ok: true, frame: hello });
+  assert.deepEqual(parse(hello), { ok: true, frame: { ...hello, features: [] } });
 });
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('rest of the image')]);
@@ -26,7 +26,7 @@ test('drops an icon that is not a PNG, too big or not base64, and still accepts 
   for (const icon of bad) {
     const parsed = parse({ ...hello, icon });
     assert.ok(parsed.ok, JSON.stringify(icon));
-    assert.deepEqual(parsed.ok && parsed.frame, hello, 'the frame has no icon at all');
+    assert.deepEqual(parsed.ok && parsed.frame, { ...hello, features: [] }, 'the frame has no icon at all');
   }
 });
 
@@ -161,4 +161,89 @@ test('a player without a skin, or with one that is not a hash, is still accepted
     assert.deepEqual(parse({ ...line, player: { ...withoutSkin, skin: bad } }), { ok: true, frame: { ...line, player: { ...player, skin: null } } }, String(bad));
   }
   assert.deepEqual(parse({ ...line, player: withoutSkin }), { ok: true, frame: { ...line, player: { ...player, skin: null } } });
+});
+
+test('reads the features a mod announces and ignores what is not a feature name', () => {
+  const features = (value: unknown) => {
+    const parsed = parse({ ...hello, features: value });
+    return parsed.ok && parsed.frame?.type === 'hello' ? parsed.frame.features : null;
+  };
+
+  assert.deepEqual(features(['media']), ['media']);
+  assert.deepEqual(features(['media', 'Bad Name', 5, '', 'x'.repeat(33), 'later_one']), ['media', 'later_one']);
+  assert.deepEqual(features(Array.from({ length: 40 }, (_, index) => `f${index}`)).length, 16);
+  for (const bad of ['media', 5, null, { media: true }]) assert.deepEqual(features(bad), [], `${JSON.stringify(bad)} leaves the hello valid with no features`);
+});
+
+const CDN = 'https://cdn.discordapp.com/attachments/1/2/foto.png?ex=68f1&is=68f0&hm=abc';
+const source = (overrides: Partial<Parameters<typeof toMediaEntry>[0]> = {}) => ({
+  url: CDN,
+  name: 'foto.png',
+  contentType: 'image/png',
+  size: 1000,
+  width: 800,
+  height: 600,
+  spoiler: false,
+  ...overrides,
+});
+
+test('makes a media entry of an image the game may show', () => {
+  assert.deepEqual(toMediaEntry(source()), { url: CDN, name: 'foto.png', type: 'image/png', size: 1000, width: 800, height: 600, spoiler: false });
+  assert.equal(toMediaEntry(source({ contentType: 'IMAGE/JPEG; charset=binary' }))?.type, 'image/jpeg');
+  for (const type of ['image/png', 'image/jpeg', 'image/webp', 'image/gif']) assert.equal(toMediaEntry(source({ contentType: type }))?.type, type);
+});
+
+test('refuses what is not an image of an allowed kind', () => {
+  for (const contentType of [null, '', 'video/mp4', 'application/pdf', 'image/svg+xml', 'text/html']) {
+    assert.equal(toMediaEntry(source({ contentType })), null, String(contentType));
+  }
+});
+
+test('refuses an image that is too large and accepts one of exactly 8 MiB', () => {
+  assert.equal(toMediaEntry(source({ size: 8 * 1024 * 1024 + 1 })), null);
+  assert.equal(toMediaEntry(source({ size: 8 * 1024 * 1024 }))?.size, 8 * 1024 * 1024);
+  assert.equal(toMediaEntry(source({ size: -1 })), null);
+  assert.equal(toMediaEntry(source({ size: 1.5 })), null);
+});
+
+test('refuses any address that is not https on the Discord CDN', () => {
+  for (const url of [
+    'http://cdn.discordapp.com/a.png',
+    'https://evil.example/a.png',
+    'https://cdn.discordapp.com.evil.example/a.png',
+    'https://evil.example/https://cdn.discordapp.com/a.png',
+    'https://cdn.discordapp.com@evil.example/a.png',
+    'ftp://cdn.discordapp.com/a.png',
+    'javascript:alert(1)',
+    'not a url',
+    `${CDN}${'x'.repeat(1100)}`,
+  ]) {
+    assert.equal(toMediaEntry(source({ url })), null, url);
+  }
+  assert.ok(toMediaEntry(source({ url: 'https://media.discordapp.net/attachments/1/2/foto.png?width=100' })));
+});
+
+test('cleans the name: no spoiler prefix, no control characters, not too long, never empty', () => {
+  assert.equal(toMediaEntry(source({ name: 'SPOILER_foto.png', spoiler: true }))?.name, 'foto.png');
+  assert.equal(toMediaEntry(source({ name: 'spoiler_foto.png' }))?.name, 'foto.png');
+  assert.equal(toMediaEntry(source({ name: 'fo\u0007to\n.png' }))?.name, 'foto.png');
+  assert.equal(toMediaEntry(source({ name: 'x'.repeat(300) }))?.name.length, 100);
+  assert.equal(toMediaEntry(source({ name: '\u0007' }))?.name, 'imagen');
+  assert.equal(toMediaEntry(source({ name: 'SPOILER_foto.png', spoiler: true }))?.spoiler, true);
+});
+
+test('dimensions are whole positive numbers or null', () => {
+  const entry = toMediaEntry(source({ width: null, height: 0 }));
+
+  assert.equal(entry?.width, null);
+  assert.equal(entry?.height, null);
+  assert.equal(toMediaEntry(source({ width: 12.5 }))?.width, null);
+});
+
+test('takes the first four images of a message, skipping what the game may not show', () => {
+  const images = Array.from({ length: 6 }, (_, index) => source({ name: `${index}.png` }));
+  const entries = mediaOf([source({ contentType: 'video/mp4' }), ...images]);
+
+  assert.equal(entries.length, MAX_MEDIA);
+  assert.deepEqual(entries.map(entry => entry.name), ['0.png', '1.png', '2.png', '3.png']);
 });
