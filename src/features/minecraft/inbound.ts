@@ -8,6 +8,8 @@ import type { PostedMessage } from './webhook';
 export interface AvatarTemplates {
   premium: string;
   cracked: string;
+  /** For a player the server says the skin of; it wins over the other two. */
+  skin: string;
 }
 
 export interface InboundDeps {
@@ -22,12 +24,13 @@ export interface InboundDeps {
   logger: Pick<Console, 'error'>;
 }
 
-/** The head of a player, from the template for how they log in. */
+/** The head of a player: their skin when the server says which, else the template for how they log in. */
 export const avatarOf = (avatars: AvatarTemplates, player: BridgePlayer) =>
-  avatarFromTemplate(player.premium ? avatars.premium : avatars.cracked, {
+  avatarFromTemplate(player.skin ? avatars.skin : player.premium ? avatars.premium : avatars.cracked, {
     uuid: player.uuid,
     name: player.name,
     nickname: player.nickname,
+    skin: player.skin,
   });
 
 /** What a player does with `/me` is shown in italics, as Discord shows an action. */

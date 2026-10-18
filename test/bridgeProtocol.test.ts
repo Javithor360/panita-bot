@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_FRAME_BYTES, MAX_ICON_BYTES, parseModFrame, readQueryData, withoutControlCharacters } from '../src/features/minecraft/protocol';
 
-const player = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true };
+const player = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true, skin: null };
 const hello = { type: 'hello', protocol: 1, modVersion: '0.0.1', minecraftVersion: '26.3', startedAt: '2026-10-12T10:00:00Z', maxPlayers: 20 };
 const parse = (value: unknown) => parseModFrame(typeof value === 'string' ? value : JSON.stringify(value));
 
@@ -143,4 +143,22 @@ test('reads the answers of the queries and rejects the ones with another shape',
     assert.deepEqual(readQueryData('status', { ...status, totalPlayers }), status, `${totalPlayers} is ignored, not an error`);
   }
   assert.equal(readQueryData('status', { online: 2 }), null);
+});
+
+const HASH = '292009a4925b58f02c77dadc3ecef07ea4c7472f64e0fdc32ce5522489362680';
+
+test('reads the skin of a player when it is a hash', () => {
+  const line = { type: 'chat', channel: 'global', player: { ...player, skin: HASH }, text: 'hola', emote: false };
+
+  assert.deepEqual(parse(line), { ok: true, frame: line });
+});
+
+test('a player without a skin, or with one that is not a hash, is still accepted with no skin', () => {
+  const line = { type: 'chat', channel: 'global', text: 'hola', emote: false };
+  const { skin, ...withoutSkin } = player;
+
+  for (const bad of [undefined, null, 5, '', 'Javithor360', HASH.toUpperCase(), HASH + 'a', 'http://textures.minecraft.net/texture/' + HASH]) {
+    assert.deepEqual(parse({ ...line, player: { ...withoutSkin, skin: bad } }), { ok: true, frame: { ...line, player: { ...player, skin: null } } }, String(bad));
+  }
+  assert.deepEqual(parse({ ...line, player: withoutSkin }), { ok: true, frame: { ...line, player: { ...player, skin: null } } });
 });

@@ -9,8 +9,8 @@ import { emoteNameOf, renderEvent, type RenderContext, type Rendered } from '../
 
 const GLOBAL = '111111111111111111';
 const OWNER = '999999999999999999';
-const JAVI: BridgePlayer = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true };
-const TEZ: BridgePlayer = { uuid: '11111111-2222-3333-4444-555555555555', name: 'Tezzlar', nickname: 'Tez', premium: false };
+const JAVI: BridgePlayer = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true, skin: null };
+const TEZ: BridgePlayer = { uuid: '11111111-2222-3333-4444-555555555555', name: 'Tezzlar', nickname: 'Tez', premium: false, skin: null };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('icon')]);
 const NOW = new Date('2026-10-17T12:00:00Z');
 const EMOJIS: Record<string, string> = { rayThumbsup: '<:rayThumbsup:1>', rayEdgy: '<:rayEdgy:2>' };
@@ -220,7 +220,7 @@ const announcer = (options: { channels?: ReturnType<typeof channelMapOf>; messag
   const announce = createAnnouncer({
     channels: options.channels ?? channelMapOf({ global: GLOBAL }),
     config: options.messages ?? DEFAULT_MESSAGES,
-    avatars: { premium: 'https://heads.test/{name}', cracked: 'https://heads.test/steve' },
+    avatars: { premium: 'https://heads.test/{name}', cracked: 'https://heads.test/steve', skin: 'https://heads.test/skin/{skin}' },
     surroundings: () => context(),
     notify: async (channelId, message) => void notified.push({ channelId, message }),
     now: () => NOW,

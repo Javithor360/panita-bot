@@ -16,8 +16,10 @@ export interface BridgePlayer {
   name: string;
   /** What the player is called in chat, or null when they have no nickname. */
   nickname: string | null;
-  /** Whether the name belongs to a Microsoft account; picks the head template. */
+  /** Whether the name belongs to a Microsoft account; picks the head template when the player has no skin. */
   premium: boolean;
+  /** Hash of the skin the server shows the player with (SkinsRestorer's, when they chose one), or null. */
+  skin: string | null;
 }
 
 export const EVENT_KINDS = ['join', 'first_join', 'leave', 'death', 'advancement', 'broadcast', 'started', 'stopping'] as const;
@@ -160,15 +162,23 @@ const readIcon = (value: unknown): Buffer | undefined => {
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 const PLAYER_NAME = /^[A-Za-z0-9_]{1,16}$/;
 const CHANNEL = /^[a-z0-9_-]{1,32}$/;
+const SKIN_HASH = /^[0-9a-f]{64}$/;
 
 const readPlayer = (value: unknown): BridgePlayer | null => {
   if (!isObject(value)) return null;
-  const { uuid, name, nickname, premium } = value;
+  const { uuid, name, nickname, premium, skin } = value;
   if (typeof uuid !== 'string' || !UUID.test(uuid)) return null;
   if (typeof name !== 'string' || !PLAYER_NAME.test(name)) return null;
   if (nickname !== null && nickname !== undefined && !text(nickname, 32, 1)) return null;
   if (typeof premium !== 'boolean') return null;
-  return { uuid, name, nickname: typeof nickname === 'string' ? nickname : null, premium };
+  // The head is cosmetic: a skin that is not a hash is dropped, and the player is still accepted
+  return {
+    uuid,
+    name,
+    nickname: typeof nickname === 'string' ? nickname : null,
+    premium,
+    skin: typeof skin === 'string' && SKIN_HASH.test(skin) ? skin : null,
+  };
 };
 
 const PLAYER_EVENTS: readonly EventKind[] = ['join', 'first_join', 'leave', 'death', 'advancement'];

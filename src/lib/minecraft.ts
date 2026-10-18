@@ -10,20 +10,24 @@ export const isValidIgn = (ign: string) => IGN_PATTERN.test(ign);
 export const mcHeadUrl = (ign: string, size = 256) =>
   `https://mc-heads.net/avatar/${encodeURIComponent(ign)}/${size}`;
 
-/** Default head templates of the Minecraft bridge; `{uuid}` (no dashes), `{name}` and `{nickname}` are replaced. */
+/** Default head templates of the Minecraft bridge; `{uuid}` (no dashes), `{name}`, `{nickname}` and `{skin}` are replaced. */
 export const DEFAULT_AVATAR_PREMIUM = 'https://mc-heads.net/avatar/{uuid}/128';
 export const DEFAULT_AVATAR_CRACKED = 'https://mc-heads.net/avatar/MHF_Steve/128';
+/** Used when the server says which skin the player wears; `{skin}` is its hash, which mc-heads.net draws like a UUID. */
+export const DEFAULT_AVATAR_SKIN = 'https://mc-heads.net/avatar/{skin}/128';
 
 export interface AvatarSubject {
   uuid: string;
   name: string;
   nickname: string | null;
+  skin: string | null;
 }
 
-/** The head of a player from a template. The names are encoded; the UUID has no dashes. */
-export const avatarFromTemplate = (template: string, { uuid, name, nickname }: AvatarSubject) =>
+/** The head of a player from a template. The names are encoded; the UUID has no dashes; the skin is a hash of hex digits. */
+export const avatarFromTemplate = (template: string, { uuid, name, nickname, skin }: AvatarSubject) =>
   template
     .replaceAll('{uuid}', uuid.replaceAll('-', ''))
+    .replaceAll('{skin}', skin ?? '')
     .replaceAll('{name}', encodeURIComponent(name))
     .replaceAll('{nickname}', encodeURIComponent(nickname ?? name));
 

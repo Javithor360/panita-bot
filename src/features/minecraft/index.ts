@@ -47,7 +47,7 @@ export const startBridge = (http: Server, client: Client<true>) => {
   console.log(`[Bridge] Waiting for the Minecraft server on ${BRIDGE_PATH}.`);
 
   const members = memberFetcherOf(client);
-  const avatars = { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED };
+  const avatars = { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED, skin: env.MC_AVATAR_SKIN };
   const surroundings = surroundingsOf(client, bridge);
   const announce = createAnnouncer({
     channels,

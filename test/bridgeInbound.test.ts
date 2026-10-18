@@ -2,7 +2,7 @@ import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { channelMapOf } from '../src/features/minecraft/channels';
-import { createInbound } from '../src/features/minecraft/inbound';
+import { avatarOf, createInbound } from '../src/features/minecraft/inbound';
 import { DEFAULT_MESSAGES, type EventName } from '../src/features/minecraft/messageConfig';
 import type { BridgePlayer, EventFrame, ModFrame } from '../src/features/minecraft/protocol';
 import { grantJoinedRole, type RoleMember } from '../src/features/minecraft/roles';
@@ -10,9 +10,9 @@ import { WebhookPoster, safeUsername, type Hook, type HookChannel, type HookMess
 import type { EnabledMember } from '../src/lib/api/types';
 
 const GLOBAL = '111111111111111111';
-const JAVI: BridgePlayer = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true };
-const TEZ: BridgePlayer = { uuid: '11111111-2222-3333-4444-555555555555', name: 'Tezzlar', nickname: 'Tez', premium: false };
-const AVATARS = { premium: 'https://heads.test/{uuid}', cracked: 'https://heads.test/steve' };
+const JAVI: BridgePlayer = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true, skin: null };
+const TEZ: BridgePlayer = { uuid: '11111111-2222-3333-4444-555555555555', name: 'Tezzlar', nickname: 'Tez', premium: false, skin: null };
+const AVATARS = { premium: 'https://heads.test/{uuid}', cracked: 'https://heads.test/steve', skin: 'https://heads.test/skin/{skin}' };
 
 // Webhooks
 
@@ -332,4 +332,13 @@ test('a member who already has the role is not logged or touched', async () => {
 
   assert.deepEqual(added, []);
   assert.deepEqual(logs, []);
+});
+
+test('the head of a player is their skin when the server says which, and the one of how they log in otherwise', () => {
+  const skinned = { ...TEZ, skin: 'a'.repeat(64) };
+
+  assert.equal(avatarOf(AVATARS, skinned), `https://heads.test/skin/${'a'.repeat(64)}`);
+  assert.equal(avatarOf(AVATARS, { ...JAVI, skin: 'b'.repeat(64) }), `https://heads.test/skin/${'b'.repeat(64)}`);
+  assert.equal(avatarOf(AVATARS, JAVI), 'https://heads.test/dd12be4252a94a91a8a111c01849e498');
+  assert.equal(avatarOf(AVATARS, TEZ), 'https://heads.test/steve');
 });

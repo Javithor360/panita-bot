@@ -2,7 +2,7 @@ import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { channelMapOf } from '../src/features/minecraft/channels';
-import { DEFAULT_AVATAR_CRACKED, DEFAULT_AVATAR_PREMIUM, avatarFromTemplate } from '../src/lib/minecraft';
+import { DEFAULT_AVATAR_CRACKED, DEFAULT_AVATAR_PREMIUM, DEFAULT_AVATAR_SKIN, avatarFromTemplate } from '../src/lib/minecraft';
 
 test('joins the channels that are set and leaves out the others', () => {
   const channels = channelMapOf({ global: '111111111111111111' });
@@ -29,7 +29,7 @@ test('nothing is joined when no channel is set', () => {
   assert.equal(channels.main, undefined);
 });
 
-const subject = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: 'Javi Pro' };
+const subject = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: 'Javi Pro', skin: null };
 
 test('builds a head address from a template, with the UUID without dashes and the names encoded', () => {
   assert.equal(avatarFromTemplate(DEFAULT_AVATAR_PREMIUM, subject), 'https://mc-heads.net/avatar/dd12be4252a94a91a8a111c01849e498/128');
@@ -42,4 +42,10 @@ test('the nickname falls back to the real name', () => {
 
 test('the head of a player with a PIN is a fixed one by default', () => {
   assert.equal(avatarFromTemplate(DEFAULT_AVATAR_CRACKED, subject), 'https://mc-heads.net/avatar/MHF_Steve/128');
+});
+
+const HASH = '292009a4925b58f02c77dadc3ecef07ea4c7472f64e0fdc32ce5522489362680';
+
+test('the head of a player with a skin is drawn from its hash', () => {
+  assert.equal(avatarFromTemplate(DEFAULT_AVATAR_SKIN, { ...subject, skin: HASH }), `https://mc-heads.net/avatar/${HASH}/128`);
 });

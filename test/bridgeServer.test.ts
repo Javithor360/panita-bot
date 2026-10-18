@@ -10,7 +10,7 @@ import type { ModFrame } from '../src/features/minecraft/protocol';
 
 const KEY = 'a-long-random-bridge-key';
 const hello = { type: 'hello', protocol: 1, modVersion: '0.0.1', minecraftVersion: '26.3', startedAt: '2026-10-12T10:00:00Z', maxPlayers: 20 };
-const player = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true };
+const player = { uuid: 'dd12be42-52a9-4a91-a8a1-11c01849e498', name: 'Javithor360', nickname: null, premium: true, skin: null };
 const silent = { log: () => {}, error: () => {} };
 
 const open: Array<{ close(): void }> = [];

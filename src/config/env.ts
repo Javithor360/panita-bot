@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-import { DEFAULT_AVATAR_CRACKED, DEFAULT_AVATAR_PREMIUM } from '../lib/minecraft';
+import { DEFAULT_AVATAR_CRACKED, DEFAULT_AVATAR_PREMIUM, DEFAULT_AVATAR_SKIN } from '../lib/minecraft';
 import { URLS } from './constants';
 
 config();
@@ -118,6 +118,7 @@ export const env = {
   MC_JOINED_ROLE_ID: optionalId('MC_JOINED_ROLE_ID'),
   MC_AVATAR_PREMIUM: avatarTemplate('MC_AVATAR_PREMIUM', DEFAULT_AVATAR_PREMIUM),
   MC_AVATAR_CRACKED: avatarTemplate('MC_AVATAR_CRACKED', DEFAULT_AVATAR_CRACKED),
+  MC_AVATAR_SKIN: avatarTemplate('MC_AVATAR_SKIN', DEFAULT_AVATAR_SKIN),
   /** The topic moved to `config/minecraft-messages.yml`; this only lets the bot say that the variable is no longer read. */
   MC_TOPIC_TEMPLATE_IGNORED: optional('MC_TOPIC_TEMPLATE') !== undefined,
   /** While true the sync only logs what it would change. */
