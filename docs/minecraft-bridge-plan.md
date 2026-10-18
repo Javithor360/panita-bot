@@ -56,7 +56,7 @@ Mod to bot:
 
 | `type` | Fields |
 |---|---|
-| `hello` | `protocol` (1), `modVersion`, `minecraftVersion`, `startedAt` (ISO), `maxPlayers`. Sent first. |
+| `hello` | `protocol` (1), `modVersion`, `minecraftVersion`, `startedAt` (ISO), `maxPlayers`, optional `icon` (server icon, base64 PNG), optional `features` (strings, see 4.4). Sent first. |
 | `chat` | `channel` (chat channel id, lowercase), `player`, `text` (at most 256 characters, plain), `emote` (boolean). |
 | `event` | `kind` (`join`, `first_join`, `leave`, `death`, `advancement`, `broadcast`, `started`, `stopping`), `player` (not for `broadcast`, `started`, `stopping`), `text` (the game's own English text for `death` and `advancement`, the message for `broadcast`), `key` (the game's translation key, so a later version can translate). |
 | `reply` | `id`, `ok`; with `ok: true` a `data` object, otherwise `error` (a code). |
@@ -67,8 +67,8 @@ Bot to mod:
 
 | `type` | Fields |
 |---|---|
-| `welcome` | `protocol` (1), `channels` (the chat channels the bot bridges). The mod sends `chat` only for these. |
-| `chat` | `channel`, `author` (`{ discordId, ign }`), `text`. Already checked: the author is linked and active. |
+| `welcome` | `protocol` (1), `channels` (the chat channels the bot bridges), optional `features` (strings, see 4.4). The mod sends `chat` only for these. |
+| `chat` | `channel`, `author` (`{ discordId, ign }`), `text`, optional `media` (see 4.4). Already checked: the author is linked and active. |
 | `query` | `id`, `what` (`playerlist`, `tps`, `status`). |
 | `error` | `code` (`protocol`, `rate`, `frame`), `message`. Sent before closing. |
 
@@ -81,6 +81,31 @@ Close codes: `4000` replaced, `4002` protocol mismatch (the mod then stays disco
 - Best effort, at most once, no acknowledgements. A game line is not replayed by the bot; the mod keeps at most 100 frames for at most 60 s while it reconnects, then drops them. Discord messages are never buffered: while the mod is away they are not delivered.
 - Mentions are never live in either direction (`allowedMentions: { parse: [] }` on Discord; the mod treats Discord text as plain text).
 - Limits: the bot accepts at most 20 frames per second from the mod; Discord to game is limited to 5 messages per 10 s per member.
+
+### 4.4 Media (optional feature `media`, added 2026-10-18)
+
+Images travel as references, never as bytes, over the same frames; the protocol version stays 1 and every field here is optional and ignored by a side that does not know it. Design and phases: the mod plan `docs/discord-media-plan.md` of the Enriquecraft repository.
+
+**Negotiation.** The mod lists the features it can show in `hello.features` and the bot lists the ones it offers in `welcome.features`. There are two strings. `media`: in `hello` it means the mod can show `media` entries; in `welcome` it means the bot sends them. `media_upload`: only in `welcome`, the bot has the upload endpoint below. The bot sends `media` entries only to a mod that announced `media`; to any other mod it keeps converting attachments to `[adjunto]` in `text`, as in 6.2. The mod offers screenshot sharing only when `welcome.features` has `media_upload`. Unknown strings are ignored on both sides.
+
+**The `media` entry** (bot to mod, in `chat.media`, one to four entries):
+
+| Field | Rule |
+|---|---|
+| `url` | `https`, at most 1024 characters, host exactly `cdn.discordapp.com` or `media.discordapp.net`. The mod checks it again against its own list (`discord.media.hosts`). |
+| `name` | The file name as Discord shows it, without a `SPOILER_` prefix, plain text, control characters removed, at most 100 characters. |
+| `type` | `image/png`, `image/jpeg`, `image/webp` or `image/gif`. |
+| `size` | Bytes, at most 8,388,608 (8 MiB). |
+| `width`, `height` | Integers, or `null` when Discord does not say. |
+| `spoiler` | Boolean. A spoiler is never previewed. |
+
+When a message has attachments, the ones of an allowed type and size (the first four) go to `media` and leave `text`; any other attachment stays `[adjunto]` in `text`. `text` may then be empty, which is only valid when `media` has an entry. The mod checks each entry on its own: an invalid one is dropped and counted, the others are still shown. Discord attachment addresses are signed and expire after about a day, so a link in the game chat stops working after that; nothing refreshes it.
+
+**Screenshots from the game (pass-through upload).** The mod sends the bytes over HTTPS, since a frame is limited to 16 KiB. The bot keeps nothing on disk.
+- `POST https://<bot host>/bridge/media`, header `Authorization: Bearer <BRIDGE_KEY>`, checked in constant time before the body is read (`401` otherwise). Body `multipart/form-data` with a part `meta` (JSON: `player` as in 4.2, `channel` a bridged chat channel id, `caption` plain text of at most 200 characters, `destination`: `discord` or `media`) and a part `file` (`image/png`, `image/jpeg` or `image/webp`, at most 2 MiB; the bot checks the type by the first bytes, not by what the header says).
+- `destination: "discord"`: the bot posts the image through the channel's webhook, as for game chat (`username`, `avatarURL`, caption as content, `allowedMentions` empty). `destination: "media"`: the bot posts it to the private channel `MC_MEDIA_CHANNEL_ID` (a plain bot message) only to get an address, so that a share to the Minecraft chat has a link vanilla players can open; without that variable the answer is `503`.
+- Answer `200` `{ url, type, size, width, height, messageId }`, with the address of the posted attachment. Errors are `{ error }` with a code: `400 bad_request`, `401 auth`, `404 channel`, `413 too_large`, `415 type`, `429 rate` (the bot limits each player to 3 images per minute and everyone to 20), `503 unavailable`.
+- `DELETE https://<bot host>/bridge/media/<messageId>` with the same header and `X-Player-Uuid`: the bot deletes that message if its own upload endpoint created it for that player, remembered in memory for 24 hours (the life of the address); `204`, or `404` otherwise.
 
 ## 5. Where the bot and the mod connect (transport)
 
@@ -124,7 +149,7 @@ The bot's `.env.example` and README are updated in the same commits.
 
 ### 6.2 Discord to game
 
-`bridgeMessage` ignores: bot and webhook authors, DMs, other guilds, channels that are not bridged, messages that start with `!` (they are commands), empty messages. For the rest, in order: the bridge must be connected; the author must be linked and active (`GET /v1/discord/users/{id}` through `services/users`, cached 60 s); the rate limit; then the text is converted (mentions resolved to names, custom emojis to `:name:`, attachments and stickers to `[adjunto]` and `[sticker]`, newlines to spaces, at most 256 characters) and sent as `chat`. An author who is not linked gets a ❌ reaction on the message and nothing else.
+`bridgeMessage` ignores: bot and webhook authors, DMs, other guilds, channels that are not bridged, messages that start with `!` (they are commands), empty messages. For the rest, in order: the bridge must be connected; the author must be linked and active (`GET /v1/discord/users/{id}` through `services/users`, cached 60 s); the rate limit; then the text is converted (mentions resolved to names, custom emojis to `:name:`, attachments and stickers to `[adjunto]` and `[sticker]`, newlines to spaces, at most 256 characters) and sent as `chat`. When the mod announced the `media` feature (4.4), the attachments of an allowed type and size leave the text and go in `media` instead, and a message with only such attachments is sent with an empty `text`. An author who is not linked gets a ❌ reaction on the message and nothing else.
 
 ### 6.3 Game to Discord
 
@@ -166,6 +191,10 @@ Every phase is one or more commits (conventional subject, no attribution), each 
 
 **F. API relay fallback (only if B1's gate fails).** `RelayLink` in this repository polling the API; see the API plan.
 
+**BM1. Media from Discord.** `media` and `features` in `protocol.ts` (validated as `readPlayer` does for `skin`: an invalid entry is dropped, not the frame); `bridgeMessage` puts the allowed attachments in `media` when the mod announced the feature and keeps `[adjunto]` otherwise. Tests: each rule of 4.4, an empty `text` only with media, an old mod that did not announce the feature, a spoiler, more than four attachments.
+
+**BM2. Screenshots from the game.** The upload and delete endpoints next to the bridge upgrade in `server.ts`, the webhook post with a file, `MC_MEDIA_CHANNEL_ID`, the in-memory table of shares. Tests with a real HTTP client: auth, type by content, size, pace, both destinations with a fake webhook, delete by the right and the wrong player.
+
 **B6. Docs and deploy.** `README.md` (variables, commands, the bridge), `.agents/AGENTS.md` (the architecture block gets `features/minecraft`), `npm run deploy` for the new commands, and a live check in the test guild and then in `#live-server-test`.
 
 ## 8. Tests
@@ -177,6 +206,7 @@ Pure functions and the bridge server with an in-process `ws` client; no test nee
 - `BRIDGE_KEY` is a secret: only in the environment, compared in constant time, never logged. A wrong key is logged as a count, not a value. Rotating it is a change in both places.
 - Everything from the mod is untrusted input: validated, size-limited, never executed as a command, never able to mention anyone.
 - Everything from Discord is plain text for the game; the bot only forwards members it has verified through the API.
+- Media: the bot never downloads or stores an image. A `media` entry only carries a Discord CDN address that both sides check against a fixed host list, so neither the mod, a player nor a Discord member can make the game or its clients request another host. The upload endpoint uses the same key as the bridge, checks the type by content, caps size and pace, holds the bytes in memory only, and trusts the file name, the caption and the player data no further than their shape.
 
 ## 10. Risks
 
@@ -190,6 +220,8 @@ Pure functions and the bridge server with an in-process `ws` client; no test nee
 
 ## 11. Out of scope
 
+Storing or re-hosting images, re-encoding images that come from Discord, animated GIF playback in game, stickers and custom emoji as images, and item or inventory renders (see the mod plan, section 9). Also out of scope:
+
 Translating death and advancement texts to Spanish, AFK notifications, running game commands from Discord, a Discord to staff-chat mapping before the global one works, and any change to the role and edition sync.
 
 ## 12. Decisions of the owner (2026-10-12)
@@ -199,3 +231,9 @@ Translating death and advancement texts to Spanish, AFK notifications, running g
 3. Death and advancement lines are in English at first.
 4. The staff chat is bridged later, once the global channel works.
 4a. While the bridge is developed the production bot is turned off by the owner, and the production token and guild may be used for live checks, carefully (dry run, then one member).
+
+## 13. Decisions of the owner (2026-10-18, media)
+
+1. Images live on the Discord CDN only; the bot stores nothing.
+2. Discord photos in the game come first (BM1 and the mod's M1), screenshot sharing after (BM2).
+3. The companion previews images from the CDN host in the hover, with a client setting to turn it off.
