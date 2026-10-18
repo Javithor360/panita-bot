@@ -34,6 +34,7 @@ export const bridge: BridgeServer | null = env.BRIDGE_KEY
 /** Draws the pictures of `/playerlist` and `/playerinfo`; gives null while the game's fonts are not in place. */
 export const cards = createCardProvider({
   assetsDir: env.MC_ASSETS_DIR,
+  gameVersion: env.MC_GAME_VERSION,
   packUrl: env.MC_RESOURCE_PACK_URL,
   avatars: { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED, skin: env.MC_AVATAR_SKIN },
   logger: console,
@@ -68,6 +69,8 @@ export const startBridge = (http: Server, app: Express, client: Client<true>) =>
     return;
   }
   bridge.attach(http);
+  // Gets the fonts for the pictures now, so the first /playerlist does not wait for the download
+  void cards();
   discordRest = client.rest;
   console.log(`[Bridge] Waiting for the Minecraft server on ${BRIDGE_PATH}.`);
 

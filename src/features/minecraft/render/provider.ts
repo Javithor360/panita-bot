@@ -1,11 +1,13 @@
 import { loadImage, type Image } from '@napi-rs/canvas';
 import { avatarOf, type AvatarTemplates } from '../inbound';
 import type { ListedPlayer } from '../protocol';
+import { downloadAssets } from './assets';
 import { Cards } from './cards';
 import { Fonts } from './fonts';
 import { DirectorySource, ZipSource, type ResourceSource } from './resources';
 
 const FONT_PROBE = 'assets/minecraft/font/default.json';
+const RETRY_DOWNLOAD_MS = 60 * 60 * 1000;
 const PACK_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PACK_BYTES = 120 * 1024 * 1024;
 const MAX_HEAD_BYTES = 1024 * 1024;
@@ -13,8 +15,10 @@ const HEAD_TTL_MS = 10 * 60 * 1000;
 const NO_UUID = '00000000-0000-0000-0000-000000000000';
 
 export interface CardProviderOptions {
-  /** The folder made by `npm run assets:minecraft`: the game's fonts and ping icons. */
+  /** The folder with the game's fonts and ping icons; filled from Mojang when it is empty, or by `npm run assets:minecraft`. */
   assetsDir: string;
+  /** The game version to take the fonts of; the latest release when absent. */
+  gameVersion?: string;
   /** A resource pack to take extra fonts from (the rank icons), downloaded and kept for a few hours. */
   packUrl?: string;
   avatars: AvatarTemplates;
@@ -44,7 +48,7 @@ export const createCardProvider = (options: CardProviderOptions): (() => Promise
   const fetchFile = options.fetchFile ?? ((url, max) => downloadFile(url, max));
   const vanilla = new DirectorySource(options.assetsDir);
   const heads = new Map<string, { at: number; image: Promise<Image | null> }>();
-  let warned = false;
+  let failedAt: number | null = null;
   let current: { cards: Cards; at: number } | null = null;
   let building: Promise<Cards | null> | null = null;
 
@@ -67,11 +71,21 @@ export const createCardProvider = (options: CardProviderOptions): (() => Promise
 
   const build = async (): Promise<Cards | null> => {
     if (!(await vanilla.read(FONT_PROBE))) {
-      if (!warned) {
-        warned = true;
-        options.logger.log(`[Minecraft] The game's fonts are not in ${options.assetsDir}, so the pictures of /playerlist and /playerinfo are off. Run \`npm run assets:minecraft\`.`);
+      // Tried again at most once an hour, so a Mojang outage does not make every command wait
+      if (failedAt !== null && now() - failedAt < RETRY_DOWNLOAD_MS) return null;
+      try {
+        await downloadAssets({ folder: options.assetsDir, version: options.gameVersion, fetchFile, logger: options.logger });
+        failedAt = null;
+      } catch (error) {
+        failedAt = now();
+        options.logger.error(
+          "[Minecraft] Could not get the game's fonts, so /playerlist and /playerinfo answer with text. Put them in " +
+            options.assetsDir +
+            ' with npm run assets:minecraft, or it is tried again in an hour:',
+          error,
+        );
+        return null;
       }
-      return null;
     }
     const sources: ResourceSource[] = [];
     if (options.packUrl) {

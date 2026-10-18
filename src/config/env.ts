@@ -124,6 +124,8 @@ export const env = {
   MC_JOINED_ROLE_ID: optionalId('MC_JOINED_ROLE_ID'),
   /** Folder with the game's fonts for the pictures of `/playerlist` and `/playerinfo`, made by `npm run assets:minecraft`. */
   MC_ASSETS_DIR: optional('MC_ASSETS_DIR') ?? 'data/minecraft-assets',
+  /** The game version whose fonts are downloaded when the folder is empty; the latest release when not set. */
+  MC_GAME_VERSION: optional('MC_GAME_VERSION'),
   /** A resource pack to take extra fonts from (the rank icons); it is downloaded by the bot, so only http and https are accepted. */
   MC_RESOURCE_PACK_URL: resourcePackUrl(),
   MC_AVATAR_PREMIUM: avatarTemplate('MC_AVATAR_PREMIUM', DEFAULT_AVATAR_PREMIUM),

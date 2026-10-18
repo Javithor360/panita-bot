@@ -10,21 +10,13 @@
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { unzipSync } from 'fflate';
+import { STORE_FILES, assetsFromJar } from '../features/minecraft/render/assets';
 
 const [jarPath, assetsPath, outputPath = 'data/minecraft-assets'] = process.argv.slice(2);
 if (!jarPath || !assetsPath) {
   console.error('Usage: npm run assets:minecraft -- <client jar> <assets folder> [output folder]');
   process.exit(1);
 }
-
-const wantedInJar = (name: string) =>
-  name.startsWith('assets/minecraft/font/') ||
-  name.startsWith('assets/minecraft/textures/font/') ||
-  /^assets\/minecraft\/textures\/gui\/sprites\/icon\/ping_[a-z0-9]+\.png$/.test(name);
-
-/** The files that are not in the jar but in the asset store, by their names there. */
-const wantedInStore = ['minecraft/font/include/unifont.json', 'minecraft/font/unifont.zip'];
 
 const write = (path: string, data: Uint8Array) => {
   const file = join(outputPath, path);
@@ -34,8 +26,7 @@ const write = (path: string, data: Uint8Array) => {
 };
 
 console.log(`Reading ${jarPath}`);
-const files = unzipSync(new Uint8Array(readFileSync(jarPath)), { filter: file => wantedInJar(file.name) });
-for (const [name, data] of Object.entries(files)) if (!name.endsWith('/')) write(name, data);
+for (const [name, data] of Object.entries(assetsFromJar(new Uint8Array(readFileSync(jarPath))))) write(name, data);
 
 // The asset store names its files by hash; the index says which hash is which file. The newest index is the one in use.
 const indexes = readdirSync(join(assetsPath, 'indexes'))
@@ -44,7 +35,7 @@ const indexes = readdirSync(join(assetsPath, 'indexes'))
 const index = JSON.parse(readFileSync(join(assetsPath, 'indexes', indexes[indexes.length - 1]), 'utf8')) as {
   objects: Record<string, { hash: string }>;
 };
-for (const name of wantedInStore) {
+for (const name of STORE_FILES) {
   const hash = index.objects[name]?.hash;
   if (!hash) {
     console.error(`The asset index has no ${name}`);

@@ -159,21 +159,6 @@ test('draws the list and the card as pictures, whether or not the heads and icon
   }
 });
 
-test('the provider is off, and says so once, while the game fonts are not in place', async () => {
-  const logs: string[] = [];
-  const provider = createCardProvider({
-    assetsDir: join(tmpdir(), 'mc-fonts-that-do-not-exist'),
-    avatars: { premium: 'https://h.test/{uuid}', cracked: 'https://h.test/steve', skin: 'https://h.test/{skin}' },
-    logger: { log: message => logs.push(message), error: () => {} },
-    fetchFile: async () => {
-      throw new Error('no network');
-    },
-  });
-  assert.equal(await provider(), null);
-  assert.equal(await provider(), null);
-  assert.equal(logs.length, 1);
-});
-
 test('the provider keeps working with the game fonts when the pack cannot be downloaded, and renews after its time', async () => {
   const { root, done } = folder();
   try {
