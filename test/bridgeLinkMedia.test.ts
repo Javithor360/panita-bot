@@ -1,7 +1,7 @@
 import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createLinkMedia, previewImages } from '../src/features/minecraft/linkMedia';
+import { createLinkMedia, previewImages, type RefreshAddresses } from '../src/features/minecraft/linkMedia';
 import { mediaHostAllowed } from '../src/features/minecraft/protocol';
 
 const KLIPY = 'https://klipy.com/gifs/have-a-brain-minecraft';
@@ -13,9 +13,9 @@ const KLIPY_PAGE = `<html><head>
 <meta property="og:image:type" content="image/gif"/>
 </head></html>`;
 
-const resolver = (pages: Record<string, string | null> = {}) => {
+const resolver = (pages: Record<string, string | null> = {}, refresh?: RefreshAddresses) => {
   const asked: string[] = [];
-  const links = createLinkMedia({ fetchPage: async url => (asked.push(url), pages[url] ?? null) });
+  const links = createLinkMedia({ fetchPage: async url => (asked.push(url), pages[url] ?? null), refresh });
   return { links, asked };
 };
 
@@ -105,4 +105,44 @@ test('the same link twice is one image', async () => {
   const { links } = resolver();
 
   assert.equal((await links('https://cdn.discordapp.com/a/b/c.png https://cdn.discordapp.com/a/b/c.png', 4)).entries.length, 1);
+});
+
+const DEAD = 'https://cdn.discordapp.com/attachments/1/2/enrique.gif';
+const FRESH = 'https://cdn.discordapp.com/attachments/1/2/enrique.gif?ex=68f1&is=68f0&hm=abc';
+
+test('a Discord attachment link gets the fresh signed address that Discord gives, and still leaves the text as written', async () => {
+  const asked: string[][] = [];
+  const { links } = resolver({}, async addresses => (asked.push(addresses), { [DEAD]: FRESH }));
+
+  const found = await links(`mira ${DEAD}`, 4);
+
+  assert.deepEqual(asked, [[DEAD]]);
+  assert.equal(found.entries[0].url, FRESH);
+  assert.deepEqual(found.consumed, [DEAD]);
+});
+
+test('an attachment whose address cannot be refreshed keeps the address it had', async () => {
+  const { links } = resolver({}, async () => ({}));
+  const failing = resolver({}, async () => {
+    throw new Error('discord is down');
+  });
+
+  assert.equal((await links(DEAD, 4)).entries[0].url, DEAD);
+  assert.equal((await failing.links(DEAD, 4)).entries[0].url, DEAD);
+});
+
+test('a refreshed address on another host is never taken', async () => {
+  const { links } = resolver({}, async () => ({ [DEAD]: 'https://evil.example/enrique.gif' }));
+
+  assert.equal((await links(DEAD, 4)).entries[0].url, DEAD);
+});
+
+test('only Discord attachments are refreshed, not the images of the GIF services', async () => {
+  const asked: string[][] = [];
+  const { links } = resolver({ [KLIPY]: KLIPY_PAGE }, async addresses => (asked.push(addresses), {}));
+
+  await links(KLIPY, 4);
+  await links('https://cdn.discordapp.com/avatars/1/2.png', 4);
+
+  assert.deepEqual(asked, []);
 });

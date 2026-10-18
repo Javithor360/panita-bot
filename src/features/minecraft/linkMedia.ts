@@ -24,6 +24,13 @@ const PAGE_TIMEOUT_MS = 4000;
 const MAX_REDIRECTS = 3;
 const MAX_LINKS = MAX_MEDIA;
 
+/**
+ * Asks Discord for the current signed address of an attachment (the `/attachments/refresh-urls` endpoint). Discord stopped serving
+ * an attachment address without its signature, and a signature expires, so a link pasted in a message is often dead as written.
+ * The answer maps each address asked about to its fresh one; whatever could not be refreshed is left out.
+ */
+export type RefreshAddresses = (addresses: string[]) => Promise<Record<string, string>>;
+
 /** What a page request gives: the text of the page, or null when it could not be read. */
 export type FetchPage = (url: string) => Promise<string | null>;
 
@@ -46,6 +53,20 @@ const extensionOf = (pathname: string): string | null => {
 const nameOf = (pathname: string, fallback: string) => {
   const last = decodeURIComponent(pathname.split('/').filter(Boolean).pop() ?? '').trim();
   return last || fallback;
+};
+
+/** Whether the address is an attachment of Discord, whose signature may be missing or out of date. */
+const isDiscordAttachment = (address: URL) =>
+  ['cdn.discordapp.com', 'media.discordapp.net'].includes(address.hostname) && /^\/(ephemeral-)?attachments\//.test(address.pathname);
+
+/** The entry with the fresh address Discord gives, or as it is when Discord cannot (never an error, never a different host). */
+const withFreshAddress = async (entry: MediaEntry, refresh: RefreshAddresses): Promise<MediaEntry> => {
+  try {
+    const fresh = (await refresh([entry.url]))[entry.url];
+    return (fresh && toMediaEntry({ ...entry, contentType: entry.type, url: fresh })) || entry;
+  } catch {
+    return entry;
+  }
 };
 
 /** The image a link is, if it points straight at one on an allowed host. */
@@ -115,7 +136,7 @@ const fromPage = async (page: URL, fetchPage: FetchPage): Promise<MediaEntry | n
 };
 
 /** Finds the images among the links of a message. At most `room` are returned, in the order of the message. */
-export const createLinkMedia = (deps: { fetchPage: FetchPage }) => async (content: string, room: number): Promise<LinkedMedia> => {
+export const createLinkMedia = (deps: { fetchPage: FetchPage; refresh?: RefreshAddresses }) => async (content: string, room: number): Promise<LinkedMedia> => {
   if (room <= 0) return EMPTY;
   const entries: MediaEntry[] = [];
   const consumed: string[] = [];
@@ -132,7 +153,8 @@ export const createLinkMedia = (deps: { fetchPage: FetchPage }) => async (conten
     } catch {
       continue;
     }
-    const entry = address.protocol === 'https:' && PAGE_HOSTS.includes(address.hostname) ? await fromPage(address, deps.fetchPage) : direct(address);
+    let entry = address.protocol === 'https:' && PAGE_HOSTS.includes(address.hostname) ? await fromPage(address, deps.fetchPage) : direct(address);
+    if (entry && deps.refresh && isDiscordAttachment(address)) entry = await withFreshAddress(entry, deps.refresh);
     if (entry) {
       entries.push(entry);
       consumed.push(written);

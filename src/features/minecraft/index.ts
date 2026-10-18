@@ -10,7 +10,7 @@ import { MemberDirectory } from './directory';
 import { hookChannelsOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
 import { createInbound } from './inbound';
 import { MESSAGES_FILE, loadMessageConfig } from './messageConfig';
-import { createLinkMedia, fetchPreviewPage } from './linkMedia';
+import { createLinkMedia, fetchPreviewPage, type RefreshAddresses } from './linkMedia';
 import { createOutbound } from './outbound';
 import { RateLimiter } from './rateLimit';
 import { grantJoinedRole } from './roles';
@@ -35,8 +35,18 @@ export const directory = new MemberDirectory({ fetchAll: listEnabledMembers });
 /** What members write is heard at most five times in ten seconds each. */
 const limiter = new RateLimiter(5, 10_000);
 
+/** Asks Discord for fresh attachment addresses. The client only exists once Discord is ready, so this waits for it. */
+let discordRest: Client<true>['rest'] | null = null;
+const refreshAddresses: RefreshAddresses = async addresses => {
+  if (!discordRest) return {};
+  const answer = (await discordRest.post('/attachments/refresh-urls', { body: { attachment_urls: addresses } })) as {
+    refreshed_urls?: { original: string; refreshed: string }[];
+  };
+  return Object.fromEntries((answer.refreshed_urls ?? []).map(entry => [entry.original, entry.refreshed]));
+};
+
 /** Handles the messages of members in the bridged channels; nothing when the bridge is off. */
-export const bridgeMessageHandler = bridge ? createOutbound({ link: bridge, channels, directory, links: createLinkMedia({ fetchPage: fetchPreviewPage }), limiter, logger: console }) : null;
+export const bridgeMessageHandler = bridge ? createOutbound({ link: bridge, channels, directory, links: createLinkMedia({ fetchPage: fetchPreviewPage, refresh: refreshAddresses }), limiter, logger: console }) : null;
 
 /** Starts listening for the Minecraft server on the bot's HTTP server, and what goes with it once Discord is ready. */
 export const startBridge = (http: Server, client: Client<true>) => {
@@ -45,6 +55,7 @@ export const startBridge = (http: Server, client: Client<true>) => {
     return;
   }
   bridge.attach(http);
+  discordRest = client.rest;
   console.log(`[Bridge] Waiting for the Minecraft server on ${BRIDGE_PATH}.`);
 
   const members = memberFetcherOf(client);
