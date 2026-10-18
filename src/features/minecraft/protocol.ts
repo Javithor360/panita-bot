@@ -33,7 +33,7 @@ export interface BridgePlayer {
 export const EVENT_KINDS = ['join', 'first_join', 'leave', 'death', 'advancement', 'broadcast', 'started', 'stopping'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
-export const QUERY_KINDS = ['playerlist', 'tps', 'status'] as const;
+export const QUERY_KINDS = ['playerlist', 'tps', 'status', 'playerinfo'] as const;
 export type QueryKind = (typeof QUERY_KINDS)[number];
 
 // Mod to bot
@@ -115,6 +115,8 @@ export interface QueryFrame {
   type: 'query';
   id: string;
   what: QueryKind;
+  /** The Minecraft name asked about; only for `playerinfo`. */
+  player?: string;
 }
 
 export interface ErrorFrame {
@@ -127,10 +129,42 @@ export type BotFrame = WelcomeFrame | GameChatFrame | QueryFrame | ErrorFrame;
 
 // Answers of a query (`reply.data`)
 
+/** A piece of text with one style, as the mod gives it: the bot draws these and never sees a game text component. */
+export interface TextRun {
+  text: string;
+  /** `#rrggbb`; absent for the default color. */
+  color?: string;
+  /** A font id such as `panita:ranks`; absent for the default font. */
+  font?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  obfuscated?: boolean;
+}
+
+/** A player as the mod describes them. Everything after `nickname` is left out by a mod that does not know it. */
+export interface ListedPlayer {
+  name: string;
+  nickname: string | null;
+  uuid?: string;
+  premium?: boolean;
+  /** Hash of the skin the server shows them with. */
+  skin?: string;
+  /** Latency in milliseconds. */
+  ping?: number;
+  /** The line the server shows for them: rank, name, suffix. */
+  display?: TextRun[];
+}
+
 export interface PlayerListData {
-  online: { name: string; nickname: string | null }[];
+  online: ListedPlayer[];
   max: number;
 }
+
+export type PlayerInfoData =
+  | { found: false }
+  | { found: true; player: ListedPlayer; online: boolean; /** Null when the server has no record. */ playtimeSeconds: number | null };
 
 export interface TpsData {
   tps: number;
@@ -152,6 +186,7 @@ export interface QueryData {
   playerlist: PlayerListData;
   tps: TpsData;
   status: StatusData;
+  playerinfo: PlayerInfoData;
 }
 
 // Reading frames
@@ -340,6 +375,48 @@ export const withoutControlCharacters = (value: string) => value.replace(/[\u000
 const finite = (value: unknown, min: number, max: number): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 
+const COLOR = /^#[0-9a-f]{6}$/;
+const FONT_ID = /^[a-z0-9_.-]{1,64}:[a-z0-9_./-]{1,128}$/;
+const MAX_RUNS = 16;
+const MAX_RUN_TEXT = 80;
+const MARKS = ['bold', 'italic', 'underline', 'strikethrough', 'obfuscated'] as const;
+const MARK_KEYS: Record<(typeof MARKS)[number], string> = { bold: 'b', italic: 'i', underline: 'u', strikethrough: 's', obfuscated: 'o' };
+
+/** The runs of a line; null when any run is not the shape the bridge defines. */
+const readRuns = (value: unknown): TextRun[] | null => {
+  if (!Array.isArray(value) || value.length > MAX_RUNS) return null;
+  const runs: TextRun[] = [];
+  for (const entry of value) {
+    if (!isObject(entry) || !text(entry.t, MAX_RUN_TEXT, 1)) return null;
+    if (entry.c !== undefined && !(typeof entry.c === 'string' && COLOR.test(entry.c))) return null;
+    if (entry.f !== undefined && !(typeof entry.f === 'string' && FONT_ID.test(entry.f))) return null;
+    const run: TextRun = { text: entry.t };
+    if (entry.c !== undefined) run.color = entry.c as string;
+    if (entry.f !== undefined) run.font = entry.f as string;
+    for (const mark of MARKS) {
+      const flag = entry[MARK_KEYS[mark]];
+      if (flag !== undefined && flag !== true) return null;
+      if (flag === true) run[mark] = true;
+    }
+    runs.push(run);
+  }
+  return runs;
+};
+
+/** A player of an answer. The extra fields are cosmetic: one that is not valid is left out, and the player is still accepted. */
+const readListedPlayer = (entry: unknown): ListedPlayer | null => {
+  if (!isObject(entry) || typeof entry.name !== 'string' || !PLAYER_NAME.test(entry.name)) return null;
+  if (entry.nickname !== null && entry.nickname !== undefined && !text(entry.nickname, 32, 1)) return null;
+  const player: ListedPlayer = { name: entry.name, nickname: typeof entry.nickname === 'string' ? entry.nickname : null };
+  if (typeof entry.uuid === 'string' && UUID.test(entry.uuid)) player.uuid = entry.uuid;
+  if (typeof entry.premium === 'boolean') player.premium = entry.premium;
+  if (typeof entry.skin === 'string' && SKIN_HASH.test(entry.skin)) player.skin = entry.skin;
+  if (wholeNumber(entry.ping, 100_000)) player.ping = entry.ping;
+  const display = readRuns(entry.display);
+  if (display) player.display = display;
+  return player;
+};
+
 /** Checks the data of an answer to a query. The mod is untrusted, so what the commands show has been through here. */
 export const readQueryData = <K extends QueryKind>(what: K, data: Record<string, unknown> | undefined): QueryData[K] | null => {
   if (!data) return null;
@@ -350,11 +427,18 @@ export const readQueryData = <K extends QueryKind>(what: K, data: Record<string,
         if (!Array.isArray(online) || online.length > 1000 || !wholeNumber(max, 100_000)) return null;
         const players: PlayerListData['online'] = [];
         for (const entry of online) {
-          if (!isObject(entry) || typeof entry.name !== 'string' || !PLAYER_NAME.test(entry.name)) return null;
-          if (entry.nickname !== null && entry.nickname !== undefined && !text(entry.nickname, 32, 1)) return null;
-          players.push({ name: entry.name, nickname: typeof entry.nickname === 'string' ? entry.nickname : null });
+          const player = readListedPlayer(entry);
+          if (!player) return null;
+          players.push(player);
         }
         return { online: players, max };
+      }
+      case 'playerinfo': {
+        if (data.found === false) return { found: false };
+        const player = readListedPlayer(data);
+        if (data.found !== true || !player || typeof data.online !== 'boolean') return null;
+        const seconds = wholeNumber(data.playtimeSeconds, 10 ** 10) ? data.playtimeSeconds : null;
+        return { found: true, player, online: data.online, playtimeSeconds: seconds };
       }
       case 'tps': {
         const { tps, mspt } = data;

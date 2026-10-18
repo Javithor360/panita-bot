@@ -12,13 +12,16 @@
     "test": "node --test -r ts-node/register/transpile-only test/*.test.ts",
     "deploy:prod": "node dist/scripts/deploy-commands.js",
     "smoke:api": "ts-node --transpile-only src/scripts/api-smoke.ts",
-    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+    "prebuild": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "assets:minecraft": "ts-node --transpile-only src/scripts/extract-minecraft-assets.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
     "discord-html-transcripts": "^3.2.0",
     "discord.js": "^14.14.0",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
+    "fflate": "^0.8.3",
     "ws": "^8.22.0",
     "yaml": "^2.9.1"
   },

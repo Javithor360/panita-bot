@@ -54,6 +54,12 @@ const avatarTemplate = (name: string, fallback: string): string => {
   return value;
 };
 
+const resourcePackUrl = (): string | undefined => {
+  const value = optional('MC_RESOURCE_PACK_URL');
+  if (value !== undefined && !/^https:\/\//.test(value)) throw new Error('[Config] MC_RESOURCE_PACK_URL must be an https address');
+  return value;
+};
+
 const booleanFlag = (name: string, fallback: boolean): boolean => {
   const value = optional(name);
   return value === undefined ? fallback : ['1', 'true', 'yes', 'si'].includes(value.toLowerCase());
@@ -116,6 +122,10 @@ export const env = {
   MC_CHANNEL_STAFF: optionalId('MC_CHANNEL_STAFF'),
   /** Role given to a linked member when they join the Minecraft server. */
   MC_JOINED_ROLE_ID: optionalId('MC_JOINED_ROLE_ID'),
+  /** Folder with the game's fonts for the pictures of `/playerlist` and `/playerinfo`, made by `npm run assets:minecraft`. */
+  MC_ASSETS_DIR: optional('MC_ASSETS_DIR') ?? 'data/minecraft-assets',
+  /** A resource pack to take extra fonts from (the rank icons); it is downloaded by the bot, so only http and https are accepted. */
+  MC_RESOURCE_PACK_URL: resourcePackUrl(),
   MC_AVATAR_PREMIUM: avatarTemplate('MC_AVATAR_PREMIUM', DEFAULT_AVATAR_PREMIUM),
   MC_AVATAR_CRACKED: avatarTemplate('MC_AVATAR_CRACKED', DEFAULT_AVATAR_CRACKED),
   MC_AVATAR_SKIN: avatarTemplate('MC_AVATAR_SKIN', DEFAULT_AVATAR_SKIN),

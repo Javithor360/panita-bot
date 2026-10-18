@@ -257,6 +257,24 @@ test('asks the mod and resolves with its answer', async () => {
   assert.deepEqual(await answer, { tps: 19.5, mspt: 14 });
 });
 
+test('asks about one player by name, and only a playerinfo query carries it when given', async () => {
+  const { bridge, url } = await start();
+  const client = await connected(url);
+
+  const answer = bridge.request('playerinfo', { player: 'Javithor360' });
+  const query = (await client.next()) as { what: string; id: string; player?: string };
+  assert.equal(query.what, 'playerinfo');
+  assert.equal(query.player, 'Javithor360');
+  client.socket.send(JSON.stringify({ type: 'reply', id: query.id, ok: true, data: { found: false } }));
+  assert.deepEqual(await answer, { found: false });
+
+  const plain = bridge.request('tps');
+  const second = (await client.next()) as { id: string; player?: string };
+  assert.equal('player' in second, false);
+  client.socket.send(JSON.stringify({ type: 'reply', id: second.id, ok: true, data: { tps: 20, mspt: 5 } }));
+  await plain;
+});
+
 test('rejects a question the mod answers with an error, or with data of the wrong shape', async () => {
   const { bridge, url } = await start();
   const client = await connected(url);
