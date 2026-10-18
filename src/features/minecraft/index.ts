@@ -9,6 +9,7 @@ import { watchForCrashes } from './crashWatch';
 import { MemberDirectory } from './directory';
 import { hookChannelsOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
 import { createInbound } from './inbound';
+import { createCardProvider } from './render/provider';
 import { MESSAGES_FILE, loadMessageConfig } from './messageConfig';
 import { createLinkMedia, fetchPreviewPage, type RefreshAddresses } from './linkMedia';
 import { createOutbound } from './outbound';
@@ -25,6 +26,14 @@ export const channels = channelMapOf({ global: env.MC_CHANNEL_GLOBAL, staff: env
 export const bridge: BridgeServer | null = env.BRIDGE_KEY
   ? new BridgeServer({ key: env.BRIDGE_KEY, channels: () => channels.chatChannels() })
   : null;
+
+/** Draws the pictures of `/playerlist` and `/playerinfo`; gives null while the game's fonts are not in place. */
+export const cards = createCardProvider({
+  assetsDir: env.MC_ASSETS_DIR,
+  packUrl: env.MC_RESOURCE_PACK_URL,
+  avatars: { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED, skin: env.MC_AVATAR_SKIN },
+  logger: console,
+});
 
 /** What the bot says for the Minecraft server, from `config/minecraft-messages.yml`. */
 export const messages = loadMessageConfig(MESSAGES_FILE, console);

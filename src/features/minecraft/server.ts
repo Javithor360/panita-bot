@@ -145,7 +145,7 @@ export class BridgeServer implements BridgeLink {
     return true;
   }
 
-  request<K extends QueryKind>(what: K): Promise<QueryData[K]> {
+  request<K extends QueryKind>(what: K, options: { player?: string } = {}): Promise<QueryData[K]> {
     return new Promise((resolve, reject) => {
       const id = randomUUID();
       const timer = setTimeout(() => {
@@ -153,7 +153,7 @@ export class BridgeServer implements BridgeLink {
         reject(new BridgeQueryError('The Minecraft server did not answer'));
       }, this.queryTimeoutMs);
       this.pending.set(id, { what, resolve: resolve as Pending['resolve'], reject, timer });
-      if (!this.send({ type: 'query', id, what })) {
+      if (!this.send({ type: 'query', id, what, ...(options.player ? { player: options.player } : {}) })) {
         clearTimeout(timer);
         this.pending.delete(id);
         reject(new BridgeUnavailableError());

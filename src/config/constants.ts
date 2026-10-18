@@ -60,6 +60,7 @@ export const CATEGORIES = {
   utility: 'Utilidad',
   fun: 'Diversión',
   minecraft: 'Minecraft',
+  minecraftServer: 'Servidor de Minecraft',
   moderation: 'Moderación',
   tickets: 'Tickets',
   developer: 'Desarrollador',

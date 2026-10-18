@@ -8,7 +8,7 @@ import { queryMinecraft } from '../../features/minecraft/queries';
 export default defineCommand({
   data: new SlashCommandBuilder().setName('tps').setDescription('Muestra el rendimiento del servidor de Minecraft.'),
   meta: {
-    category: CATEGORIES.minecraft,
+    category: CATEGORIES.minecraftServer,
     description: 'Muestra los ticks por segundo (TPS) del servidor de Minecraft y cuánto tarda en promedio cada tick.',
     aliases: ['rendimiento'],
   },

@@ -25,8 +25,8 @@ export interface BridgeLink {
   readonly features: readonly string[];
   /** Sends a frame; false when nobody is connected. */
   send(frame: BotFrame): boolean;
-  /** Asks the mod something and waits for its answer. */
-  request<K extends QueryKind>(what: K): Promise<QueryData[K]>;
+  /** Asks the mod something and waits for its answer. `player` is the name asked about, for `playerinfo`. */
+  request<K extends QueryKind>(what: K, options?: { player?: string }): Promise<QueryData[K]>;
   /** Called with every frame the mod sends after its hello. */
   onFrame(handler: (frame: ModFrame) => void): void;
   /** Called when the mod connects and when it is lost. */

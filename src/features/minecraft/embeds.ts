@@ -1,7 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 import { COLORS } from '../../config/constants';
 import { MC_TEXT } from './messages';
-import type { PlayerListData, TpsData } from './protocol';
+import type { PlayerInfoData, PlayerListData, TpsData } from './protocol';
+import { runsOf } from './render/cards';
 
 /** Room in an embed description, with some to spare. */
 const MAX_DESCRIPTION = 3900;
@@ -21,6 +22,38 @@ export const playerListEmbed = ({ online, max }: PlayerListData): EmbedBuilder =
     text += (text ? '\n' : '') + line;
   }
   return embed.setDescription(text);
+};
+
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
+
+/** A time played as the weeks, days, hours, minutes and seconds that are not zero: `1w 16h 38m 48s`. */
+export const formatPlaytime = (totalSeconds: number): string => {
+  let rest = Math.max(0, Math.floor(totalSeconds));
+  const parts: string[] = [];
+  for (const [unit, size] of [['w', WEEK], ['d', DAY], ['h', HOUR], ['m', MINUTE]] as const) {
+    const amount = Math.floor(rest / size);
+    rest -= amount * size;
+    if (amount > 0) parts.push(`${amount}${unit}`);
+  }
+  if (rest > 0 || parts.length === 0) parts.push(`${rest}s`);
+  return parts.join(' ');
+};
+
+/** The card of a player the server knows. The picture, when there is one, is attached by the command as `playerinfo.png`. */
+export const playerInfoEmbed = (info: Extract<PlayerInfoData, { found: true }>, withPicture: boolean): EmbedBuilder => {
+  const name = info.player.nickname ?? info.player.name;
+  const playtime = info.playtimeSeconds === null ? MC_TEXT.playtimeNone : formatPlaytime(info.playtimeSeconds);
+  const embed = new EmbedBuilder()
+    .setColor(info.online ? COLORS.green : COLORS.dark)
+    .setTitle(MC_TEXT.playerInfoTitle(name))
+    .setDescription(`**${MC_TEXT.playtime}:** ${playtime}`);
+  if (withPicture) return embed.setImage('attachment://playerinfo.png');
+  // Without the picture the same facts go as text, with the name the server shows for them
+  const line = runsOf(info.player).map(run => run.text).join('');
+  return embed.addFields({ name: line, value: `${MC_TEXT.statusLabel}: ${info.online ? MC_TEXT.online : MC_TEXT.offline}` });
 };
 
 /** The color of how the server is doing: green while it keeps up, yellow when it struggles, red when it is slow. */

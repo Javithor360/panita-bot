@@ -24,7 +24,7 @@ The cost is that the bridge works only while the bot is up and reachable by the 
 | Chat to the game | Messages in a bridged channel, written by **linked** members, are sent to the mod under their IGN. |
 | Chat to Discord | Game chat is posted through the bot's own webhook, with the player's nickname (or IGN) and head. |
 | Notifications | Join, leave, death, advancement, first join, broadcast, server start and stop, as the bot (embeds). |
-| Commands | `/playerlist`, `/tps` (and later ones) in the `Minecraft` category, answered live by the mod. |
+| Commands | `/playerlist`, `/playerinfo`, `/tps` (and later ones) in the `Servidor de Minecraft` category, answered live by the mod. |
 | Ten-minute job | Channel topic and nickname set to the IGN. Dry run first. |
 | Role at join | A linked member who joins the server gets the "joined the server" role. |
 
@@ -69,10 +69,14 @@ Bot to mod:
 |---|---|
 | `welcome` | `protocol` (1), `channels` (the chat channels the bot bridges), optional `features` (strings, see 4.4). The mod sends `chat` only for these. |
 | `chat` | `channel`, `author` (`{ discordId, ign }`), `text`, optional `media` (see 4.4). Already checked: the author is linked and active. |
-| `query` | `id`, `what` (`playerlist`, `tps`, `status`). |
+| `query` | `id`, `what` (`playerlist`, `tps`, `status`, `playerinfo`), and for `playerinfo` a `player` with the Minecraft name asked about. |
 | `error` | `code` (`protocol`, `rate`, `frame`), `message`. Sent before closing. |
 
 Answers of a `query` (`reply.data`): `playerlist` is `{ online: [{ name, nickname }], max }`; `tps` is `{ tps, mspt }`; `status` is `{ online, max, tps, mspt, uptimeSeconds, version }` and, from the messages config (`minecraft-messages-plan.md`), an optional `totalPlayers`. The bot waits 5 s and then tells the member the server did not answer.
+
+**Players in the answers (additive; a mod that does not know them leaves them out).** Each entry of `playerlist.online` may also carry `uuid`, `premium`, `skin` (as in 4.2), `ping` (milliseconds) and `display`: the line the server shows for the player, as up to 16 runs `{ t, c?, f?, b?, i?, u?, s?, o? }` (the text, a `#rrggbb` color, a font id such as `panita:ranks` left out for the default font, and `true` for each mark that is on). The bot never receives a game text component: it draws the runs. `playerinfo` answers `{ found: false }` for a name the server does not know, and otherwise the same fields as a player plus `found: true`, `online` and, when the server has a record, `playtimeSeconds`; a player who is not online has only their name as `display` and no `ping`. Every field is checked by `readQueryData`; one that is not valid is left out and the player is kept.
+
+**The pictures.** `/playerlist` and `/playerinfo` draw the runs with the game's own fonts (`src/features/minecraft/render`): the bitmap, space, unihex and reference providers of the font definitions, read from the game's files (`MC_ASSETS_DIR`, made by `npm run assets:minecraft`, never committed) and, first, from the server's resource pack (`MC_RESOURCE_PACK_URL`, downloaded and renewed every six hours) so custom icons in a font of the pack are drawn. Heads come from the avatar templates. Without the game's files the commands answer with an embed of text.
 
 Close codes: `4000` replaced, `4002` protocol mismatch (the mod then stays disconnected and says so in `/discord status`), `4003` invalid frame.
 
@@ -130,7 +134,7 @@ src/features/minecraft/
   sync.ts          the ten-minute job: pure planning of topic, nicknames and roles, then applying (dry run)
   messages.ts      Spanish texts
 src/events/bridgeMessage.ts   thin: delegates to features/minecraft/outbound
-src/commands/minecraft/playerlist.ts, tps.ts
+src/commands/minecraft/playerlist.ts, playerinfo.ts, tps.ts
 ```
 
 ### 6.1 Configuration (`config/env.ts`, `constants.ts`)
