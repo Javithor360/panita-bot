@@ -47,6 +47,8 @@ test('a bare playerlist is not bridged to the game as chat', async () => {
     cleanContent: content,
     attachments: { size: 0, values: () => [] },
     stickers: { size: 0 },
+    reference: null,
+    fetchReference: async () => Promise.reject(new Error('not a reply')),
     inGuild: () => true,
     react: async () => {},
   });

@@ -12,6 +12,8 @@ export const MAX_CHAT_LENGTH = 256;
 
 /** The optional features the two sides announce in `hello` and `welcome` (section 4.4 of the plan); unknown ones are ignored. */
 export const FEATURE_MEDIA = 'media';
+/** The mod shows what a Discord reply answers; the bot sends a chat frame's `reply` only to a mod that announced it. */
+export const FEATURE_REPLY = 'reply';
 export const FEATURE_MEDIA_UPLOAD = 'media_upload';
 /** What the bot offers in its `welcome`. `media_upload` is added with the upload endpoint. */
 export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA];
@@ -109,6 +111,8 @@ export interface GameChatFrame {
   text: string;
   /** Sent only to a mod that announced `FEATURE_MEDIA`; one to `MAX_MEDIA` entries. */
   media?: MediaEntry[];
+  /** The message this one answers; only to a mod that announced `FEATURE_REPLY`. Plain text, cut to `MAX_REPLY_TEXT`. */
+  reply?: { author: string; text: string };
 }
 
 export interface QueryFrame {
@@ -229,6 +233,9 @@ export const mediaHostAllowed = (hostname: string): boolean => {
   return MEDIA_HOSTS.some(allowed => (allowed.startsWith('*.') ? host.endsWith(allowed.slice(1)) && host.length > allowed.length - 1 : host === allowed));
 };
 export const MAX_MEDIA = 4;
+/** The longest name and text of the message a reply answers; the mod refuses a reply past them. */
+export const MAX_REPLY_AUTHOR = 80;
+export const MAX_REPLY_TEXT = 200;
 const MAX_MEDIA_URL = 1024;
 const MAX_MEDIA_NAME = 100;
 

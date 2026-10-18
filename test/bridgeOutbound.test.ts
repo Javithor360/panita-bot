@@ -2,7 +2,7 @@ import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { channelMapOf } from '../src/features/minecraft/channels';
-import { createOutbound, toGameText, type BridgeMessage, type OutboundDeps } from '../src/features/minecraft/outbound';
+import { createOutbound, replyOf, toGameText, type BridgeMessage, type OutboundDeps, type ReplyTarget } from '../src/features/minecraft/outbound';
 import type { BotFrame } from '../src/features/minecraft/protocol';
 import { RateLimiter } from '../src/features/minecraft/rateLimit';
 import type { EnabledMember } from '../src/lib/api/types';
@@ -18,6 +18,10 @@ const message = (overrides: Partial<BridgeMessage> = {}, reactions: string[] = [
   cleanContent: 'hola',
   attachments: { size: 0, values: () => [] },
   stickers: { size: 0 },
+  reference: null,
+  fetchReference: async () => {
+    throw new Error('not a reply');
+  },
   inGuild: () => true,
   react: async emoji => reactions.push(emoji),
   ...overrides,
@@ -35,6 +39,59 @@ const setup = (options: { connected?: boolean; members?: EnabledMember[]; limit?
   });
   return { outbound, sent };
 };
+
+const reply = (overrides: Partial<ReplyTarget> = {}): Partial<BridgeMessage> => ({
+  reference: { messageId: '999' },
+  fetchReference: async () => ({
+    author: { username: 'javi_user', displayName: 'Javi Global' },
+    member: { displayName: 'Javi' },
+    cleanContent: 'nos vemos en la base',
+    attachments: { size: 0 },
+    stickers: { size: 0 },
+    ...overrides,
+  }),
+});
+
+test('a reply carries the author and text of the message it answers, to a mod that announced it', async () => {
+  const { outbound, sent } = setup({ features: ['reply'] });
+
+  await outbound(message(reply()));
+
+  assert.deepEqual(sent, [
+    { type: 'chat', channel: 'global', author: { discordId: LINKED.discord_id, ign: 'Javithor360' }, text: 'hola', reply: { author: 'Javi', text: 'nos vemos en la base' } },
+  ]);
+});
+
+test('a mod that did not announce replies gets the message alone, and the answered message is not even fetched', async () => {
+  let fetched = 0;
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({ ...reply(), fetchReference: async () => (fetched++, (await reply().fetchReference!()) as never) }));
+
+  assert.equal(fetched, 0);
+  assert.equal('reply' in sent[0], false);
+});
+
+test('the name of a webhook, a nickname or a name is used, in that order of what people see', async () => {
+  const names = async (target: Partial<ReplyTarget>) => (await replyOf(message(reply(target))))?.author;
+  assert.equal(await names({ member: null, author: { username: 'Tezzlar' } }), 'Tezzlar');
+  assert.equal(await names({ member: null, author: { username: 'tez', displayName: 'Tez Global' } }), 'Tez Global');
+  assert.equal(await names({ member: { displayName: 'Apodo' } }), 'Apodo');
+});
+
+test('what the answered message says is written for the game and cut to the limit', async () => {
+  const text = async (target: Partial<ReplyTarget>) => (await replyOf(message(reply(target))))?.text;
+  assert.equal(await text({ cleanContent: 'línea uno\nlínea dos <:wave:123>' }), 'línea uno línea dos :wave:');
+  assert.equal(await text({ cleanContent: '', attachments: { size: 1 } }), '[adjunto]');
+  assert.equal((await text({ cleanContent: 'x'.repeat(300) }))?.length, 200);
+});
+
+test('nothing is added when the answered message has nothing to show, cannot be fetched, or this is not a reply', async () => {
+  assert.equal(await replyOf(message(reply({ cleanContent: '' }))), null);
+  assert.equal(await replyOf(message({ reference: { messageId: '1' }, fetchReference: async () => Promise.reject(new Error('deleted')) })), null);
+  assert.equal(await replyOf(message()), null);
+  assert.equal(await replyOf(message({ reference: {} })), null);
+});
 
 test('passes the message of a linked member to the game under their Minecraft name', async () => {
   const { outbound, sent } = setup();

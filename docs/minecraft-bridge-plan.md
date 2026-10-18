@@ -68,7 +68,7 @@ Bot to mod:
 | `type` | Fields |
 |---|---|
 | `welcome` | `protocol` (1), `channels` (the chat channels the bot bridges), optional `features` (strings, see 4.4). The mod sends `chat` only for these. |
-| `chat` | `channel`, `author` (`{ discordId, ign }`), `text`, optional `media` (see 4.4). Already checked: the author is linked and active. |
+| `chat` | `channel`, `author` (`{ discordId, ign }`), `text`, optional `media` (see 4.4), optional `reply`. Already checked: the author is linked and active. |
 | `query` | `id`, `what` (`playerlist`, `tps`, `status`, `playerinfo`), and for `playerinfo` a `player` with the Minecraft name asked about. |
 | `error` | `code` (`protocol`, `rate`, `frame`), `message`. Sent before closing. |
 
@@ -85,6 +85,8 @@ Close codes: `4000` replaced, `4002` protocol mismatch (the mod then stays disco
 - Best effort, at most once, no acknowledgements. A game line is not replayed by the bot; the mod keeps at most 100 frames for at most 60 s while it reconnects, then drops them. Discord messages are never buffered: while the mod is away they are not delivered.
 - Mentions are never live in either direction (`allowedMentions: { parse: [] }` on Discord; the mod treats Discord text as plain text).
 - Limits: the bot accepts at most 20 frames per second from the mod; Discord to game is limited to 5 messages per 10 s per member.
+
+**Replies (optional feature `reply`).** The mod lists `reply` in `hello.features` when it shows what a reply answers. For a Discord message that replies to another, the bot then adds `reply: { author, text }` to the chat frame: the name of whoever wrote the answered message (their nickname in the server, or the name of the webhook when it was a player of the game; at most 80 characters) and what it said (plain text, mentions written as names, attachments as `[adjunto]`, at most 200 characters). A message that cannot be fetched, or has nothing to show, adds no `reply`. The mod shows a line before the message naming who is answering and what; a `reply` that is not that shape is left out and the message is still shown.
 
 ### 4.4 Media (optional feature `media`, added 2026-10-18)
 

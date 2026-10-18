@@ -4,7 +4,18 @@ import type { ChannelMap } from './channels';
 import { bareCommand } from './bare';
 import type { BridgeLink } from './link';
 import type { LinkedMedia } from './linkMedia';
-import { FEATURE_MEDIA, MAX_CHAT_LENGTH, MAX_MEDIA, mediaOf, withoutControlCharacters, type MediaSource } from './protocol';
+import {
+  FEATURE_MEDIA,
+  FEATURE_REPLY,
+  MAX_CHAT_LENGTH,
+  MAX_MEDIA,
+  MAX_REPLY_AUTHOR,
+  MAX_REPLY_TEXT,
+  mediaOf,
+  withoutControlCharacters,
+  type GameChatFrame,
+  type MediaSource,
+} from './protocol';
 import type { RateLimiter } from './rateLimit';
 
 /** The part of a Discord message the bridge reads. */
@@ -17,9 +28,40 @@ export interface BridgeMessage {
   content: string;
   attachments: { size: number; values(): Iterable<MediaSource> };
   stickers: { size: number };
+  /** The message this one replies to, when it is a reply. */
+  reference: { messageId?: string | null } | null;
+  fetchReference(): Promise<ReplyTarget>;
   inGuild(): boolean;
   react(emoji: string): Promise<unknown>;
 }
+
+/** The message a reply answers, as far as the bridge reads it. */
+export interface ReplyTarget {
+  author: { username: string; displayName?: string };
+  /** Their nickname in the server; absent for a webhook, whose name is its username. */
+  member?: { displayName: string } | null;
+  cleanContent: string;
+  attachments: { size: number };
+  stickers: { size: number };
+}
+
+/** Who wrote a message, as people see them: their nickname in the server, else their name; a webhook is called what it is called. */
+const nameOf = (target: ReplyTarget): string =>
+  withoutControlCharacters(target.member?.displayName ?? target.author.displayName ?? target.author.username).trim().slice(0, MAX_REPLY_AUTHOR);
+
+/** The message a reply answers, written for the game; null when it cannot be fetched or there is nothing of it to show. */
+export const replyOf = async (message: Pick<BridgeMessage, 'reference' | 'fetchReference'>): Promise<GameChatFrame['reply'] | null> => {
+  if (!message.reference?.messageId) return null;
+  try {
+    const target = await message.fetchReference();
+    const text = toGameText(target).slice(0, MAX_REPLY_TEXT).trim();
+    const author = nameOf(target);
+    return text && author ? { author, text } : null;
+  } catch {
+    // A message that was deleted, or that the bot cannot see, is just not shown
+    return null;
+  }
+};
 
 const CUSTOM_EMOJI = /<a?:(\w+):\d+>/g;
 
@@ -72,6 +114,7 @@ export const createOutbound = (deps: OutboundDeps) => async (message: BridgeMess
   }
   const text = toGameText({ ...message, cleanContent }, attachedCount);
   if ((!text && media.length === 0) || !deps.limiter.take(message.author.id)) return;
+  const reply = deps.link.features.includes(FEATURE_REPLY) ? await replyOf(message) : null;
 
   try {
     const member = await deps.directory.byDiscordId(message.author.id);
@@ -79,7 +122,7 @@ export const createOutbound = (deps: OutboundDeps) => async (message: BridgeMess
       await message.react('❌').catch(() => {});
       return;
     }
-    deps.link.send({ type: 'chat', channel, author: { discordId: member.discord_id, ign: member.ign }, text, ...(media.length > 0 ? { media } : {}) });
+    deps.link.send({ type: 'chat', channel, author: { discordId: member.discord_id, ign: member.ign }, text, ...(media.length > 0 ? { media } : {}), ...(reply ? { reply } : {}) });
   } catch (error) {
     deps.logger.error('[Minecraft] Could not pass a message to the server:', error);
   }
