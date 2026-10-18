@@ -25,6 +25,8 @@ export interface BridgeServerOptions {
   key: string;
   /** The chat channels the bot bridges, read when a mod connects. */
   channels: () => string[];
+  /** What the bot offers in its welcome; the optional features it really has. Defaults to `BOT_FEATURES`. */
+  features?: () => readonly string[];
   /** Milliseconds between pings. */
   pingMs?: number;
   /** A connection that has not answered a ping for this long is dropped. */
@@ -182,7 +184,8 @@ export class BridgeServer implements BridgeLink {
     this.sockets.handleUpgrade(request, socket, head, ws => this.accept(ws));
   }
 
-  private authorized(header: string | undefined): boolean {
+  /** Whether a bearer token is the bridge's key, compared in constant time. The upload endpoint uses the same key. */
+  authorized(header: string | undefined): boolean {
     const match = header?.match(/^Bearer (.+)$/);
     return match !== null && match !== undefined && timingSafeEqual(digest(match[1]), this.keyDigest);
   }
@@ -286,7 +289,7 @@ export class BridgeServer implements BridgeLink {
     connection.hello = hello;
     this.icon = hello.icon ?? null;
     connection.socket.send(
-      JSON.stringify({ type: 'welcome', protocol: PROTOCOL_VERSION, channels: this.options.channels(), features: BOT_FEATURES } satisfies BotFrame),
+      JSON.stringify({ type: 'welcome', protocol: PROTOCOL_VERSION, channels: this.options.channels(), features: this.options.features?.() ?? BOT_FEATURES } satisfies BotFrame),
     );
     this.logger.log(`[Bridge] The Minecraft server connected (mod ${hello.modVersion}, Minecraft ${hello.minecraftVersion}).`);
     this.tell({ type: 'connected', hello });

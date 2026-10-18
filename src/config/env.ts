@@ -114,6 +114,7 @@ export const env = {
   /** Discord channel of the global chat of the server, and (later) of its staff chat. */
   MC_CHANNEL_GLOBAL: optionalId('MC_CHANNEL_GLOBAL'),
   MC_CHANNEL_STAFF: optionalId('MC_CHANNEL_STAFF'),
+  MC_MEDIA_CHANNEL_ID: optionalId('MC_MEDIA_CHANNEL_ID'),
   /** Role given to a linked member when they join the Minecraft server. */
   MC_JOINED_ROLE_ID: optionalId('MC_JOINED_ROLE_ID'),
   MC_AVATAR_PREMIUM: avatarTemplate('MC_AVATAR_PREMIUM', DEFAULT_AVATAR_PREMIUM),

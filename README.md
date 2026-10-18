@@ -61,6 +61,7 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `BRIDGE_KEY` | — | Secret the Minecraft server sends to connect (at least 16 characters). Without it the Minecraft bridge is off. |
 | `MC_CHANNEL_GLOBAL` | — | Discord channel joined to the server's global chat. Also where notifications go and whose topic shows the server. |
 | `MC_CHANNEL_STAFF` | — | Optional channel joined to the server's staff chat. |
+| `MC_MEDIA_CHANNEL_ID` | — | Optional private channel where a screenshot shared only to the game chat is posted, just to get an address that vanilla players can open. Without it that kind of share is refused (`503`); shares to Discord work either way. |
 | `MC_JOINED_ROLE_ID` | — | Role given to a linked member when they join the Minecraft server. |
 | `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED`, `MC_AVATAR_SKIN` | — | Head templates for players with a Microsoft account, for those with a PIN, and for any player whose skin the server reports (SkinsRestorer's, for example; it wins over the other two), with `{uuid}`, `{name}`, `{nickname}` and, in the skin one, `{skin}`. Default to `mc-heads.net`. |
 | `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
