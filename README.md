@@ -62,7 +62,7 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `MC_CHANNEL_GLOBAL` | — | Discord channel joined to the server's global chat. Also where notifications go and whose topic shows the server. |
 | `MC_CHANNEL_STAFF` | — | Optional channel joined to the server's staff chat. |
 | `MC_JOINED_ROLE_ID` | — | Role given to a linked member when they join the Minecraft server. |
-| `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED` | — | Head templates for players with a Microsoft account and for those with a PIN, with `{uuid}`, `{name}` and `{nickname}`. Default to `mc-heads.net`. |
+| `MC_AVATAR_PREMIUM`, `MC_AVATAR_CRACKED`, `MC_AVATAR_SKIN` | — | Head templates for players with a Microsoft account, for those with a PIN, and for any player whose skin the server reports (SkinsRestorer's, for example; it wins over the other two), with `{uuid}`, `{name}`, `{nickname}` and, in the skin one, `{skin}`. Default to `mc-heads.net`. |
 | `MC_SYNC_DRY_RUN` | — | `true` by default: the topic, nickname and role changes of the bridge are only logged. Set it to `false` to apply them. |
 | `MC_SYNC_MINUTES` | 15 | Minutes between runs of the topic and nickname sync. At least 10. |
 | `PASSWORD_RESET_CHANNEL_ID` | — | Public channel (`#comandos`) where a password reset goes when the member's DMs are closed and they agree to it on the website. Without it that fallback is reported as failed. |
