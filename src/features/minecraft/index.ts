@@ -10,6 +10,7 @@ import { MemberDirectory } from './directory';
 import { hookChannelsOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
 import { createInbound } from './inbound';
 import { MESSAGES_FILE, loadMessageConfig } from './messageConfig';
+import { createLinkMedia, fetchPreviewPage } from './linkMedia';
 import { createOutbound } from './outbound';
 import { RateLimiter } from './rateLimit';
 import { grantJoinedRole } from './roles';
@@ -35,7 +36,7 @@ export const directory = new MemberDirectory({ fetchAll: listEnabledMembers });
 const limiter = new RateLimiter(5, 10_000);
 
 /** Handles the messages of members in the bridged channels; nothing when the bridge is off. */
-export const bridgeMessageHandler = bridge ? createOutbound({ link: bridge, channels, directory, limiter, logger: console }) : null;
+export const bridgeMessageHandler = bridge ? createOutbound({ link: bridge, channels, directory, links: createLinkMedia({ fetchPage: fetchPreviewPage }), limiter, logger: console }) : null;
 
 /** Starts listening for the Minecraft server on the bot's HTTP server, and what goes with it once Discord is ready. */
 export const startBridge = (http: Server, client: Client<true>) => {

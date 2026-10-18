@@ -92,7 +92,7 @@ Images travel as references, never as bytes, over the same frames; the protocol 
 
 | Field | Rule |
 |---|---|
-| `url` | `https`, at most 1024 characters, host exactly `cdn.discordapp.com` or `media.discordapp.net`. The mod checks it again against its own list (`discord.media.hosts`). |
+| `url` | `https`, at most 1024 characters, host exactly `cdn.discordapp.com` or `media.discordapp.net`, or a subdomain of `klipy.com`, `tenor.com` or `giphy.com` (written `*.klipy.com` in the lists; the bare domain is not an image host). The mod checks it again against its own list (`discord.mediaHosts`). |
 | `name` | The file name as Discord shows it, without a `SPOILER_` prefix, plain text, control characters removed, at most 100 characters. |
 | `type` | `image/png`, `image/jpeg`, `image/webp` or `image/gif`. |
 | `size` | Bytes, at most 8,388,608 (8 MiB). |
@@ -100,6 +100,8 @@ Images travel as references, never as bytes, over the same frames; the protocol 
 | `spoiler` | Boolean. A spoiler is never previewed. |
 
 When a message has attachments, the ones of an allowed type and size (the first four) go to `media` and leave `text`; any other attachment stays `[adjunto]` in `text`. `text` may then be empty, which is only valid when `media` has an entry. The mod checks each entry on its own: an invalid one is dropped and counted, the others are still shown. Discord attachment addresses are signed and expire after about a day, so a link in the game chat stops working after that; nothing refreshes it.
+
+**Images pasted as links.** After the attachments, links in the text of a message that stand for images fill the remaining places (never more than four in all) and leave the text. A direct link to an image (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`) on an allowed host is an entry as it stands, with `size` 0 (unknown) and no dimensions. A link to a page of `klipy.com`, `tenor.com` or `giphy.com` is not an image: the bot reads the page (these hosts only, `https`, redirects only between them, at most 1 MiB and 4 seconds, never an error) and takes its `og:image` that is on an allowed host, preferring a GIF, then PNG or JPEG, then WebP. A link that cannot be resolved stays in the text. This only happens for a mod that announced the `media` feature.
 
 **Screenshots from the game (pass-through upload).** The mod sends the bytes over HTTPS, since a frame is limited to 16 KiB. The bot keeps nothing on disk.
 - `POST https://<bot host>/bridge/media`, header `Authorization: Bearer <BRIDGE_KEY>`, checked in constant time before the body is read (`401` otherwise). Body `multipart/form-data` with a part `meta` (JSON: `player` as in 4.2, `channel` a bridged chat channel id, `caption` plain text of at most 200 characters, `destination`: `discord` or `media`) and a part `file` (`image/png`, `image/jpeg` or `image/webp`, at most 2 MiB; the bot checks the type by the first bytes, not by what the header says).

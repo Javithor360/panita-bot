@@ -186,7 +186,13 @@ const readIcon = (value: unknown): Buffer | undefined => {
 };
 
 /** Where the images of Discord live; the mod checks the same list before it shows a link. */
-export const MEDIA_HOSTS: readonly string[] = ['cdn.discordapp.com', 'media.discordapp.net'];
+export const MEDIA_HOSTS: readonly string[] = ['cdn.discordapp.com', 'media.discordapp.net', '*.klipy.com', '*.tenor.com', '*.giphy.com'];
+
+/** Whether an image may be on this host: exactly one of the hosts, or one subdomain of a `*.` entry (never the domain itself). */
+export const mediaHostAllowed = (hostname: string): boolean => {
+  const host = hostname.toLowerCase();
+  return MEDIA_HOSTS.some(allowed => (allowed.startsWith('*.') ? host.endsWith(allowed.slice(1)) && host.length > allowed.length - 1 : host === allowed));
+};
 export const MAX_MEDIA = 4;
 const MAX_MEDIA_URL = 1024;
 const MAX_MEDIA_NAME = 100;
@@ -202,11 +208,11 @@ export interface MediaSource {
   spoiler: boolean;
 }
 
-const hostedByDiscord = (url: string) => {
+const hostAllowed = (url: string) => {
   if (url.length > MAX_MEDIA_URL) return false;
   try {
     const address = new URL(url);
-    return address.protocol === 'https:' && MEDIA_HOSTS.includes(address.hostname);
+    return address.protocol === 'https:' && mediaHostAllowed(address.hostname);
   } catch {
     return false;
   }
@@ -221,7 +227,7 @@ export const toMediaEntry = (attachment: MediaSource): MediaEntry | null => {
   if (!(QUICK_UPLOAD.imageTypes as readonly string[]).includes(type) || !Number.isInteger(size) || size < 0 || size > QUICK_UPLOAD.maxBytes) {
     return null;
   }
-  if (!hostedByDiscord(attachment.url)) return null;
+  if (!hostAllowed(attachment.url)) return null;
   const name = withoutControlCharacters(attachment.name).replace(/^SPOILER_/i, '').slice(0, MAX_MEDIA_NAME).trim();
   return {
     url: attachment.url,

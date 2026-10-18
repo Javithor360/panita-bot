@@ -2,7 +2,7 @@ import './support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { channelMapOf } from '../src/features/minecraft/channels';
-import { createOutbound, toGameText, type BridgeMessage } from '../src/features/minecraft/outbound';
+import { createOutbound, toGameText, type BridgeMessage, type OutboundDeps } from '../src/features/minecraft/outbound';
 import type { BotFrame } from '../src/features/minecraft/protocol';
 import { RateLimiter } from '../src/features/minecraft/rateLimit';
 import type { EnabledMember } from '../src/lib/api/types';
@@ -23,12 +23,13 @@ const message = (overrides: Partial<BridgeMessage> = {}, reactions: string[] = [
   ...overrides,
 });
 
-const setup = (options: { connected?: boolean; members?: EnabledMember[]; limit?: number; features?: string[] } = {}) => {
+const setup = (options: { connected?: boolean; members?: EnabledMember[]; limit?: number; features?: string[]; links?: OutboundDeps['links'] } = {}) => {
   const sent: BotFrame[] = [];
   const outbound = createOutbound({
     link: { connected: options.connected ?? true, features: options.features ?? [], send: frame => (sent.push(frame), true) },
     channels: channelMapOf({ global: GLOBAL }),
     directory: { byDiscordId: async id => (options.members ?? [LINKED]).find(member => member.discord_id === id) },
+    links: options.links ?? (async () => ({ entries: [], consumed: [] })),
     limiter: new RateLimiter(options.limit ?? 5, 10_000, () => 0),
     logger: { error: () => {} },
   });
@@ -204,4 +205,63 @@ test('says nothing for a message whose only attachment cannot be shown to a mod 
   await outbound(message({ cleanContent: '', attachments: { size: 0, values: () => [] } }));
 
   assert.deepEqual(sent, []);
+});
+
+const GIF_LINK = 'https://cdn.discordapp.com/attachments/1/2/enrique.gif';
+const linkEntry = (name: string) => ({ url: `https://cdn.discordapp.com/attachments/1/2/${name}`, name, type: 'image/gif', size: 0, width: null, height: null, spoiler: false });
+
+test('a link that is an image becomes an entry and leaves the text, for a mod that announced media', async () => {
+  const calls: [string, number][] = [];
+  const { outbound, sent } = setup({
+    features: ['media'],
+    links: async (content, room) => (calls.push([content, room]), { entries: [linkEntry('enrique.gif')], consumed: [GIF_LINK] }),
+  });
+
+  await outbound(message({ content: `mira ${GIF_LINK}`, cleanContent: `mira ${GIF_LINK}` }));
+
+  assert.deepEqual(chatOf(sent), [{ text: 'mira', media: [linkEntry('enrique.gif')] }]);
+  assert.deepEqual(calls, [[`mira ${GIF_LINK}`, 4]]);
+});
+
+test('a message of only an image link goes with an empty text', async () => {
+  const { outbound, sent } = setup({ features: ['media'], links: async () => ({ entries: [linkEntry('enrique.gif')], consumed: [GIF_LINK] }) });
+
+  await outbound(message({ content: GIF_LINK, cleanContent: GIF_LINK }));
+
+  assert.equal((chatOf(sent)[0] as { text: string }).text, '');
+});
+
+test('the links are given the room that the uploaded images left', async () => {
+  const rooms: number[] = [];
+  const { outbound } = setup({ features: ['media'], links: async (_, room) => (rooms.push(room), { entries: [], consumed: [] }) });
+
+  await outbound(message({ content: 'https://x.test/a', cleanContent: 'https://x.test/a', attachments: attached(photo(), photo()) }));
+
+  assert.deepEqual(rooms, [2]);
+});
+
+test('a link that is not an image stays in the text', async () => {
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({ content: 'mira https://example.com/pagina', cleanContent: 'mira https://example.com/pagina' }));
+
+  assert.deepEqual(chatOf(sent), [{ text: 'mira https://example.com/pagina', media: undefined }]);
+});
+
+test('links are not looked at for a mod that did not announce media', async () => {
+  let asked = false;
+  const { outbound, sent } = setup({ features: [], links: async () => ((asked = true), { entries: [linkEntry('x.gif')], consumed: [GIF_LINK] }) });
+
+  await outbound(message({ content: GIF_LINK, cleanContent: GIF_LINK }));
+
+  assert.equal(asked, false);
+  assert.deepEqual(chatOf(sent), [{ text: GIF_LINK, media: undefined }]);
+});
+
+test('a failure while resolving links does not lose the message', async () => {
+  const { outbound, sent } = setup({ features: ['media'], links: async () => { throw new Error('page down'); } });
+
+  await outbound(message({ content: `hola ${GIF_LINK}`, cleanContent: `hola ${GIF_LINK}` }));
+
+  assert.deepEqual(chatOf(sent), [{ text: `hola ${GIF_LINK}`, media: undefined }]);
 });
