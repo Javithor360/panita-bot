@@ -2,7 +2,8 @@ import { PREFIX } from '../../config/constants';
 import type { EnabledMember } from '../../lib/api/types';
 import type { ChannelMap } from './channels';
 import type { BridgeLink } from './link';
-import { FEATURE_MEDIA, MAX_CHAT_LENGTH, mediaOf, withoutControlCharacters, type MediaSource } from './protocol';
+import type { LinkedMedia } from './linkMedia';
+import { FEATURE_MEDIA, MAX_CHAT_LENGTH, MAX_MEDIA, mediaOf, withoutControlCharacters, type MediaSource } from './protocol';
 import type { RateLimiter } from './rateLimit';
 
 /** The part of a Discord message the bridge reads. */
@@ -42,6 +43,8 @@ export interface OutboundDeps {
   link: Pick<BridgeLink, 'connected' | 'send' | 'features'>;
   channels: ChannelMap;
   directory: { byDiscordId(discordId: string): Promise<EnabledMember | undefined> };
+  /** The images among the links of a message, at most as many as there is room for. */
+  links: (content: string, room: number) => Promise<LinkedMedia>;
   limiter: Pick<RateLimiter, 'take'>;
   logger: Pick<Console, 'error'>;
 }
@@ -56,8 +59,17 @@ export const createOutbound = (deps: OutboundDeps) => async (message: BridgeMess
   if (!channel || !deps.link.connected) return;
 
   // Images go as references only to a mod that can show them; any other mod keeps getting [adjunto] in the text
-  const media = deps.link.features.includes(FEATURE_MEDIA) ? mediaOf(message.attachments.values()) : [];
-  const text = toGameText(message, media.length);
+  const announced = deps.link.features.includes(FEATURE_MEDIA);
+  const media = announced ? mediaOf(message.attachments.values()) : [];
+  const attachedCount = media.length;
+  // Links to images are images too, once the ones that were uploaded have had their places
+  let cleanContent = message.cleanContent;
+  if (announced && message.content.includes('http')) {
+    const linked = await deps.links(message.content, MAX_MEDIA - media.length).catch(() => ({ entries: [], consumed: [] }));
+    media.push(...linked.entries);
+    for (const link of linked.consumed) cleanContent = cleanContent.replace(`<${link}>`, '').replace(link, '');
+  }
+  const text = toGameText({ ...message, cleanContent }, attachedCount);
   if ((!text && media.length === 0) || !deps.limiter.take(message.author.id)) return;
 
   try {
