@@ -5,8 +5,8 @@ import { displayNameOf } from './render';
 import type { HookFile, PostedFile } from './webhook';
 
 /**
- * The screenshots of the game (section 4.4 of `docs/minecraft-bridge-plan.md`): the mod posts one image here, the bot has
- * Discord keep it and answers with its address. Everything in the request is untrusted: the image is told by its first bytes,
+ * The screenshots of the game (section 4.4 of `docs/minecraft-bridge-plan.md`): the mod posts one image here, the bot posts it
+ * to the bridged channel as the player and answers with its address. Everything in the request is untrusted: the image is told by its first bytes,
  * the metadata is checked for shape, and the bytes live in memory only for the length of the request.
  */
 
@@ -109,13 +109,10 @@ export const parseMultipart = (contentType: string | undefined, body: Buffer): M
   }
 };
 
-export type UploadDestination = 'discord' | 'media';
-
 export interface UploadMeta {
   player: BridgePlayer;
   channel: string;
   caption: string;
-  destination: UploadDestination;
 }
 
 const CHANNEL = /^[a-z0-9_-]{1,32}$/;
@@ -129,13 +126,13 @@ export const readUploadMeta = (raw: Buffer): UploadMeta | null => {
     return null;
   }
   if (typeof value !== 'object' || value === null) return null;
-  const { player, channel, caption, destination } = value as Record<string, unknown>;
+  const { player, channel, caption } = value as Record<string, unknown>;
   const reader = readPlayer(player);
   if (!reader || typeof channel !== 'string' || !CHANNEL.test(channel)) return null;
-  if (typeof caption !== 'string' || (destination !== 'discord' && destination !== 'media')) return null;
+  if (typeof caption !== 'string') return null;
   // No control or invisible formatting characters, and never longer than the limit
   const clean = caption.replace(/[\p{Cc}\p{Cf}]/gu, '').trim().slice(0, MAX_CAPTION);
-  return { player: reader, channel, caption: clean, destination };
+  return { player: reader, channel, caption: clean };
 };
 
 export interface UploadAnswer {
@@ -162,11 +159,6 @@ const failure = (error: UploadError): UploadResult => ({ status: STATUS[error], 
 export interface UploadTargets {
   postAsPlayer(channelId: string, post: { username: string; avatarUrl: string; content: string }, file: HookFile): Promise<PostedFile | null>;
   deleteFromChannel(channelId: string, messageId: string): Promise<boolean>;
-  media: {
-    configured: boolean;
-    post(file: HookFile): Promise<PostedFile | null>;
-    remove(messageId: string): Promise<boolean>;
-  };
 }
 
 export interface Limiter {
@@ -187,7 +179,7 @@ export interface UploadDeps {
 
 interface Share {
   player: string;
-  where: { channelId: string } | 'media';
+  channelId: string;
   at: number;
 }
 
@@ -213,21 +205,17 @@ export class MediaUploads {
     if (!image) return failure('type');
     const channelId = this.deps.channels.discordIdOf(info.channel);
     if (!channelId) return failure('channel');
-    if (info.destination === 'media' && !this.deps.targets.media.configured) return failure('unavailable');
     if (!this.deps.perPlayer.take(info.player.uuid) || !this.deps.overall.take('all')) return failure('rate');
 
     const upload: HookFile = { data: file.data, name: `captura.${EXTENSION[image.type]}` };
     try {
-      const posted =
-        info.destination === 'discord'
-          ? await this.deps.targets.postAsPlayer(
-              channelId,
-              { username: displayNameOf(info.player), avatarUrl: avatarOf(this.deps.avatars, info.player), content: info.caption },
-              upload,
-            )
-          : await this.deps.targets.media.post(upload);
+      const posted = await this.deps.targets.postAsPlayer(
+        channelId,
+        { username: displayNameOf(info.player), avatarUrl: avatarOf(this.deps.avatars, info.player), content: info.caption },
+        upload,
+      );
       if (!posted) return failure('unavailable');
-      this.remember(posted.messageId, { player: info.player.uuid.toLowerCase(), where: info.destination === 'discord' ? { channelId } : 'media', at: this.now() });
+      this.remember(posted.messageId, { player: info.player.uuid.toLowerCase(), channelId, at: this.now() });
       return { status: 200, body: { url: posted.url, type: image.type, size: file.data.length, width: image.width, height: image.height, messageId: posted.messageId } };
     } catch (error) {
       this.deps.logger.error('[Minecraft] Could not post a screenshot of the game:', error);
@@ -241,7 +229,7 @@ export class MediaUploads {
     const share = this.shares.get(messageId);
     if (!share || !player || share.player !== player.toLowerCase()) return 404;
     try {
-      const done = share.where === 'media' ? await this.deps.targets.media.remove(messageId) : await this.deps.targets.deleteFromChannel(share.where.channelId, messageId);
+      const done = await this.deps.targets.deleteFromChannel(share.channelId, messageId);
       if (done) this.shares.delete(messageId);
       return done ? 204 : 404;
     } catch (error) {

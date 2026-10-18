@@ -82,7 +82,7 @@ const multipart = (parts: { name: string; filename?: string; data: Buffer | stri
 };
 
 const meta = (over: Record<string, unknown> = {}) =>
-  JSON.stringify({ player: TEZ, channel: 'global', caption: 'mi base', destination: 'discord', ...over });
+  JSON.stringify({ player: TEZ, channel: 'global', caption: 'mi base', ...over });
 
 test('reads the parts of a multipart body, bytes intact', () => {
   const image = png(10, 10, 50);
@@ -107,9 +107,7 @@ test('refuses a multipart body that is not well formed', () => {
 test('reads the metadata, cleaning the caption, and refuses a wrong shape', () => {
   const ok = readUploadMeta(Buffer.from(meta({ caption: '  hola\u0007​  mundo ' })));
   assert.equal(ok?.caption, 'hola  mundo');
-  assert.equal(ok?.destination, 'discord');
   assert.equal(readUploadMeta(Buffer.from(meta({ caption: 'x'.repeat(500) })))?.caption.length, 200);
-  assert.equal(readUploadMeta(Buffer.from(meta({ destination: 'everywhere' }))), null);
   assert.equal(readUploadMeta(Buffer.from(meta({ channel: 'Not A Channel' }))), null);
   assert.equal(readUploadMeta(Buffer.from(meta({ player: { name: 'x' } }))), null);
   assert.equal(readUploadMeta(Buffer.from('not json')), null);
@@ -120,12 +118,11 @@ test('reads the metadata, cleaning the caption, and refuses a wrong shape', () =
 interface Fakes {
   targets: UploadTargets;
   posted: { channelId: string; username: string; avatarUrl: string; content: string; file: HookFile }[];
-  media: HookFile[];
   deleted: string[];
 }
 
-const fakes = (over: { mediaConfigured?: boolean; fail?: boolean } = {}): Fakes => {
-  const state: Fakes = { posted: [], media: [], deleted: [], targets: undefined as unknown as UploadTargets };
+const fakes = (over: { fail?: boolean } = {}): Fakes => {
+  const state: Fakes = { posted: [], deleted: [], targets: undefined as unknown as UploadTargets };
   let counter = 100;
   const posted = (): PostedFile => ({ messageId: String(++counter), url: `https://cdn.discordapp.com/attachments/1/${counter}/captura.jpg` });
   state.targets = {
@@ -137,17 +134,6 @@ const fakes = (over: { mediaConfigured?: boolean; fail?: boolean } = {}): Fakes 
     deleteFromChannel: async (_channelId, messageId) => {
       state.deleted.push(`channel:${messageId}`);
       return true;
-    },
-    media: {
-      configured: over.mediaConfigured ?? true,
-      post: async file => {
-        state.media.push(file);
-        return posted();
-      },
-      remove: async messageId => {
-        state.deleted.push(`media:${messageId}`);
-        return true;
-      },
     },
   };
   return state;
@@ -193,20 +179,6 @@ test('posts the image as the player through the webhook and answers with its add
   assert.equal(state.posted[0].content, 'mi base');
   assert.equal(state.posted[0].avatarUrl, 'https://heads.test/steve');
   assert.equal(state.posted[0].file.name, 'captura.jpg');
-  assert.deepEqual(state.media, []);
-});
-
-test('the media destination goes only to the private channel', async () => {
-  const state = fakes();
-  const result = await service(state).upload(request(png(100, 100), meta({ destination: 'media' })));
-  assert.equal(result.status, 200);
-  assert.equal(state.media.length, 1);
-  assert.deepEqual(state.posted, []);
-});
-
-test('a share only for the game chat is unavailable without a media channel', async () => {
-  const result = await service(fakes({ mediaConfigured: false })).upload(request(png(100, 100), meta({ destination: 'media' })));
-  assert.deepEqual(result, { status: 503, body: { error: 'unavailable' } });
 });
 
 test('refuses a body that is not what the contract says, in the order of the contract', async () => {

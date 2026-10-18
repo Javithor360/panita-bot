@@ -8,7 +8,7 @@ import { createAnnouncer } from './announcer';
 import { channelMapOf } from './channels';
 import { watchForCrashes } from './crashWatch';
 import { MemberDirectory } from './directory';
-import { hookChannelsOf, mediaChannelOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
+import { hookChannelsOf, memberFetcherOf, notifierOf, surroundingsOf, topicChannelOf } from './discord';
 import { createInbound } from './inbound';
 import { MESSAGES_FILE, loadMessageConfig } from './messageConfig';
 import { createLinkMedia, fetchPreviewPage, type RefreshAddresses } from './linkMedia';
@@ -63,7 +63,6 @@ export const startBridge = (http: Server, app: Express, client: Client<true>) =>
   console.log(`[Bridge] Waiting for the Minecraft server on ${BRIDGE_PATH}.`);
 
   const webhooks = new WebhookPoster(hookChannelsOf(client), MINECRAFT_BRIDGE.webhookName);
-  const mediaChannel = mediaChannelOf(client, env.MC_MEDIA_CHANNEL_ID);
   mountUploadRoutes(
     app,
     new MediaUploads({
@@ -72,7 +71,6 @@ export const startBridge = (http: Server, app: Express, client: Client<true>) =>
       targets: {
         postAsPlayer: (channelId, post, file) => webhooks.postFile(channelId, post, file),
         deleteFromChannel: (channelId, messageId) => webhooks.deleteMessage(channelId, messageId),
-        media: { configured: mediaChannel.configured, post: mediaChannel.post, remove: mediaChannel.remove },
       },
       // Each player gets 3 images a minute and everyone together 20
       perPlayer: new RateLimiter(3, 60_000),
@@ -81,7 +79,7 @@ export const startBridge = (http: Server, app: Express, client: Client<true>) =>
     }),
     header => bridge.authorized(header),
   );
-  console.log(`[Bridge] Screenshots of the game are taken on ${UPLOAD_PATH}${env.MC_MEDIA_CHANNEL_ID ? '' : ' (MC_MEDIA_CHANNEL_ID is not set, so a share only to the game chat is refused)'}.`);
+  console.log(`[Bridge] Screenshots of the game are taken on ${UPLOAD_PATH}.`);
 
   const members = memberFetcherOf(client);
   const avatars = { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED, skin: env.MC_AVATAR_SKIN };

@@ -4,7 +4,7 @@ import type { BridgeLink } from './link';
 import type { Rendered, Surroundings } from './render';
 import type { RoleMember } from './roles';
 import type { NicknameMember, TopicChannel } from './sync';
-import type { Hook, HookChannelResolver, HookFile, PostedFile } from './webhook';
+import type { Hook, HookChannelResolver } from './webhook';
 
 /**
  * The few places where the bridge touches discord.js objects. Everything else works with small interfaces, so it can be
@@ -101,23 +101,3 @@ export const topicChannelOf =
     const channel = await textChannel(client, channelId);
     return channel ? { topic: channel.topic, setTopic: text => channel.setTopic(text) } : null;
   };
-
-/** The private channel where a screenshot goes only to get an address (`MC_MEDIA_CHANNEL_ID`). */
-export const mediaChannelOf = (client: Client<true>, channelId: string | undefined) => ({
-  configured: channelId !== undefined,
-  post: async (file: HookFile): Promise<PostedFile | null> => {
-    if (!channelId) return null;
-    const channel = await textChannel(client, channelId);
-    if (!channel) return null;
-    const message = await channel.send({ files: [new AttachmentBuilder(file.data, { name: file.name })], allowedMentions: { parse: [] } });
-    const url = message.attachments.first()?.url;
-    return url ? { messageId: message.id, url } : null;
-  },
-  remove: async (messageId: string): Promise<boolean> => {
-    if (!channelId) return false;
-    const channel = await textChannel(client, channelId);
-    if (!channel) return false;
-    await channel.messages.delete(messageId);
-    return true;
-  },
-});
