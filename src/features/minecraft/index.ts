@@ -5,6 +5,7 @@ import { MINECRAFT_BRIDGE } from '../../config/constants';
 import { env } from '../../config/env';
 import { listEnabledMembers } from '../../services/users';
 import { createAnnouncer } from './announcer';
+import { bareCommand } from './bare';
 import { channelMapOf } from './channels';
 import { watchForCrashes } from './crashWatch';
 import { MemberDirectory } from './directory';
@@ -25,6 +26,10 @@ import { WebhookPoster } from './webhook';
 
 /** The Discord channels joined to the chat channels of the Minecraft server. */
 export const channels = channelMapOf({ global: env.MC_CHANNEL_GLOBAL, staff: env.MC_CHANNEL_STAFF });
+
+/** The command a message stands for without the prefix: only in a channel joined to the server, and only a bare `playerlist`. */
+export const bareMinecraftCommand = (message: { channelId: string; content: string }): string | null =>
+  channels.chatChannelOf(message.channelId) ? bareCommand(message.content) : null;
 
 /** The line to the Minecraft server; null when the bridge is off because there is no key. */
 export const bridge: BridgeServer | null = env.BRIDGE_KEY

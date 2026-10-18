@@ -17,7 +17,7 @@ import { startPasswordResetSync } from './services/passwordResetSync';
 import { startBirthdayScheduler } from './services/birthdayScheduler';
 import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
-import { startBridge } from './features/minecraft';
+import { bareMinecraftCommand, startBridge } from './features/minecraft';
 import { bridgeMessageEvent } from './events/bridgeMessage';
 import { galleryPostEvent, galleryReactionEvent } from './events/galleryUpload';
 
@@ -60,7 +60,7 @@ client.on(Events.GuildMemberRemove, guildMemberRemoveEvent);
 client.on(Events.GuildMemberUpdate, guildMemberUpdateEvent);
 client.on(Events.GuildRoleDelete, roleDeleteEvent);
 client.on(Events.InteractionCreate, createInteractionHandler(registry));
-client.on(Events.MessageCreate, createMessageHandler(registry));
+client.on(Events.MessageCreate, createMessageHandler(registry, bareMinecraftCommand));
 client.on(Events.MessageCreate, createDirectMessageHandler());
 client.on(Events.MessageCreate, bridgeMessageEvent);
 client.on(Events.MessageCreate, galleryPostEvent);

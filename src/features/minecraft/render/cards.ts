@@ -96,17 +96,21 @@ export class Cards {
       { text: online ? 'Online' : 'Offline', color: online ? GREEN : RED },
     ];
     await this.fonts.ensure([...fontsOf(line), ...fontsOf(status)]);
+    const head = await this.heads(player);
+    // The head sits left of the name, and both lines start after it so they line up
+    const indent = (HEAD + 2) * SCALE;
     const widest = Math.max(this.fonts.layout(line).width, this.fonts.layout(status).width);
     const pad = 4 * SCALE;
     const margin = 2 * SCALE;
-    const boxWidth = widest + 2 * pad;
+    const boxWidth = widest + indent + 2 * pad;
     const boxHeight = 2 * lineHeight + 2 * pad - SCALE;
     const canvas = createCanvas(boxWidth + 2 * margin, boxHeight + 2 * margin);
     const context = canvas.getContext('2d');
     context.imageSmoothingEnabled = false;
     this.tooltip(context, margin, margin, boxWidth, boxHeight);
-    drawRuns(context, this.fonts, line, margin + pad, margin + pad);
-    drawRuns(context, this.fonts, status, margin + pad, margin + pad + lineHeight + SCALE);
+    this.head(context, head, margin + pad, margin + pad);
+    drawRuns(context, this.fonts, line, margin + pad + indent, margin + pad);
+    drawRuns(context, this.fonts, status, margin + pad + indent, margin + pad + lineHeight + SCALE);
     return canvas.toBuffer('image/png');
   }
 

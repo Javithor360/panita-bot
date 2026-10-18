@@ -3,6 +3,7 @@ import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { bridge, cards } from '../../features/minecraft';
 import { playerInfoEmbed } from '../../features/minecraft/embeds';
+import { withSilentMention } from '../../features/minecraft/mention';
 import { MC_TEXT } from '../../features/minecraft/messages';
 import type { PlayerInfoData } from '../../features/minecraft/protocol';
 import { queryMinecraft } from '../../features/minecraft/queries';
@@ -41,9 +42,11 @@ export default defineCommand({
     if (!info.found) return ctx.reply({ content: MC_TEXT.playerInfoUnknown(name), ephemeral: true });
 
     const picture = await drawCard(info);
-    await ctx.reply({
-      embeds: [playerInfoEmbed(info, picture !== null)],
-      ...(picture ? { files: [new AttachmentBuilder(picture, { name: 'playerinfo.png' })] } : {}),
-    });
+    await ctx.reply(
+      withSilentMention(ctx.user.id, {
+        embeds: [playerInfoEmbed(info, picture !== null)],
+        ...(picture ? { files: [new AttachmentBuilder(picture, { name: 'playerinfo.png' })] } : {}),
+      }),
+    );
   },
 });

@@ -3,6 +3,7 @@ import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { bridge } from '../../features/minecraft';
 import { tpsEmbed } from '../../features/minecraft/embeds';
+import { withSilentMention } from '../../features/minecraft/mention';
 import { queryMinecraft } from '../../features/minecraft/queries';
 
 export default defineCommand({
@@ -14,6 +15,6 @@ export default defineCommand({
   },
   async run(ctx) {
     await ctx.defer();
-    await ctx.reply({ embeds: [tpsEmbed(await queryMinecraft(bridge, 'tps'))] });
+    await ctx.reply(withSilentMention(ctx.user.id, { embeds: [tpsEmbed(await queryMinecraft(bridge, 'tps'))] }));
   },
 });

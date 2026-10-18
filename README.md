@@ -202,8 +202,8 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `food` | Rebalanced food values and special dishes in Tezzlar III. | `comida`, `foods`, `comidas` |
 | `ip [--numeric]` | Server address (domain or numeric IP). | `server`, `jugar` |
 | `minievent <id\|list>` | Details of a Tezzlar minievent, or the full list. | `minieventos`, `minievents`, `me` |
-| `playerlist` | Who is online on the Minecraft server, drawn like the game's tab list: head, rank, name and latency of each player. Asks the server live. Category *Servidor de Minecraft*. | `jugadores`, `conectados` |
-| `playerinfo <jugador>` | A player's card: their rank and name as the game shows them, whether they are online and their time played. Asks the server live. Category *Servidor de Minecraft*. | `jugador`, `infojugador` |
+| `playerlist` | Who is online on the Minecraft server, in an embed with a picture drawn like the game's tab list: head, rank, name and latency of each player. Asks the server live. Category *Servidor de Minecraft*. In a channel joined to the server it also answers to the bare word `playerlist` (no prefix), which is not passed on to the game chat. | `jugadores`, `conectados` |
+| `playerinfo <jugador>` | A player's card: their head, rank and name as the game shows them, whether they are online and their time played. Asks the server live. Category *Servidor de Minecraft*. | `jugador`, `infojugador` |
 | `recipes <id\|list>` | Custom crafting recipes with guide images, or the full list. | `recetas`, `crafteos`, `crafts` |
 | `resources` | Download link for the mods and textures, plus installation steps. | `recursos`, `assets` |
 | `skin <player>` | A player's skin with a menu to switch views (3D, bust, head…). Only the member who ran it can switch views. | `skins` |
@@ -319,7 +319,7 @@ The bot is the only Discord client of the Minecraft server. The server (the Enri
 
 - **Game to Discord.** Chat lines are posted through the bot's own webhook in the joined channel (it makes it the first time and finds it again), under the player's chat nickname or name, with their head. Joins, leaves, first joins, deaths, advancements, `/broadcast`, the server starting and stopping, and the server crashing are posted as the bot, with the messages of [`config/minecraft-messages.yml`](#minecraft-messages). What a player does with `/me` is posted like chat, with `* ` before the name and the text in italics. Nobody is ever mentioned, except the owner of the server when it crashes.
 - **Discord to game.** What a **linked** member writes in a joined channel goes to the server under their Minecraft name. Anyone else gets a ❌ on their message and nothing else. Commands (`!`), bots and webhooks are never bridged, and each member is heard at most five times in ten seconds.
-- **Commands.** `/playerlist`, `/playerinfo` and `/tps` ask the server live. If it is not connected they say so.
+- **Commands.** `/playerlist`, `/playerinfo` and `/tps` ask the server live. Their answer mentions whoever asked without notifying them. If it is not connected they say so.
 - **Join role.** When a linked member joins the server they get `MC_JOINED_ROLE_ID` if they lack it. It is never removed by the bridge.
 - **Crashes.** The server says it is stopping before it closes the line. A line that is lost without that is a crash if it does not come back within `crash_after_seconds` (90 by default), or if the server comes back as a new run; the bot then posts the `crashed` message once. A server that hangs but stays connected is not noticed.
 - **Topic and nicknames.** Every `MC_SYNC_MINUTES` (15 by default, 10 at least), and at once when the server starts, stops or crashes, the topic of the global channel shows the server (or that it is down; it is only edited when the text changes), and each linked member's server nickname is set to their Minecraft name, even if they changed it. Members the bot cannot rename (the owner, higher roles) are skipped.

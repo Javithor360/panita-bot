@@ -2,7 +2,8 @@ import { AttachmentBuilder, SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { bridge, cards } from '../../features/minecraft';
-import { playerListEmbed } from '../../features/minecraft/embeds';
+import { playerListEmbed, playerListPictureEmbed } from '../../features/minecraft/embeds';
+import { withSilentMention } from '../../features/minecraft/mention';
 import type { PlayerListData } from '../../features/minecraft/protocol';
 import { queryMinecraft } from '../../features/minecraft/queries';
 
@@ -21,7 +22,8 @@ export default defineCommand({
     .setDescription('Muestra los jugadores conectados al servidor de Minecraft.'),
   meta: {
     category: CATEGORIES.minecraftServer,
-    description: 'Muestra quién está conectado ahora al servidor de Minecraft, con el apodo que cada jugador usa en el chat.',
+    description:
+      'Muestra quién está conectado ahora al servidor de Minecraft, como la lista de jugadores del juego. También responde al escribir solo "playerlist" en un canal unido al servidor.',
     aliases: ['jugadores', 'conectados'],
   },
   async run(ctx) {
@@ -30,6 +32,13 @@ export default defineCommand({
     const list = await queryMinecraft(bridge, 'playerlist');
     // The picture needs the game's fonts; without them, or if drawing fails, the list is text as it always was
     const picture = list.online.length > 0 ? await drawList(list) : null;
-    await ctx.reply(picture ? { files: [new AttachmentBuilder(picture, { name: 'playerlist.png' })] } : { embeds: [playerListEmbed(list)] });
+    await ctx.reply(
+      withSilentMention(
+        ctx.user.id,
+        picture
+          ? { embeds: [playerListPictureEmbed(list)], files: [new AttachmentBuilder(picture, { name: 'playerlist.png' })] }
+          : { embeds: [playerListEmbed(list)] },
+      ),
+    );
   },
 });

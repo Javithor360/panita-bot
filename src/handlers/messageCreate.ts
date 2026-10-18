@@ -9,10 +9,17 @@ import { formatParseError } from '../core/usage';
 
 const EMPTY_PARSE = { group: null, subcommand: null, values: new Map() };
 
-export const createMessageHandler = (registry: CommandRegistry) => async (message: Message) => {
-  if (message.author.bot || !message.inGuild() || !message.content.startsWith(PREFIX)) return;
+/**
+ * @param bareCommandOf the command a message stands for without the prefix (in a channel that allows it), or null
+ */
+export const createMessageHandler =
+  (registry: CommandRegistry, bareCommandOf: (message: Message) => string | null = () => null) =>
+  async (message: Message) => {
+  if (message.author.bot || !message.inGuild()) return;
+  const content = bareCommandOf(message) !== null ? PREFIX + message.content.trim() : message.content;
+  if (!content.startsWith(PREFIX)) return;
 
-  const body = message.content.slice(PREFIX.length);
+  const body = content.slice(PREFIX.length);
   const head = body.match(/^(\S+)\s*/);
   if (!head) return;
 

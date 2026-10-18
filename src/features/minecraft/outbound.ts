@@ -1,6 +1,7 @@
 import { PREFIX } from '../../config/constants';
 import type { EnabledMember } from '../../lib/api/types';
 import type { ChannelMap } from './channels';
+import { bareCommand } from './bare';
 import type { BridgeLink } from './link';
 import type { LinkedMedia } from './linkMedia';
 import { FEATURE_MEDIA, MAX_CHAT_LENGTH, MAX_MEDIA, mediaOf, withoutControlCharacters, type MediaSource } from './protocol';
@@ -51,10 +52,10 @@ export interface OutboundDeps {
 
 /**
  * Takes what members write in a bridged channel to the Minecraft server. Only linked members are heard: anyone else gets a ❌
- * on their message and nothing else. Commands (`!`), bots and webhooks are never bridged, so a message cannot loop.
+ * on their message and nothing else. Commands (`!`, and a bare `playerlist`), bots and webhooks are never bridged, so a message cannot loop.
  */
 export const createOutbound = (deps: OutboundDeps) => async (message: BridgeMessage): Promise<void> => {
-  if (message.author.bot || message.webhookId || !message.inGuild() || message.content.startsWith(PREFIX)) return;
+  if (message.author.bot || message.webhookId || !message.inGuild() || message.content.startsWith(PREFIX) || bareCommand(message.content)) return;
   const channel = deps.channels.chatChannelOf(message.channelId);
   if (!channel || !deps.link.connected) return;
 

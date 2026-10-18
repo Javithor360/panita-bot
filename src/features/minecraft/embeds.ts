@@ -8,6 +8,10 @@ import { runsOf } from './render/cards';
 const MAX_DESCRIPTION = 3900;
 
 /** The players who are online: by the name they have in chat, with their real name beside it when it is different. */
+/** The list as the picture: the title with the count, and the picture the command attaches as `playerlist.png`. */
+export const playerListPictureEmbed = ({ online, max }: PlayerListData): EmbedBuilder =>
+  new EmbedBuilder().setColor(COLORS.green).setTitle(MC_TEXT.playersTitle(online.length, max)).setImage('attachment://playerlist.png');
+
 export const playerListEmbed = ({ online, max }: PlayerListData): EmbedBuilder => {
   const embed = new EmbedBuilder().setColor(COLORS.green).setTitle(MC_TEXT.playersTitle(online.length, max));
   if (online.length === 0) return embed.setDescription(MC_TEXT.playersNone);
