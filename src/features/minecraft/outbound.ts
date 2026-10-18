@@ -10,7 +10,6 @@ import {
   MAX_CHAT_LENGTH,
   MAX_MEDIA,
   MAX_REPLY_AUTHOR,
-  MAX_REPLY_TEXT,
   mediaOf,
   withoutControlCharacters,
   type GameChatFrame,
@@ -35,34 +34,30 @@ export interface BridgeMessage {
   react(emoji: string): Promise<unknown>;
 }
 
-/** The message a reply answers, as far as the bridge reads it. */
+/** The message a reply answers; the bridge only reads who wrote it. */
 export interface ReplyTarget {
   author: { username: string; displayName?: string };
   /** Their nickname in the server; absent for a webhook, whose name is its username. */
   member?: { displayName: string } | null;
-  cleanContent: string;
-  attachments: { size: number };
-  stickers: { size: number };
 }
 
 /** Who wrote a message, as people see them: their nickname in the server, else their name; a webhook is called what it is called. */
 const nameOf = (target: ReplyTarget): string =>
   withoutControlCharacters(target.member?.displayName ?? target.author.displayName ?? target.author.username).trim().slice(0, MAX_REPLY_AUTHOR);
 
-/** The message a reply answers, written for the game; null when it cannot be fetched or there is nothing of it to show. */
+/**
+ * Whose message a reply answers, for the game; null when it cannot be fetched (deleted, or not visible to the bot). The text of the
+ * answered message is not sent: it can be empty, as with a message of the bot that is only an embed, and who it answers is enough.
+ */
 export const replyOf = async (message: Pick<BridgeMessage, 'reference' | 'fetchReference'>): Promise<GameChatFrame['reply'] | null> => {
   if (!message.reference?.messageId) return null;
   try {
-    const target = await message.fetchReference();
-    const text = toGameText(target).slice(0, MAX_REPLY_TEXT).trim();
-    const author = nameOf(target);
-    return text && author ? { author, text } : null;
+    const author = nameOf(await message.fetchReference());
+    return author ? { author } : null;
   } catch {
-    // A message that was deleted, or that the bot cannot see, is just not shown
     return null;
   }
 };
-
 const CUSTOM_EMOJI = /<a?:(\w+):\d+>/g;
 
 /**
