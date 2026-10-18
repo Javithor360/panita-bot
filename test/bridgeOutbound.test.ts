@@ -16,17 +16,17 @@ const message = (overrides: Partial<BridgeMessage> = {}, reactions: string[] = [
   channelId: GLOBAL,
   content: 'hola',
   cleanContent: 'hola',
-  attachments: { size: 0 },
+  attachments: { size: 0, values: () => [] },
   stickers: { size: 0 },
   inGuild: () => true,
   react: async emoji => reactions.push(emoji),
   ...overrides,
 });
 
-const setup = (options: { connected?: boolean; members?: EnabledMember[]; limit?: number } = {}) => {
+const setup = (options: { connected?: boolean; members?: EnabledMember[]; limit?: number; features?: string[] } = {}) => {
   const sent: BotFrame[] = [];
   const outbound = createOutbound({
-    link: { connected: options.connected ?? true, send: frame => (sent.push(frame), true) },
+    link: { connected: options.connected ?? true, features: options.features ?? [], send: frame => (sent.push(frame), true) },
     channels: channelMapOf({ global: GLOBAL }),
     directory: { byDiscordId: async id => (options.members ?? [LINKED]).find(member => member.discord_id === id) },
     limiter: new RateLimiter(options.limit ?? 5, 10_000, () => 0),
@@ -128,4 +128,80 @@ test('the limiter forgets what is older than its window', () => {
   assert.equal(limiter.take('b'), true, 'another key has its own count');
   now = 1001;
   assert.equal(limiter.take('a'), true);
+});
+
+const photo = (overrides: Record<string, unknown> = {}) => ({
+  url: 'https://cdn.discordapp.com/attachments/1/2/foto.png?ex=68f1',
+  name: 'foto.png',
+  contentType: 'image/png',
+  size: 1000,
+  width: 800,
+  height: 600,
+  spoiler: false,
+  ...overrides,
+});
+const attached = (...list: ReturnType<typeof photo>[]) => ({ size: list.length, values: () => list });
+const chatOf = (sent: BotFrame[]) => sent.map(frame => (frame.type === 'chat' ? { text: frame.text, media: frame.media } : frame));
+
+test('sends the images to a mod that announced media as entries, and leaves them out of the text', async () => {
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({ cleanContent: 'mira', attachments: attached(photo(), photo({ name: 'SPOILER_b.png', spoiler: true })) }));
+
+  assert.deepEqual(chatOf(sent), [{
+    text: 'mira',
+    media: [
+      { url: 'https://cdn.discordapp.com/attachments/1/2/foto.png?ex=68f1', name: 'foto.png', type: 'image/png', size: 1000, width: 800, height: 600, spoiler: false },
+      { url: 'https://cdn.discordapp.com/attachments/1/2/foto.png?ex=68f1', name: 'b.png', type: 'image/png', size: 1000, width: 800, height: 600, spoiler: true },
+    ],
+  }]);
+});
+
+test('a message of only images goes with an empty text to a mod that announced media', async () => {
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({ cleanContent: '', attachments: attached(photo()) }));
+
+  assert.equal(sent.length, 1);
+  assert.equal(chatOf(sent)[0] && (chatOf(sent)[0] as { text: string }).text, '');
+});
+
+test('a mod that did not announce media still gets [adjunto] and no entries', async () => {
+  const { outbound, sent } = setup({ features: [] });
+
+  await outbound(message({ cleanContent: 'mira', attachments: attached(photo()) }));
+  await outbound(message({ cleanContent: '', attachments: attached(photo()) }));
+
+  assert.deepEqual(chatOf(sent), [{ text: 'mira [adjunto]', media: undefined }, { text: '[adjunto]', media: undefined }]);
+});
+
+test('what the game may not show stays [adjunto], next to the images that go as entries', async () => {
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({
+    cleanContent: 'hola',
+    attachments: attached(photo(), photo({ contentType: 'video/mp4', name: 'clip.mp4' }), photo({ url: 'https://evil.example/a.png' })),
+  }));
+
+  const [frame] = chatOf(sent) as { text: string; media: unknown[] }[];
+  assert.equal(frame.text, 'hola [adjunto]');
+  assert.equal(frame.media.length, 1);
+});
+
+test('more than four images: four go as entries and the rest are written as [adjunto]', async () => {
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({ cleanContent: '', attachments: attached(...Array.from({ length: 6 }, (_, index) => photo({ name: `${index}.png` }))) }));
+
+  const [frame] = chatOf(sent) as { text: string; media: { name: string }[] }[];
+  assert.deepEqual(frame.media.map(entry => entry.name), ['0.png', '1.png', '2.png', '3.png']);
+  assert.equal(frame.text, '[adjunto]');
+});
+
+test('says nothing for a message whose only attachment cannot be shown to a mod without media', async () => {
+  const { outbound, sent } = setup({ features: ['media'] });
+
+  await outbound(message({ cleanContent: '', attachments: { size: 0, values: () => [] } }));
+
+  assert.deepEqual(sent, []);
 });

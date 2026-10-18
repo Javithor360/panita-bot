@@ -3,10 +3,18 @@
  * mod is untrusted, so it is checked for shape and size here before anything else sees it. See `docs/minecraft-bridge-plan.md`.
  */
 
+import { QUICK_UPLOAD, mediaTypeOf } from '../quickUpload/rules';
+
 export const PROTOCOL_VERSION = 1;
 export const MAX_FRAME_BYTES = 16 * 1024;
 /** The longest line of chat that travels over the bridge, in characters. */
 export const MAX_CHAT_LENGTH = 256;
+
+/** The optional features the two sides announce in `hello` and `welcome` (section 4.4 of the plan); unknown ones are ignored. */
+export const FEATURE_MEDIA = 'media';
+export const FEATURE_MEDIA_UPLOAD = 'media_upload';
+/** What the bot offers in its `welcome`. `media_upload` is added with the upload endpoint. */
+export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA];
 
 /** WebSocket close codes of the bridge. */
 export const CLOSE = { replaced: 4000, protocol: 4002, frame: 4003 } as const;
@@ -39,6 +47,8 @@ export interface HelloFrame {
   maxPlayers: number;
   /** The icon of the server (a PNG), when the mod sent a valid one. */
   icon?: Buffer;
+  /** The optional features the mod can use (see `FEATURE_MEDIA`); empty for a mod that announces none. */
+  features: string[];
 }
 
 export interface ChatFrame {
@@ -76,13 +86,29 @@ export interface WelcomeFrame {
   protocol: number;
   /** The chat channels of the server that the bot bridges. */
   channels: string[];
+  /** The optional features the bot offers. */
+  features: readonly string[];
+}
+
+/** An image of a Discord message, as the game shows it. The rules are in section 4.4 of the plan. */
+export interface MediaEntry {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  spoiler: boolean;
 }
 
 export interface GameChatFrame {
   type: 'chat';
   channel: string;
   author: { discordId: string; ign: string };
+  /** May be empty, but only when `media` has an entry. */
   text: string;
+  /** Sent only to a mod that announced `FEATURE_MEDIA`; one to `MAX_MEDIA` entries. */
+  media?: MediaEntry[];
 }
 
 export interface QueryFrame {
@@ -159,6 +185,70 @@ const readIcon = (value: unknown): Buffer | undefined => {
   return bytes.length <= MAX_ICON_BYTES && bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE) ? bytes : undefined;
 };
 
+/** Where the images of Discord live; the mod checks the same list before it shows a link. */
+export const MEDIA_HOSTS: readonly string[] = ['cdn.discordapp.com', 'media.discordapp.net'];
+export const MAX_MEDIA = 4;
+const MAX_MEDIA_URL = 1024;
+const MAX_MEDIA_NAME = 100;
+
+/** The fields of a Discord attachment that a `media` entry is made from. */
+export interface MediaSource {
+  url: string;
+  name: string;
+  contentType: string | null;
+  size: number;
+  width: number | null;
+  height: number | null;
+  spoiler: boolean;
+}
+
+const hostedByDiscord = (url: string) => {
+  if (url.length > MAX_MEDIA_URL) return false;
+  try {
+    const address = new URL(url);
+    return address.protocol === 'https:' && MEDIA_HOSTS.includes(address.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const dimension = (value: number | null) => (value !== null && Number.isInteger(value) && value > 0 && value <= 100_000 ? value : null);
+
+/** The entry for an attachment, or null when it is not an image of a kind, size and address the game may show. */
+export const toMediaEntry = (attachment: MediaSource): MediaEntry | null => {
+  const type = mediaTypeOf(attachment);
+  const { size } = attachment;
+  if (!(QUICK_UPLOAD.imageTypes as readonly string[]).includes(type) || !Number.isInteger(size) || size < 0 || size > QUICK_UPLOAD.maxBytes) {
+    return null;
+  }
+  if (!hostedByDiscord(attachment.url)) return null;
+  const name = withoutControlCharacters(attachment.name).replace(/^SPOILER_/i, '').slice(0, MAX_MEDIA_NAME).trim();
+  return {
+    url: attachment.url,
+    name: name || 'imagen',
+    type,
+    size,
+    width: dimension(attachment.width),
+    height: dimension(attachment.height),
+    spoiler: attachment.spoiler,
+  };
+};
+
+/** The first `MAX_MEDIA` images of a message that the game may show, in order. */
+export const mediaOf = (attachments: Iterable<MediaSource>): MediaEntry[] => {
+  const entries: MediaEntry[] = [];
+  for (const attachment of attachments) {
+    const entry = toMediaEntry(attachment);
+    if (entry) entries.push(entry);
+    if (entries.length === MAX_MEDIA) break;
+  }
+  return entries;
+};
+
+/** The features of a hello, never failing it: anything that is not a short name is left out, and so is the excess. */
+const readFeatures = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((feature): feature is string => typeof feature === 'string' && /^[a-z0-9_]{1,32}$/.test(feature)).slice(0, 16) : [];
+
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 const PLAYER_NAME = /^[A-Za-z0-9_]{1,16}$/;
 const CHANNEL = /^[a-z0-9_-]{1,32}$/;
@@ -200,7 +290,8 @@ export const parseModFrame = (raw: string): Parsed => {
       if (!wholeNumber(protocol, 1000) || !text(modVersion, 64) || !text(minecraftVersion, 32)) return { ok: false, reason: 'bad hello' };
       if (!text(startedAt, 40, 1) || Number.isNaN(Date.parse(startedAt)) || !wholeNumber(maxPlayers, 100_000)) return { ok: false, reason: 'bad hello' };
       const icon = readIcon(value.icon);
-      return { ok: true, frame: { type: 'hello', protocol, modVersion, minecraftVersion, startedAt, maxPlayers, ...(icon ? { icon } : {}) } };
+      const features = readFeatures(value.features);
+      return { ok: true, frame: { type: 'hello', protocol, modVersion, minecraftVersion, startedAt, maxPlayers, ...(icon ? { icon } : {}), features } };
     }
     case 'chat': {
       const player = readPlayer(value.player);

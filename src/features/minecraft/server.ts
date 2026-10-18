@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { BridgeQueryError, BridgeUnavailableError, type BridgeLink, type ConnectionEvent } from './link';
 import {
+  BOT_FEATURES,
   CLOSE,
   MAX_FRAME_BYTES,
   PROTOCOL_VERSION,
@@ -111,6 +112,10 @@ export class BridgeServer implements BridgeLink {
 
   get serverIcon() {
     return this.icon;
+  }
+
+  get features(): readonly string[] {
+    return this.connected ? (this.current?.hello?.features ?? []) : [];
   }
 
   status(): BridgeStatus {
@@ -281,7 +286,7 @@ export class BridgeServer implements BridgeLink {
     connection.hello = hello;
     this.icon = hello.icon ?? null;
     connection.socket.send(
-      JSON.stringify({ type: 'welcome', protocol: PROTOCOL_VERSION, channels: this.options.channels() } satisfies BotFrame),
+      JSON.stringify({ type: 'welcome', protocol: PROTOCOL_VERSION, channels: this.options.channels(), features: BOT_FEATURES } satisfies BotFrame),
     );
     this.logger.log(`[Bridge] The Minecraft server connected (mod ${hello.modVersion}, Minecraft ${hello.minecraftVersion}).`);
     this.tell({ type: 'connected', hello });
