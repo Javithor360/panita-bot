@@ -1,10 +1,10 @@
-import { AttachmentBuilder, TextChannel, type Client, type Guild } from 'discord.js';
+import { AttachmentBuilder, TextChannel, type Client, type Guild, type Webhook } from 'discord.js';
 import { env } from '../../config/env';
 import type { BridgeLink } from './link';
 import type { Rendered, Surroundings } from './render';
 import type { RoleMember } from './roles';
 import type { NicknameMember, TopicChannel } from './sync';
-import type { HookChannelResolver } from './webhook';
+import type { Hook, HookChannelResolver } from './webhook';
 
 /**
  * The few places where the bridge touches discord.js objects. Everything else works with small interfaces, so it can be
@@ -19,6 +19,21 @@ const textChannel = async (client: Client<true>, channelId: string): Promise<Tex
 const homeGuild = (client: Client<true>): Guild | undefined =>
   env.GUILD_ID ? client.guilds.cache.get(env.GUILD_ID) : client.guilds.cache.first();
 
+/** A webhook as the bridge uses it: to post, to post a file, and to take a message back. */
+const hookOf = (hook: Webhook): Hook => ({
+  name: hook.name,
+  send: message => hook.send(message),
+  sendFile: async (message, file) => {
+    const posted = await hook.send({ ...message, files: [new AttachmentBuilder(file.data, { name: file.name })] });
+    const url = posted.attachments.first()?.url;
+    if (!url) throw new Error('Discord did not return the attachment');
+    return { messageId: posted.id, url };
+  },
+  deleteMessage: async messageId => {
+    await hook.deleteMessage(messageId);
+  },
+});
+
 /** The webhooks of a channel: the bot's own, and a way to make one. */
 export const hookChannelsOf =
   (client: Client<true>): HookChannelResolver =>
@@ -30,10 +45,9 @@ export const hookChannelsOf =
         [...(await channel.fetchWebhooks()).values()]
           // Discord only gives the address of a webhook to the one that made it
           .filter(hook => hook.owner?.id === client.user.id && hook.token)
-          .map(hook => ({ name: hook.name, send: message => hook.send(message) })),
+          .map(hook => hookOf(hook)),
       createHook: async name => {
-        const hook = await channel.createWebhook({ name });
-        return { name: hook.name, send: message => hook.send(message) };
+        return hookOf(await channel.createWebhook({ name }));
       },
     };
   };

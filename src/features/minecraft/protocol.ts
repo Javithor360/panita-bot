@@ -260,7 +260,7 @@ const PLAYER_NAME = /^[A-Za-z0-9_]{1,16}$/;
 const CHANNEL = /^[a-z0-9_-]{1,32}$/;
 const SKIN_HASH = /^[0-9a-f]{64}$/;
 
-const readPlayer = (value: unknown): BridgePlayer | null => {
+export const readPlayer = (value: unknown): BridgePlayer | null => {
   if (!isObject(value)) return null;
   const { uuid, name, nickname, premium, skin } = value;
   if (typeof uuid !== 'string' || !UUID.test(uuid)) return null;

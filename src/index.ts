@@ -45,7 +45,8 @@ client.once(Events.ClientReady, c => {
   startWebSync(client);
   startPasswordResetSync(client);
   startBirthdayScheduler(client);
-  startBridge(keepAlive(), c);
+  const web = keepAlive();
+  startBridge(web.server, web.app, c);
 
   // Accounts of members who left while the bot was offline; it never blocks or breaks the start
   const home = env.GUILD_ID ? c.guilds.cache.get(env.GUILD_ID) : undefined;

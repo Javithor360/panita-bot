@@ -1,4 +1,5 @@
 import type { Server } from 'node:http';
+import type { Express } from 'express';
 import type { Client } from 'discord.js';
 import { MINECRAFT_BRIDGE } from '../../config/constants';
 import { env } from '../../config/env';
@@ -15,7 +16,10 @@ import { createOutbound } from './outbound';
 import { RateLimiter } from './rateLimit';
 import { grantJoinedRole } from './roles';
 import { BRIDGE_PATH, BridgeServer } from './server';
+import { FEATURE_MEDIA_UPLOAD, BOT_FEATURES } from './protocol';
 import { startSync, syncTopic, type SyncDeps } from './sync';
+import { MediaUploads } from './upload';
+import { UPLOAD_PATH, mountUploadRoutes } from './uploadRoutes';
 import { WebhookPoster } from './webhook';
 
 /** The Discord channels joined to the chat channels of the Minecraft server. */
@@ -23,7 +27,7 @@ export const channels = channelMapOf({ global: env.MC_CHANNEL_GLOBAL, staff: env
 
 /** The line to the Minecraft server; null when the bridge is off because there is no key. */
 export const bridge: BridgeServer | null = env.BRIDGE_KEY
-  ? new BridgeServer({ key: env.BRIDGE_KEY, channels: () => channels.chatChannels() })
+  ? new BridgeServer({ key: env.BRIDGE_KEY, channels: () => channels.chatChannels(), features: () => [...BOT_FEATURES, FEATURE_MEDIA_UPLOAD] })
   : null;
 
 /** What the bot says for the Minecraft server, from `config/minecraft-messages.yml`. */
@@ -49,7 +53,7 @@ const refreshAddresses: RefreshAddresses = async addresses => {
 export const bridgeMessageHandler = bridge ? createOutbound({ link: bridge, channels, directory, links: createLinkMedia({ fetchPage: fetchPreviewPage, refresh: refreshAddresses }), limiter, logger: console }) : null;
 
 /** Starts listening for the Minecraft server on the bot's HTTP server, and what goes with it once Discord is ready. */
-export const startBridge = (http: Server, client: Client<true>) => {
+export const startBridge = (http: Server, app: Express, client: Client<true>) => {
   if (!bridge) {
     console.log('[Bridge] BRIDGE_KEY is not set, so the Minecraft bridge is off.');
     return;
@@ -57,6 +61,25 @@ export const startBridge = (http: Server, client: Client<true>) => {
   bridge.attach(http);
   discordRest = client.rest;
   console.log(`[Bridge] Waiting for the Minecraft server on ${BRIDGE_PATH}.`);
+
+  const webhooks = new WebhookPoster(hookChannelsOf(client), MINECRAFT_BRIDGE.webhookName);
+  mountUploadRoutes(
+    app,
+    new MediaUploads({
+      channels,
+      avatars: { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED, skin: env.MC_AVATAR_SKIN },
+      targets: {
+        postAsPlayer: (channelId, post, file) => webhooks.postFile(channelId, post, file),
+        deleteFromChannel: (channelId, messageId) => webhooks.deleteMessage(channelId, messageId),
+      },
+      // Each player gets 3 images a minute and everyone together 20
+      perPlayer: new RateLimiter(3, 60_000),
+      overall: new RateLimiter(20, 60_000),
+      logger: console,
+    }),
+    header => bridge.authorized(header),
+  );
+  console.log(`[Bridge] Screenshots of the game are taken on ${UPLOAD_PATH}.`);
 
   const members = memberFetcherOf(client);
   const avatars = { premium: env.MC_AVATAR_PREMIUM, cracked: env.MC_AVATAR_CRACKED, skin: env.MC_AVATAR_SKIN };
@@ -71,7 +94,7 @@ export const startBridge = (http: Server, client: Client<true>) => {
   bridge.onFrame(
     createInbound({
       channels,
-      webhooks: new WebhookPoster(hookChannelsOf(client), MINECRAFT_BRIDGE.webhookName),
+      webhooks,
       messages,
       announce,
       avatars,

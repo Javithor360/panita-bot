@@ -15,5 +15,5 @@ export const keepAlive = () => {
   const server = app.listen(env.PORT, () => {
     console.log(`[Server] Keep-alive server running on port ${env.PORT}`);
   });
-  return server;
+  return { app, server };
 };

@@ -8,10 +8,25 @@ export interface HookMessage {
   allowedMentions: { parse: [] };
 }
 
+/** A file posted with a message, kept in memory only. */
+export interface HookFile {
+  data: Buffer;
+  name: string;
+}
+
+/** Where a posted file ended up: the message, and the address of its attachment. */
+export interface PostedFile {
+  messageId: string;
+  url: string;
+}
+
 /** A webhook the bot made and can send with. */
 export interface Hook {
   name: string;
   send(message: HookMessage): Promise<unknown>;
+  /** Posts a message with one file and says where it went; for the screenshots of the game. */
+  sendFile?(message: HookMessage, file: HookFile): Promise<PostedFile>;
+  deleteMessage?(messageId: string): Promise<void>;
 }
 
 /** A channel's webhooks, as far as the bridge needs them. */
@@ -63,12 +78,40 @@ export class WebhookPoster {
       avatarURL: message.avatarUrl,
       allowedMentions: { parse: [] },
     };
+    await this.withHook(channelId, hook => hook.send(payload));
+  }
+
+  /** Posts a message with a file under a player's name and head; null when it could not be posted. */
+  async postFile(channelId: string, message: PostedMessage, file: HookFile): Promise<PostedFile | null> {
+    const payload: HookMessage = {
+      content: message.content.slice(0, MAX_CONTENT),
+      username: safeUsername(message.username),
+      avatarURL: message.avatarUrl,
+      allowedMentions: { parse: [] },
+    };
+    return this.withHook(channelId, hook => {
+      if (!hook.sendFile) throw new Error('this webhook cannot post files');
+      return hook.sendFile(payload, file);
+    });
+  }
+
+  /** Deletes a message the bot's webhook posted in the channel; true when it is gone. */
+  async deleteMessage(channelId: string, messageId: string): Promise<boolean> {
+    const done = await this.withHook(channelId, async hook => {
+      if (!hook.deleteMessage) throw new Error('this webhook cannot delete messages');
+      await hook.deleteMessage(messageId);
+      return true;
+    });
+    return done === true;
+  }
+
+  /** Runs something with the channel's webhook; one made again if someone deleted it. A failure is logged and gives null. */
+  private async withHook<T>(channelId: string, action: (hook: Hook) => Promise<T>): Promise<T | null> {
     for (let attempt = 0; attempt < 2; attempt++) {
       const hook = await this.hookOf(channelId);
-      if (!hook) return;
+      if (!hook) return null;
       try {
-        await hook.send(payload);
-        return;
+        return await action(hook);
       } catch (error) {
         // Someone deleted it: make a new one and try once more
         if ((error as { code?: number }).code === UNKNOWN_WEBHOOK) {
@@ -76,9 +119,10 @@ export class WebhookPoster {
           continue;
         }
         this.logger.error(`[Minecraft] Could not post to channel ${channelId}:`, error);
-        return;
+        return null;
       }
     }
+    return null;
   }
 
   private hookOf(channelId: string): Promise<Hook | null> {
