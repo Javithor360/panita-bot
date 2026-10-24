@@ -32,7 +32,7 @@ export const createMessageHandler =
   const member = message.member ?? await message.guild.members.fetch(message.author.id).catch(() => null);
   if (!member) return;
 
-  const reply = (content: string) => message.reply(content).catch(() => {});
+  const reply = (content: string) => message.reply({ content, allowedMentions: { repliedUser: false } }).catch(() => {});
 
   if (command.meta.slashOnly) return reply(SLASH_ONLY_ERROR(commandName));
 

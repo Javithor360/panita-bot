@@ -188,7 +188,8 @@ export class PrefixContext extends BaseContext implements CommandContext {
   }
 
   async reply(payload: ReplyPayload) {
-    this.track(await this.message.reply(normalize(payload).rest));
+    const { rest } = normalize(payload);
+    this.track(await this.message.reply({ ...rest, allowedMentions: { ...rest.allowedMentions, repliedUser: false } }));
   }
 
   async send(payload: ReplyPayload) {

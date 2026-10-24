@@ -2,6 +2,7 @@ import { EmbedBuilder, SlashCommandBuilder, type Client, type GuildMember } from
 import { CATEGORIES, CATEGORY_ORDER, COLORS, EMOJIS, PREFIX } from '../../config/constants';
 import { canAccess } from '../../core/access';
 import { defineCommand, type Access } from '../../core/command';
+import { bridge } from '../../features/minecraft';
 import { getRegistry, type CommandInfo } from '../../core/registry';
 
 const buildCommandEmbed = (command: CommandInfo | undefined, query: string) => {
@@ -44,6 +45,7 @@ const buildOverviewEmbed = (member: GuildMember, client: Client<true>) => {
   const categories: Record<string, string[]> = {};
   for (const command of getRegistry().info()) {
     if (!canAccess(command.access, member)) continue;
+    if (command.category === CATEGORIES.minecraftServer && !bridge?.connected) continue;
     (categories[command.category] ??= []).push(`\`${command.name}\``);
   }
 

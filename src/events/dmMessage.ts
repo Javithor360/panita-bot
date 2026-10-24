@@ -18,7 +18,7 @@ export const createDirectMessageHandler = (helpCooldown: Cooldown = createCooldo
   async (message: Message) => {
     if (message.author.bot || message.guildId !== null) return;
 
-    const reply = (content: string) => message.reply(content).catch(() => {});
+    const reply = (content: string) => message.reply({ content, allowedMentions: { repliedUser: false } }).catch(() => {});
 
     try {
       if (isLoginCode(message.content)) {
