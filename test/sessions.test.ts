@@ -18,7 +18,7 @@ const ID = '812345678901234567';
 const SESSION_ID = '7d1f4c2a-5b3e-4a86-9c10-2f8e6b3d9a41';
 
 test('confirmLogin posts the discord id and the code and returns what the bot may show', async () => {
-  const confirmed = { application: 'Web', username: 'Javithor360', requested_at: '2026-10-11T15:00:00.000Z' };
+  const confirmed = { application: 'Launcher', username: 'Javithor360', requested_at: '2026-10-11T15:00:00.000Z', device_name: 'DESKTOP-ABC', device_os: 'Windows 11' };
   const calls = stubFetch(ok(confirmed));
 
   assert.deepEqual(await confirmLogin(ID, '0472'), confirmed);
@@ -30,7 +30,7 @@ test('confirmLogin posts the discord id and the code and returns what the bot ma
 });
 
 test('confirmLogin never retries, even after a transient failure', async () => {
-  const calls = stubFetch(apiError(503, 'http_503'), ok({ application: 'Web', username: 'x', requested_at: '2026-10-11T15:00:00.000Z' }));
+  const calls = stubFetch(apiError(503, 'http_503'), ok({ application: 'Web', username: 'x', requested_at: '2026-10-11T15:00:00.000Z', device_name: null, device_os: null }));
 
   await assert.rejects(confirmLogin(ID, '4729'), (error: unknown) => error instanceof ApiError && error.status === 503);
   assert.equal(calls.length, 1);
@@ -77,8 +77,9 @@ test('confirmLogin lets every other failure through untouched', async () => {
 test('listSessions reads the sessions of the member', async () => {
   const sessions = [{
     id: SESSION_ID,
-    client: 'web',
-    label: 'Web',
+    client: 'launcher',
+    label: 'DESKTOP-ABC',
+    device_os: 'Windows 11',
     created_at: '2026-10-11T15:00:00.000Z',
     last_used_at: '2026-10-11T16:20:00.000Z',
     expires_at: '2026-11-10T15:00:00.000Z',

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { button, defineCommand, select } from '../../core/command';
-import { SESSION_MESSAGES, buildSessionsView, CLOSE_ALL_ACTION, CLOSE_ONE_ACTION } from '../../features/login/sessionsView';
+import { SESSION_MESSAGES, buildSessionsView, CLOSE_ALL_ACTION, CLOSE_ONE_ACTION, sessionName } from '../../features/login/sessionsView';
 import { listSessions, revokeAllSessions, revokeSession } from '../../services/sessions';
 
 export default defineCommand({
@@ -27,9 +27,9 @@ export default defineCommand({
         await interaction.deferUpdate();
 
         // Read first to be able to say which one was closed
-        const label = (await listSessions(interaction.user.id)).find(session => session.id === sessionId)?.label;
+        const session = (await listSessions(interaction.user.id)).find(({ id }) => id === sessionId);
         const closed = await revokeSession(interaction.user.id, sessionId);
-        const note = closed && label ? SESSION_MESSAGES.closed(label) : SESSION_MESSAGES.alreadyClosed;
+        const note = closed && session ? SESSION_MESSAGES.closed(sessionName(session)) : SESSION_MESSAGES.alreadyClosed;
 
         const sessions = await listSessions(interaction.user.id);
         await interaction.editReply(buildSessionsView(sessions, interaction.user.id, note));
