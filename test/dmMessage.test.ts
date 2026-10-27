@@ -10,7 +10,7 @@ import { SERVICE_UNAVAILABLE_ERROR } from '../src/core/errors';
 beforeEach(() => silenceApiLogs());
 afterEach(() => mock.restoreAll());
 
-const login = { application: 'Web', username: 'Javithor360', requested_at: '2026-10-11T15:00:00.000Z' };
+const login = { application: 'Web', username: 'Javithor360', requested_at: '2026-10-11T15:00:00.000Z', device_name: null, device_os: null };
 
 const fakeMessage = (content: string, options: { bot?: boolean; guildId?: string | null; authorId?: string } = {}) => {
   const replies: string[] = [];
@@ -18,7 +18,7 @@ const fakeMessage = (content: string, options: { bot?: boolean; guildId?: string
     content,
     guildId: options.guildId ?? null,
     author: { id: options.authorId ?? '812345678901234567', bot: options.bot ?? false },
-    reply: async (text: string) => { replies.push(text); },
+    reply: async (payload: { content: string }) => { replies.push(payload.content); },
   } as unknown as Message;
   return { message, replies };
 };
@@ -70,6 +70,27 @@ test('a DM that is only a code confirms the sign-in and answers with the confirm
   assert.equal(replies.length, 1);
   assert.match(replies[0], /Sesión confirmada/);
   assert.doesNotMatch(replies[0], /0472/);
+});
+
+test('a DM that is only a launcher serial confirms it, sent as typed, and shows the device', async () => {
+  const calls = stubFetch(ok({ ...login, application: 'Launcher', device_name: 'DESKTOP-ABC', device_os: 'Windows 11' }));
+  const { message, replies } = fakeMessage(' k7m2 x9qd-4hnp ');
+
+  await createDirectMessageHandler()(message);
+
+  assert.deepEqual(calls.map(c => c.body), [{ discord_id: '812345678901234567', code: 'k7m2 x9qd-4hnp' }]);
+  assert.match(replies[0], /\*\*Launcher\*\* desde `DESKTOP-ABC` · `Windows 11`/);
+  assert.doesNotMatch(replies[0], /k7m2/i);
+});
+
+test('every DM reply mentions nobody', async () => {
+  stubFetch(ok(login));
+  const sent: unknown[] = [];
+  const message = { content: '4729', guildId: null, author: { id: '1', bot: false }, reply: async (payload: unknown) => { sent.push(payload); } } as unknown as Message;
+
+  await createDirectMessageHandler()(message);
+
+  assert.deepEqual((sent[0] as { allowedMentions: unknown }).allowedMentions, { parse: [], repliedUser: false });
 });
 
 test('a wrong code and an account that is not active get their own answers', async () => {

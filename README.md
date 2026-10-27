@@ -159,7 +159,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 
 | Command | Description | Aliases |
 |---|---|---|
-| `confirm <code>` | Confirms a sign-in on the website or the launcher with the 4-digit code the app shows. The reply is private. Slash only. | — |
+| `confirm <code>` | Confirms a sign-in on the website or the launcher with the code the app shows: 4 digits on the website, `XXXX-YYYY-ZZZZ` in the launcher. The reply is private. Slash only. | — |
 | `donate [--simple]` | How to support the server through PayPal. `--simple` sends just the link. | `donar`, `donacion`, `donaciones`, `fund` |
 | `invite` | Invite link to the Discord server. | `invitacion`, `discord` |
 | `register [--with_password]` | Activates the member's account: they say whether they play with a premium Minecraft account, then give their IGN in a private form. No password is needed; `with_password` adds or changes an optional one. A member who already has an account is only asked for what is missing (the status), and one who left and came back confirms the IGN they already had. Only the member who ran it can use the buttons. Alt accounts are rejected. | `registrar`, `activar` |
@@ -268,11 +268,11 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 
 ### Sign-in codes and sessions
 
-Members sign in to the website and the launcher without a password. The app shows a 4-digit code and the member proves who they are from Discord:
+Members sign in to the website and the launcher without a password. The website shows a 4-digit code and the launcher a 12-character serial (`XXXX-YYYY-ZZZZ`); the member proves who they are from Discord:
 
-1. The member sends the code to the bot: `/confirm <code>` in the server (the reply is private), or a message that is only the 4 digits in a **DM** with the bot.
-2. The bot confirms the sign-in with the API and tells the member who is signing in, where and when. The app, which was waiting, receives its session.
-3. `/sessions` lists the open sessions and closes any of them.
+1. The member sends the code to the bot: `/confirm <code>` in the server (the reply is private), or a message that is only the code in a **DM** with the bot. A serial is recognized in any case, with dashes, spaces or neither, and sent to the API as typed; the API does the matching.
+2. The bot confirms the sign-in with the API and tells the member who is signing in, where (the app and, for the launcher, the device name and system) and when. The device text is typed by the client, so it is always shown inside a code span and no reply of the bot can mention anyone. The app, which was waiting, receives its session.
+3. `/sessions` lists the open sessions (named by device and system) and closes any of them.
 
 A code only confirms a sign-in created for the member who sends it, expires after 3 minutes and works once. Any other DM gets one short help reply per user per minute. Nothing about codes or sessions is stored by the bot; it all goes through the API.
 

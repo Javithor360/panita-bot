@@ -169,13 +169,19 @@ export interface ConfirmedLogin {
   /** The member's IGN, or their Discord name when they have none. */
   username: string;
   requested_at: string;
+  /** Typed by the client, so untrusted. Always present; `null` when the client sent none. */
+  device_name: string | null;
+  device_os: string | null;
 }
 
 /** An open session in `GET /v1/discord/users/{discordId}/sessions`. */
 export interface BotSession {
   id: string;
   client: 'web' | 'launcher';
+  /** The device name, or `Web` / `Launcher` for older sessions. Typed by the client, so untrusted. */
   label: string;
+  /** Typed by the client, so untrusted. */
+  device_os: string | null;
   created_at: string;
   last_used_at: string;
   /** `null` for sessions that never expire (the launcher). */
