@@ -12,12 +12,12 @@ import { listPendingResets, reportDelivery } from './passwordResets';
  * delivered when it returns, as long as it has not expired.
  *
  * The API cannot push to the bot, and it treats each poll as proof that the bot is alive: the web disables
- * the option when no poll arrived for a few seconds. That is why the interval is short and a slow delivery
- * never holds the next poll back.
+ * the option when no poll arrived within its window. That is why the API's window must stay above the interval
+ * and a slow delivery never holds the next poll back.
  */
 
-/** Shorter than the API's window for calling the bot alive, with room for a slow answer. */
-const POLL_INTERVAL_MS = 5_000;
+/** Shorter than the API's window for calling the bot alive (`BOT_HEARTBEAT_WINDOW_SECONDS`), with room for a slow answer. */
+const POLL_INTERVAL_MS = 60_000;
 const MAX_BACKOFF_MS = 60_000;
 /** DM attempts that fail for a reason other than closed DMs, before the request is reported as `dms_closed` anyway. */
 const MAX_DM_ATTEMPTS = 3;
@@ -36,6 +36,8 @@ export interface PasswordResetSync {
   start(): void;
   /** One poll: asks for the pending requests, schedules the next poll, then delivers them. Never throws. */
   poll(): Promise<void>;
+  /** An extra poll right now (it also stamps the heartbeat) that leaves the scheduled one alone. Never throws. */
+  pollNow(): Promise<void>;
 }
 
 /** What is known of a request this process already worked on, so the API listing it again does not send it twice. */
@@ -101,7 +103,7 @@ export const createPasswordResetSync = (deps: PasswordResetSyncDeps): PasswordRe
     }
   };
 
-  const poll = async () => {
+  const run = async (reschedule: boolean) => {
     let next = POLL_INTERVAL_MS;
     let pending: PendingReset[] = [];
     try {
@@ -114,11 +116,21 @@ export const createPasswordResetSync = (deps: PasswordResetSyncDeps): PasswordRe
       next = Math.min(MAX_BACKOFF_MS, 1_000 * 2 ** (failures - 1));
     }
     // Before delivering: a slow send must not let the heartbeat lapse
-    deps.schedule(() => void poll(), next);
+    if (reschedule) deps.schedule(() => void poll(), next);
     await Promise.all(pending.map(handle));
   };
+  const poll = () => run(true);
 
-  return { start: () => void poll(), poll };
+  return { start: () => void poll(), poll, pollNow: () => run(false) };
+};
+
+let active: PasswordResetSync | null = null;
+
+/** Polls for pending resets now, besides the scheduled polling. `false` when the sync is not running. */
+export const pollPasswordResetsNow = async (): Promise<boolean> => {
+  if (!active) return false;
+  await active.pollNow();
+  return true;
 };
 
 /** Starts delivering password resets. */
@@ -133,11 +145,12 @@ export const startPasswordResetSync = (client: Client) => {
     },
   };
 
-  createPasswordResetSync({
+  active = createPasswordResetSync({
     fetchPending: listPendingResets,
     deliver: request => deliverReset(request, targets),
     reportDelivery,
     schedule: (callback, delayMs) => setTimeout(callback, delayMs),
     logger: console,
-  }).start();
+  });
+  active.start();
 };

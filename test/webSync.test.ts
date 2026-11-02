@@ -89,7 +89,7 @@ const started = async (cursorOnStart = 10) => {
   return h;
 };
 
-test('starts from the latest cursor, applies nothing and schedules the next poll in 5 s', async () => {
+test('starts from the latest cursor, applies nothing and schedules the next poll in 60 s', async () => {
   const h = harness(42);
 
   await h.poller.poll();
@@ -99,7 +99,7 @@ test('starts from the latest cursor, applies nothing and schedules the next poll
     { after: 'latest', limit: 1 },
     { after: 22, limit: 100 },
   ]);
-  assert.deepEqual(h.scheduled, [5_000]);
+  assert.deepEqual(h.scheduled, [60_000]);
   assert.match(h.logs[0], /cursor 42/);
 });
 
@@ -246,7 +246,7 @@ test('an event that fails to apply is logged and the others still run', async ()
   assert.deepEqual(fine.changes, ['add:r1']);
   assert.equal(h.errors.length, 1);
   assert.match(h.errors[0], /Could not apply event/);
-  assert.deepEqual(h.scheduled, [5_000]);
+  assert.deepEqual(h.scheduled, [60_000]);
 });
 
 test('a full page is followed at once by another request; a short one ends the poll', async () => {
@@ -259,7 +259,7 @@ test('a full page is followed at once by another request; a short one ends the p
 
   assert.equal(h.requests.length, 2);
   assert.deepEqual(h.requests.map(r => r.after), [0, 80]);
-  assert.deepEqual(h.scheduled, [5_000]);
+  assert.deepEqual(h.scheduled, [60_000]);
 });
 
 test('failures back off from 1 s doubling up to 60 s, log once, then recover with a log', async () => {
@@ -273,7 +273,7 @@ test('failures back off from 1 s doubling up to 60 s, log once, then recover wit
 
   h.respond([]);
   await h.poller.poll();
-  assert.equal(h.scheduled.at(-1), 5_000);
+  assert.equal(h.scheduled.at(-1), 60_000);
   assert.ok(h.logs.some(line => /Recovered/.test(line)));
 
   // and the next failure starts from 1 s again and is logged again
@@ -297,7 +297,7 @@ test('a failure while asking for the first cursor is retried until it works', as
   await poller.poll();
   await poller.poll();
 
-  assert.deepEqual(h.scheduled, [1_000, 5_000, 5_000]);
+  assert.deepEqual(h.scheduled, [1_000, 60_000, 60_000]);
   assert.deepEqual(h.requests.map(r => r.after), ['latest', 0, 0]);
 });
 
@@ -317,7 +317,7 @@ test('the next poll is only scheduled once the current one has ended', async () 
 
   await createWebSync(h.deps).poll();
 
-  assert.deepEqual(h.scheduled, [5_000]);
+  assert.deepEqual(h.scheduled, [60_000]);
 });
 
 test('remembers only the newest 500 event ids', async () => {

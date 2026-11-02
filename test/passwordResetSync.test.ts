@@ -80,7 +80,7 @@ test('an empty poll still schedules the next one (it is the heartbeat)', async (
 
   await h.poller.poll();
 
-  assert.deepEqual(h.scheduled, [5_000]);
+  assert.deepEqual(h.scheduled, [60_000]);
   assert.deepEqual(h.delivered, []);
 });
 
@@ -185,7 +185,7 @@ test('a failing API backs off, logs once, and recovers', async () => {
   await h.poller.poll();
   await h.poller.poll();
 
-  assert.deepEqual(h.scheduled, [1_000, 2_000, 4_000, 5_000]);
+  assert.deepEqual(h.scheduled, [1_000, 2_000, 4_000, 60_000]);
   assert.equal(h.errors.length, 1, 'only the first failure is logged');
 });
 
@@ -206,4 +206,14 @@ test('a channel request that keeps failing is still a final failure', async () =
   for (let i = 0; i < 4; i++) await h.poller.poll();
 
   assert.deepEqual(h.reports, ['a:failed']);
+});
+
+test('a manual poll delivers right away without scheduling a second timer chain', async () => {
+  const h = harness();
+  h.list([request('a')]);
+
+  await h.poller.pollNow();
+
+  assert.deepEqual(h.delivered, ['a:dm']);
+  assert.deepEqual(h.scheduled, []);
 });
