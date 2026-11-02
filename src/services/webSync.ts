@@ -11,7 +11,8 @@ import { isGlobalSyncLocked, withSyncLock } from '../lib/syncLock';
  * repairs drift), the same as with the database notifications this replaces.
  */
 
-const POLL_INTERVAL_MS = 5_000;
+/** Role and edition changes made on the website take up to this long to reach Discord; `/syncnow` skips the wait. */
+const POLL_INTERVAL_MS = 60_000;
 const PAGE_LIMIT = 100;
 /** Event ids are assigned when a transaction inserts and visible when it commits, so a slow one can surface behind the cursor. */
 const CURSOR_OVERLAP = 20;
@@ -45,6 +46,8 @@ export interface WebSync {
   start(): void;
   /** One poll. Never throws; schedules the next one. */
   poll(): Promise<void>;
+  /** An extra poll right now that leaves the scheduled one alone (no second timer chain). Never throws. */
+  pollNow(): Promise<void>;
 }
 
 export const createWebSync = (deps: WebSyncDeps): WebSync => {
@@ -85,7 +88,7 @@ export const createWebSync = (deps: WebSyncDeps): WebSync => {
     await apply(event);
   };
 
-  const poll = async () => {
+  const run = async (reschedule: boolean) => {
     let next = POLL_INTERVAL_MS;
     try {
       if (cursor === null) {
@@ -112,10 +115,20 @@ export const createWebSync = (deps: WebSyncDeps): WebSync => {
       if (failures === 1) logger.error('[Web-Sync] Could not poll the API; retrying with backoff:', error);
       next = Math.min(MAX_BACKOFF_MS, 1_000 * 2 ** (failures - 1));
     }
-    deps.schedule(() => void poll(), next);
+    if (reschedule) deps.schedule(() => void poll(), next);
   };
+  const poll = () => run(true);
 
-  return { start: () => void poll(), poll };
+  return { start: () => void poll(), poll, pollNow: () => run(false) };
+};
+
+let active: WebSync | null = null;
+
+/** Polls for web changes now, besides the scheduled polling. `false` when the web sync is not running. */
+export const pollWebSyncNow = async (): Promise<boolean> => {
+  if (!active) return false;
+  await active.pollNow();
+  return true;
 };
 
 /** Starts polling for web changes. Needs `GUILD_ID`, like the sync it replaces. */
@@ -126,7 +139,7 @@ export const startWebSync = (client: Client) => {
     return;
   }
 
-  createWebSync({
+  active = createWebSync({
     async fetchEvents(after, limit) {
       // The poller backs off by itself, and a successful poll every few seconds needs no log line
       const { data, meta } = await api.getEnvelope<SyncEvent[], SyncEventsMeta>('/v1/discord/sync-events', {
@@ -141,5 +154,6 @@ export const startWebSync = (client: Client) => {
     withSyncLock,
     schedule: (callback, delayMs) => setTimeout(callback, delayMs),
     logger: console,
-  }).start();
+  });
+  active.start();
 };
