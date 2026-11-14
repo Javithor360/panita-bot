@@ -13,7 +13,7 @@ const INVISIBLE_RANGES: ReadonlyArray<readonly [number, number]> = [
   [0x200b, 0x200f], [0x202a, 0x202e], [0x2066, 0x2069],
 ];
 
-const stripInvisible = (text: string): string =>
+export const stripInvisible = (text: string): string =>
   Array.from(text)
     .filter(char => {
       const code = char.codePointAt(0)!;
@@ -75,6 +75,8 @@ export interface AnswerRules {
  */
 export const cleanAnswer = (raw: string, { knowledge, blockedTerms }: AnswerRules): string | null => {
   let text = raw
+    // Emojis are put in by the bot from the server's own list; the ones the model writes by hand are dropped
+    .replace(/<a?:\w+:\d+>/g, '')
     .replace(/<@[!&]?\d+>|<#\d+>/g, '')
     .replace(/@(everyone|here)/gi, `@${ZERO_WIDTH_SPACE}$1`)
     .replace(URL_PATTERN, url => (isAllowedLink(url, knowledge) ? url : OMITTED_LINK))

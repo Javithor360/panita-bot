@@ -3,7 +3,9 @@ import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { UserError } from '../../core/errors';
+import type { ServerEmoji } from '../../features/ask/emojis';
 import { MAX_QUESTION_CHARS } from '../../features/ask/guard';
+import { mentionedIds, nameMentions } from '../../features/ask/names';
 import { buildGalleryMessage } from '../../features/gallery/message';
 import { PRE_ACK_REQUEST } from '../../lib/api';
 import { getAskService } from '../../services/ask';
@@ -39,7 +41,23 @@ const randomPhotoMessage = async (userId: string) => {
   }
 };
 
-const waitFor =(ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms).unref());
+/** The question with the members it mentions written as their names (looked up when they are not cached). */
+const withNames = async (ctx: CommandContext, prompt: string): Promise<string> => {
+  const names = new Map<string, string>();
+  await Promise.all(mentionedIds(prompt).map(async id => {
+    const member = ctx.guild.members.cache.get(id) ?? await ctx.guild.members.fetch(id).catch(() => null);
+    if (member) names.set(id, member.displayName);
+  }));
+  return nameMentions(prompt, id => names.get(id));
+};
+
+/** The custom emojis of the server that the bot can use (available, and not limited to some roles). */
+const usableEmojis = (ctx: CommandContext): ServerEmoji[] =>
+  ctx.guild.emojis.cache
+    .filter(emoji => emoji.available !== false && !!emoji.name && emoji.roles.cache.size === 0)
+    .map(emoji => ({ name: emoji.name!, id: emoji.id, animated: !!emoji.animated }));
+
+const waitFor = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms).unref());
 
 export default defineCommand({
   data: new SlashCommandBuilder()
@@ -64,7 +82,7 @@ export default defineCommand({
     let settled = false;
     const answering = (async () => {
       if (await isTicketChannel(ctx)) throw new UserError(TICKET_REFUSAL);
-      return getAskService().ask(ctx.user.id, prompt);
+      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx));
     })().finally(() => { settled = true; });
 
     await Promise.race([answering.catch(() => {}), waitFor(DEFER_AFTER_MS)]);

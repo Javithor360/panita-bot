@@ -3,6 +3,7 @@ import { URLS } from '../config/constants';
 import { env } from '../config/env';
 import { UserError } from '../core/errors';
 import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '../features/ask/guard';
+import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emojis';
 import { findBlockedTerm, loadKnowledge } from '../features/ask/knowledge';
 import { createAskLimits, type AskLimits } from '../features/ask/limits';
 import { buildInstructions } from '../features/ask/prompt';
@@ -43,7 +44,7 @@ export interface AskAnswer {
 
 export interface AskService {
   /** The answer to post. Throws `UserError` with a message for the member whenever there is none. */
-  ask(userId: string, rawQuestion: string): Promise<AskAnswer>;
+  ask(userId: string, rawQuestion: string, emojis?: readonly ServerEmoji[]): Promise<AskAnswer>;
 }
 
 const LIMIT_MESSAGES = { cooldown: ASK_MESSAGES.cooldown, daily: ASK_MESSAGES.daily, global: ASK_MESSAGES.global, busy: ASK_MESSAGES.busy } as const;
@@ -59,11 +60,30 @@ const providerFailure = (error: OpenAiError): UserError => {
   return new UserError(ASK_MESSAGES.failed);
 };
 
-export const createAskService = (deps: AskDeps): AskService => {
-  const instructions = buildInstructions(deps.knowledge);
+/**
+ * The moderation is free and now and then fails once for no lasting reason (a bare 403 from the edge, a timeout), so it
+ * is tried a second time before giving up. A missing key or an exhausted spending limit is not retried.
+ */
+const flaggedWithRetry = async (client: OpenAiClient, text: string): Promise<boolean> => {
+  try {
+    return await client.flagged(text);
+  } catch (error) {
+    if (!(error instanceof OpenAiError) || error.failure === 'not_configured' || error.failure === 'quota') throw error;
+    return client.flagged(text);
+  }
+};
+
+export const createAskService =(deps: AskDeps): AskService => {
+  // The instructions only change when the server's emojis do, so they are built once for each set of names
+  let built = { key: '', instructions: buildInstructions(deps.knowledge) };
+  const instructionsFor = (names: readonly string[]): string => {
+    const key = names.join(',');
+    if (key !== built.key) built = { key, instructions: buildInstructions(deps.knowledge, names) };
+    return built.instructions;
+  };
 
   return {
-    async ask(userId, rawQuestion) {
+    async ask(userId, rawQuestion, emojis = []) {
       if (!deps.client.configured) throw new UserError(ASK_MESSAGES.unavailable);
 
       const checked = checkQuestion(rawQuestion);
@@ -79,7 +99,7 @@ export const createAskService = (deps: AskDeps): AskService => {
 
         // A question is never answered unchecked: when the moderation cannot run, the member is told so
         try {
-          if (await deps.client.flagged(question)) throw new UserError(ASK_MESSAGES.flagged);
+          if (await flaggedWithRetry(deps.client, question)) throw new UserError(ASK_MESSAGES.flagged);
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);
@@ -88,7 +108,7 @@ export const createAskService = (deps: AskDeps): AskService => {
 
         let answer: string;
         try {
-          answer = await deps.client.answer({ instructions, input: question, safetyId: deps.safetyIdOf(userId) });
+          answer = await deps.client.answer({ instructions: instructionsFor(emojiNames(emojis)), input: question, safetyId: deps.safetyIdOf(userId) });
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);
@@ -102,7 +122,7 @@ export const createAskService = (deps: AskDeps): AskService => {
           const refused = findBlockedTerm(text, deps.blockedTerms) !== null;
           return photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo } : { text: ASK_MESSAGES.noAnswer, photo: false };
         }
-        return { text: cleaned, photo };
+        return { text: expandEmojis(cleaned, emojis), photo };
       } finally {
         deps.limits.release();
       }

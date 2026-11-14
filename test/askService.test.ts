@@ -92,6 +92,46 @@ describe('/ask service', () => {
     assert.ok(!logged[0].includes('hola'));
   });
 
+  const flakyModeration = (failures: number, failure: 'rejected' | 'quota' = 'rejected') => {
+    const calls = { flagged: 0, answered: 0 };
+    const client: OpenAiClient = {
+      configured: true,
+      async answer() { calls.answered++; return 'Hola'; },
+      async flagged() {
+        if (++calls.flagged <= failures) throw new OpenAiError(failure, 'HTTP 403');
+        return false;
+      },
+    };
+    const service = createAskService({
+      client,
+      knowledge: KNOWLEDGE,
+      blockedTerms: [],
+      limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
+      safetyIdOf: () => 'anon',
+    });
+    return { service, calls };
+  };
+
+  it('tries the moderation a second time when it fails once, and then answers', async () => {
+    const { service, calls } = flakyModeration(1);
+    assert.equal((await service.ask('1', 'hola')).text, 'Hola');
+    assert.deepEqual(calls, { flagged: 2, answered: 1 });
+  });
+
+  it('gives up after the second failure, with a message, without answering', async () => {
+    mock.method(console, 'error', () => {});
+    const { service, calls } = flakyModeration(2);
+    assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.unavailable);
+    assert.deepEqual(calls, { flagged: 2, answered: 0 });
+  });
+
+  it('does not retry a spending limit', async () => {
+    mock.method(console, 'error', () => {});
+    const { service, calls } = flakyModeration(5, 'quota');
+    assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.unavailable);
+    assert.equal(calls.flagged, 1);
+  });
+
   it('asks the member to retry when the moderation only timed out, and does not count the question', async () => {
     mock.method(console, 'warn', () => {});
     const { service } = make(
