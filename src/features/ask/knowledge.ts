@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { buildTezzlarKnowledge } from './tezzlarKnowledge';
 
 /** `config/panitacraft-knowledge.md`: the source and the build are both three folders below the project. */
 export const KNOWLEDGE_FILE = path.resolve(__dirname, '../../../config/panitacraft-knowledge.md');
@@ -23,5 +24,6 @@ export const parseKnowledge = (source: string, blockedTerms: readonly string[]):
   return knowledge;
 };
 
+/** The knowledge file, followed by what the commands about Tezzlar III know (built from their data). */
 export const loadKnowledge = (blockedTerms: readonly string[], file = KNOWLEDGE_FILE): string =>
-  parseKnowledge(readFileSync(file, 'utf8'), blockedTerms);
+  parseKnowledge(`${readFileSync(file, 'utf8')}\n\n${buildTezzlarKnowledge()}`, blockedTerms);

@@ -87,6 +87,21 @@ describe('knowledge', () => {
     }
     assert.ok(!/@everyone|@here/.test(knowledge));
   });
+
+  it('says the project has no active server, who the creator is, and explains the ranks', () => {
+    const knowledge = loadKnowledge([]);
+    assert.match(knowledge, /no hay ningún servidor de Minecraft activo/);
+    assert.match(knowledge, /creador.*Javithor360/);
+    assert.ok(!/Aer(ø|o|osmith)/i.test(knowledge), 'a test account is not part of the staff or the creators');
+    assert.match(knowledge, /\*\*Invitado\*\*/);
+    assert.match(knowledge, /\*\*Miembro\*\*/);
+  });
+
+  it('includes the Tezzlar III detail built from the data', () => {
+    const knowledge = loadKnowledge([]);
+    assert.match(knowledge, /### Día 1\b/);
+    assert.match(knowledge, /Zombi Apicultor/);
+  });
 });
 
 describe('instructions', () => {
