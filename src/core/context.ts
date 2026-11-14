@@ -22,7 +22,11 @@ import type { ParsedValue, ParseSuccess } from './prefixParser';
  * need to know how they were invoked.
  */
 
-export type ReplyPayload = string | (BaseMessageOptions & { ephemeral?: boolean });
+export type ReplyPayload = string | (BaseMessageOptions & {
+  ephemeral?: boolean;
+  /** Links in the message show no preview. */
+  suppressEmbeds?: boolean;
+});
 
 type Getter<T> = {
   (name: string, required: true): T;
@@ -80,9 +84,17 @@ export interface CommandContext {
 }
 
 const normalize = (payload: ReplyPayload) => {
-  const { ephemeral = false, ...rest } = typeof payload === 'string' ? { content: payload } : payload;
-  return { ephemeral, rest: rest as BaseMessageOptions };
+  const { ephemeral = false, suppressEmbeds = false, ...rest } = typeof payload === 'string' ? { content: payload } : payload;
+  return { ephemeral, suppressEmbeds, rest: rest as BaseMessageOptions };
 };
+
+/** The message flags a payload asks for, or undefined when it asks for none. */
+const flagsOf = ({ ephemeral, suppressEmbeds }: { ephemeral: boolean; suppressEmbeds: boolean }) =>
+  (ephemeral ? MessageFlags.Ephemeral : 0) | (suppressEmbeds ? MessageFlags.SuppressEmbeds : 0) || undefined;
+
+/** `editReply`/`edit` only understand the embeds flag. */
+const editFlags = (suppressEmbeds: boolean) =>
+  suppressEmbeds ? ({ flags: MessageFlags.SuppressEmbeds } as const) : ({} as { flags?: undefined });
 
 abstract class BaseContext {
   abstract readonly user: User;
@@ -124,12 +136,12 @@ export class SlashContext extends BaseContext implements CommandContext {
   get createdTimestamp() { return this.interaction.createdTimestamp; }
 
   async reply(payload: ReplyPayload) {
-    const { ephemeral, rest } = normalize(payload);
-    const flags = ephemeral ? MessageFlags.Ephemeral : undefined;
+    const { ephemeral, suppressEmbeds, rest } = normalize(payload);
+    const flags = flagsOf({ ephemeral, suppressEmbeds });
     if (this.responded) {
       await this.interaction.followUp({ ...rest, flags });
     } else if (this.interaction.deferred) {
-      await this.interaction.editReply(rest);
+      await this.interaction.editReply({ ...rest, ...editFlags(suppressEmbeds) });
     } else {
       await this.interaction.reply({ ...rest, flags });
     }
@@ -142,7 +154,8 @@ export class SlashContext extends BaseContext implements CommandContext {
 
   async edit(payload: ReplyPayload) {
     if (!this.interaction.deferred && !this.interaction.replied) return this.reply(payload);
-    await this.interaction.editReply(normalize(payload).rest);
+    const { suppressEmbeds, rest } = normalize(payload);
+    await this.interaction.editReply({ ...rest, ...editFlags(suppressEmbeds) });
     this.responded = true;
   }
 
@@ -188,17 +201,23 @@ export class PrefixContext extends BaseContext implements CommandContext {
   }
 
   async reply(payload: ReplyPayload) {
-    const { rest } = normalize(payload);
-    this.track(await this.message.reply({ ...rest, allowedMentions: { ...rest.allowedMentions, repliedUser: false } }));
+    const { suppressEmbeds, rest } = normalize(payload);
+    this.track(await this.message.reply({
+      ...rest,
+      allowedMentions: { ...rest.allowedMentions, repliedUser: false },
+      ...editFlags(suppressEmbeds),
+    }));
   }
 
   async send(payload: ReplyPayload) {
-    this.track(await this.message.channel.send(normalize(payload).rest));
+    const { suppressEmbeds, rest } = normalize(payload);
+    this.track(await this.message.channel.send({ ...rest, ...editFlags(suppressEmbeds) }));
   }
 
   async edit(payload: ReplyPayload) {
     if (!this.firstResponse) return this.reply(payload);
-    await this.firstResponse.edit(normalize(payload).rest);
+    const { suppressEmbeds, rest } = normalize(payload);
+    await this.firstResponse.edit({ ...rest, ...editFlags(suppressEmbeds) });
   }
 
   async defer() {

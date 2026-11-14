@@ -98,6 +98,10 @@ const integerInRange = (name: string, fallback: number, min: number, max: number
   return value;
 };
 
+/** Words the answers of `/ask` must never contain, from a comma-separated list. Kept in the environment so they are not written in the prompt or the repository. */
+const wordList = (name: string): string[] =>
+  (optional(name) ?? '').split(',').map(word => word.trim().toLowerCase()).filter(Boolean);
+
 const GALLERY_CHANNEL_ID = optionalId('GALLERY_CHANNEL_ID');
 
 /**
@@ -147,5 +151,15 @@ export const env = {
   BIRTHDAY_UTC_OFFSET_HOURS: integerInRange('BIRTHDAY_UTC_OFFSET_HOURS', -6, -12, 14),
   /** Hour (0-23, in that offset) from which the greeting is due. */
   BIRTHDAY_HOUR: integerInRange('BIRTHDAY_HOUR', 10, 0, 23),
+  /** Key of the OpenAI project of the bot. Without it `/ask` answers that it is not available. Never logged. */
+  OPENAI_API_KEY: optional('OPENAI_API_KEY'),
+  OPENAI_MODEL: optional('OPENAI_MODEL') ?? 'gpt-6-luna',
+  /** Seconds a member waits between two questions to `/ask`. */
+  ASK_COOLDOWN_SECONDS: integerInRange('ASK_COOLDOWN_SECONDS', 20, 0, 3600),
+  /** Questions per member per day, and in total per day. The OpenAI project has its own spending limit on top. */
+  ASK_DAILY_LIMIT: integerInRange('ASK_DAILY_LIMIT', 30, 1, 1000),
+  ASK_GLOBAL_DAILY_LIMIT: integerInRange('ASK_GLOBAL_DAILY_LIMIT', 1000, 1, 100000),
+  /** Words an answer of `/ask` may never contain (a hit replaces the answer). Optional, comma-separated. */
+  ASK_BLOCKED_TERMS: wordList('ASK_BLOCKED_TERMS'),
   isProduction: process.env.NODE_ENV === 'production',
 } as const;

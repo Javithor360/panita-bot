@@ -11,6 +11,9 @@ for (const name of ['DISCORD_TOKEN', 'STAFF_ROLE_ID', 'DEVELOPER_ID', 'ALT_ROLE_
 process.env.PANITA_API_KEY = 'pk_test_key';
 process.env.PANITA_API_URL = 'https://api.test.invalid';
 delete process.env.GUILD_ID;
+// A real `.env` must never put its OpenAI key in a test
+delete process.env.OPENAI_API_KEY;
+delete process.env.ASK_BLOCKED_TERMS;
 
 export const API_BASE = 'https://api.test.invalid';
 

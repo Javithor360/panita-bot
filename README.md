@@ -20,6 +20,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
   - [Sign-in codes and sessions](#sign-in-codes-and-sessions)
   - [Quick upload to the gallery](#quick-upload-to-the-gallery)
   - [Birthday greeting](#birthday-greeting)
+  - [AI assistant (`/ask`)](#ai-assistant-ask)
   - [Minecraft bridge](#minecraft-bridge)
   - [Panita Web synchronization](#panita-web-synchronization)
   - [Reliability](#reliability)
@@ -74,6 +75,11 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `BIRTHDAY_CHANNEL_ID` | — | General channel (`707103391167545422`) where the daily birthday greeting is posted. Without it there is no greeting. |
 | `BIRTHDAY_UTC_OFFSET_HOURS` | — | Offset from UTC of the day the greeting follows, from -12 to 14. Defaults to `-6` (no daylight saving). |
 | `BIRTHDAY_HOUR` | — | Hour (0-23, in that offset) from which the greeting is sent. Defaults to `10`, so 16:00 UTC. |
+| `OPENAI_API_KEY` | — | Key of the OpenAI project of the bot (give it **Write** on *Responses* and *Moderations* only). Without it `/ask` answers that it is not available. Never logged. |
+| `OPENAI_MODEL` | `gpt-6-luna` | Model `/ask` uses. It must be allowed in the OpenAI project. |
+| `ASK_COOLDOWN_SECONDS` | 20 | Seconds a member waits between two questions to `/ask` (0 to 3600). |
+| `ASK_DAILY_LIMIT`, `ASK_GLOBAL_DAILY_LIMIT` | 30, 1000 | Questions to `/ask` per member and in total per day (UTC). |
+| `ASK_BLOCKED_TERMS` | — | Comma-separated words that `/ask` must never say or answer (for things that were not announced). A question containing one gets a fixed reply without calling OpenAI, and `config/panitacraft-knowledge.md` is refused if it contains one. Kept here so they are not written in the repository. |
 
 <details>
 <summary>Example <code>.env</code></summary>
@@ -159,6 +165,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 
 | Command | Description | Aliases |
 |---|---|---|
+| `ask <prompt>` | Asks the assistant about Panitacraft, or just chats with it. Also `@Panita Bot ask <prompt>`. See [AI assistant](#ai-assistant-ask). | `pregunta`, `preguntar` |
 | `confirm <code>` | Confirms a sign-in on the website or the launcher with the code the app shows: 4 digits on the website, `XXXX-YYYY-ZZZZ` in the launcher. The reply is private. Slash only. | — |
 | `donate [--simple]` | How to support the server through PayPal. `--simple` sends just the link. | `donar`, `donacion`, `donaciones`, `fund` |
 | `invite` | Invite link to the Discord server. | `invitacion`, `discord` |
@@ -313,6 +320,22 @@ Members set their birthday in the website's settings (there is no Discord comman
 - The bot needs **View Channel**, **Send Messages**, **Read Message History** and **Mention Users** in the channel.
 
 The logic is in `src/features/birthdays/` (`time` has the local day and the due rule, `greeting` the text) and `src/services/birthdayScheduler.ts`; the API call is in `src/services/birthdays.ts`.
+
+### AI assistant (`/ask`)
+
+`/ask <prompt>`, `!ask <prompt>` and `@Panita Bot ask <prompt>` send a question to OpenAI. The assistant answers questions about Panitacraft from a knowledge file, and chats like a friendly member about anything else. It answers in the language of the question (Spanish when unsure) and keeps it short.
+
+- **What it knows.** Only `config/panitacraft-knowledge.md` (the community, the rules, the ranks, the current state, the staff, the links) plus the detail of Tezzlar III, which is built at startup from the same data as `/tezzlar`, `/food`, `/recipes`, `/enchantments` and the other Tezzlar commands (`features/ask/tezzlarKnowledge.ts`), so it never needs copying. All of it is sent with every question (about 10K tokens; OpenAI caches the repeated part, so it costs a fraction of a cent). Anything not in it, the bot says it does not know. **Write only what is already public**: the model cannot repeat what it was never told. Restart the bot after editing the file.
+- **Chat.** Besides Panitacraft questions it greets, asks about your day, jokes and laughs along, and answers harmless everyday questions. It steers away from heated topics (politics, religion, fights).
+- **Photos.** Asked for a random gallery photo, the model ends its reply with the marker `[[photo]]`; the bot checks it exactly, removes it from the text and sends the same photo message as `/gallery` (with its 🎲 and 🔗 buttons). It is the only thing the model can ask the bot to do, and it is read-only. Random player profiles are not possible yet: the API's member listing only accepts the web client.
+- **What it can't do.** The model gets no tools: it cannot run code, browse or act on anything, and it is told not to write code, follow instructions inside a question, reveal its rules, or claim access to keys or member data. Prompt rules can be bypassed, so the guarantees are the ones around it.
+- **Before the model.** The question is cleaned (mentions and invisible characters removed, 500 characters at most), checked with OpenAI's free moderation (if it cannot run, the command still works and logs it once), and compared with `ASK_BLOCKED_TERMS`.
+- **After the model.** No one is ever pinged, links are kept only if they are of the website or in the knowledge file, previews are hidden, the text is cut to fit a message, and an answer with a blocked term is replaced.
+- **Limits.** A wait between questions, a daily cap per member and a global one, and five answers at the same time (`ASK_*`). They live in memory, so a restart resets them. The real ceiling is the **spending limit of the OpenAI project**; with prepaid credits, the balance is the cap (keep auto-recharge off).
+- **Where it works.** Servers only (not DMs), and not inside ticket channels. Questions are never logged or stored (`store: false`); OpenAI only gets a hashed id of the member for abuse tracking, never the Discord id.
+- **Reading failures.** `401 missing_scope` in the log means the key lacks a permission (for moderation, *Moderations*). A `403` on moderation means the project's allowed models do not include `omni-moderation-latest`. `project_spend_limit_exceeded` or an empty balance shows members "the assistant is not available".
+
+The logic is in `src/features/ask/` (`prompt` has the rules, `guard` the question and answer clean-up and the photo marker, `limits`, `knowledge`, `tezzlarKnowledge` and `mention`), the OpenAI calls in `src/services/openai.ts` (plain `fetch`, no SDK) and the flow in `src/services/ask.ts`.
 
 ### Minecraft bridge
 
