@@ -109,7 +109,9 @@ describe('knowledge', () => {
     const knowledge = loadKnowledge([]);
     assert.match(knowledge, /no hay ningún servidor de Minecraft activo/);
     assert.match(knowledge, /creador.*Javithor360/);
-    assert.ok(!/Aer(ø|o|osmith)/i.test(knowledge), 'a test account is not part of the staff or the creators');
+    assert.match(knowledge, /Administradores: Fiendrox y Javithor360/);
+    assert.match(knowledge, /Moderadores: zPalach y Aerosmith_/, 'Aerø is a moderator, not an administrator');
+    assert.ok(!/Administradores:[^.]*Aer/.test(knowledge));
     assert.match(knowledge, /\*\*Invitado\*\*/);
     assert.match(knowledge, /\*\*Miembro\*\*/);
   });

@@ -55,7 +55,7 @@ Se lee al iniciar el bot; reinícialo después de editarlo.
 3. Con esa cuenta puedes iniciar sesión en la web.
 
 ## Comunidad y staff
-- Administradores: Fiendrox y Javithor360. Moderador: zPalach. Ayudante: Slick303. El staff colabora sin fines de lucro.
+- Administradores: Fiendrox y Javithor360. Moderadores: zPalach y Aerosmith_ (Aerø). Ayudante: Slick303. El staff colabora sin fines de lucro.
 - El bot no puede dar roles, quitar sanciones ni resolver problemas de cuentas: eso lo hace el staff.
 
 ## Donaciones
