@@ -24,10 +24,21 @@ describe('@mention trigger', () => {
     assert.equal(askFromMention(`<@${BOT}> ask`, BOT), '!ask ');
   });
 
-  it('ignores everything that is not an ask', () => {
-    assert.equal(askFromMention(`<@${BOT}> ping`, BOT), null);
-    assert.equal(askFromMention(`<@${BOT}> asking about it`, BOT), null);
+  it('takes whatever follows the mention as the question, with no need for the word ask', () => {
+    assert.equal(askFromMention(`<@${BOT}> hola, ¿cómo estás?`, BOT), '!ask hola, ¿cómo estás?');
+    assert.equal(askFromMention(`<@${BOT}>hola`, BOT), '!ask hola', 'even glued to the mention');
+    assert.equal(askFromMention(`<@${BOT}> asking about it`, BOT), '!ask asking about it', 'ask only counts as a whole word');
+    assert.equal(askFromMention(`<@${BOT}> ping`, BOT), '!ask ping', 'it is a question, not a command');
+    assert.equal(askFromMention(`<@${BOT}> ask ask`, BOT), '!ask ask');
+  });
+
+  it('does nothing for a mention with nothing after it, and shows the usage for the bare word ask', () => {
     assert.equal(askFromMention(`<@${BOT}>`, BOT), null);
+    assert.equal(askFromMention(`  <@!${BOT}>   `, BOT), null);
+    assert.equal(askFromMention(`<@${BOT}> ask`, BOT), '!ask ');
+  });
+
+  it('ignores a message that does not start with a mention of the bot', () => {
     assert.equal(askFromMention(`hola <@${BOT}> ask algo`, BOT), null, 'the mention must come first');
     assert.equal(askFromMention('<@999999999999999999> ask algo', BOT), null, 'a mention of someone else');
     assert.equal(askFromMention('ask algo', BOT), null);
@@ -45,9 +56,11 @@ describe('message handler', () => {
     return resolved;
   };
 
-  it('resolves the ask command from a mention, and nothing else from one', async () => {
+  it('resolves the ask command from a mention, with or without the word ask, and only that command', async () => {
     assert.deepEqual(await handle(`<@${BOT}> ask hola`), ['ask']);
-    assert.deepEqual(await handle(`<@${BOT}> ping`), []);
+    assert.deepEqual(await handle(`<@${BOT}> hola`), ['ask']);
+    assert.deepEqual(await handle(`<@${BOT}> ping`), ['ask'], 'a mention never runs another command');
+    assert.deepEqual(await handle(`<@${BOT}>`), []);
     assert.deepEqual(await handle('!ask hola'), ['ask']);
   });
 
