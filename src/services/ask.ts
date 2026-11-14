@@ -6,6 +6,7 @@ import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '
 import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emojis';
 import { cleanChat, composeInput, type ChatLine } from '../features/ask/chatContext';
 import type { Turn } from '../features/ask/conversations';
+import { rollPerson } from '../features/ask/pick';
 import { findBlockedTerm, loadKnowledge } from '../features/ask/knowledge';
 import { createAskLimits, type AskLimits } from '../features/ask/limits';
 import { buildInstructions } from '../features/ask/prompt';
@@ -37,6 +38,8 @@ export interface AskDeps {
   limits: AskLimits;
   /** Anonymous, stable id of a member for the provider; never the Discord id. */
   safetyIdOf(userId: string): string;
+  /** A number in [0, 1) for the dice; `Math.random` when not given. */
+  random?: () => number;
 }
 
 export interface AskAnswer {
@@ -58,6 +61,8 @@ export interface AskService {
     emojis?: readonly ServerEmoji[],
     history?: readonly Turn[],
     chat?: readonly ChatLine[],
+    /** Names of people around in the channel, for a question that asks to pick one (the service rolls the dice). */
+    people?: readonly string[],
   ): Promise<AskAnswer>;
 }
 
@@ -97,7 +102,7 @@ export const createAskService =(deps: AskDeps): AskService => {
   };
 
   return {
-    async ask(userId, rawQuestion, emojis = [], history = [], chat = []) {
+    async ask(userId, rawQuestion, emojis = [], history = [], chat = [], people = []) {
       if (!deps.client.configured) throw new UserError(ASK_MESSAGES.unavailable);
 
       const checked = checkQuestion(rawQuestion);
@@ -105,6 +110,8 @@ export const createAskService =(deps: AskDeps): AskService => {
       const { question } = checked;
       // Messages with a blocked term never reach the model, just like a question with one
       const quoted = cleanChat(chat, deps.blockedTerms);
+      // For "who is your favorite", the person is rolled here, so it changes every time and does not depend on the model
+      const dice = rollPerson(question, people, deps.blockedTerms, deps.random);
 
       const verdict = deps.limits.tryAcquire(userId, history.length > 0 ? 'reply' : 'new');
       if (verdict !== 'ok') throw new UserError(LIMIT_MESSAGES[verdict]);
@@ -129,7 +136,7 @@ export const createAskService =(deps: AskDeps): AskService => {
 
         let answer: string;
         try {
-          answer = await deps.client.answer({ instructions: instructionsFor(emojiNames(emojis)), input: composeInput(question, quoted), history, safetyId: deps.safetyIdOf(userId) });
+          answer = await deps.client.answer({ instructions: instructionsFor(emojiNames(emojis)), input: composeInput(question, quoted, dice), history, safetyId: deps.safetyIdOf(userId) });
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);

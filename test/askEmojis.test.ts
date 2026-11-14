@@ -75,11 +75,19 @@ describe('instructions with emojis', () => {
     assert.doesNotMatch(text, /one or two emojis at most/);
   });
 
-  it('ask to pick a favorite instead of saying there is none, without ever putting anyone down', () => {
+  it('ask to pick a favorite instead of saying there is none, using the dice roll for a person', () => {
     const text = buildInstructions('K');
-    for (const rule of [/never say you have no favorite/, /as if rolling dice/, /pick the member who is asking/, /Never rank people against each other/, /least favorite/]) {
+    for (const rule of [/never say you have no favorite/, /as if rolling dice/, /use the person in the \[DICE ROLL\] line/, /do not pick the member who is asking just to flatter them/]) {
       assert.match(text, rule);
     }
+  });
+
+  it('ask to answer a least favorite too, a little negative but playful and never cruel', () => {
+    const text = buildInstructions('K');
+    for (const rule of [/answer too and don't dodge/, /a little negative/, /never insult, humiliate or mock anyone's appearance, identity, health, family or real behavior/, /obviously a joke/]) {
+      assert.match(text, rule);
+    }
+    assert.doesNotMatch(text, /decline with humor and turn it into something positive/);
   });
 
   it('ask for the voice of a friend in a group chat, who may joke, laugh, tease and refuse', () => {

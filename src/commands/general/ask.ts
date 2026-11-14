@@ -5,6 +5,7 @@ import type { CommandContext } from '../../core/context';
 import { UserError } from '../../core/errors';
 import { CHAT_WINDOW_MS, refersToChat, type ChatLine } from '../../features/ask/chatContext';
 import { conversations } from '../../features/ask/conversations';
+import { asksToPickPerson, MAX_CANDIDATES } from '../../features/ask/pick';
 import type { ServerEmoji } from '../../features/ask/emojis';
 import { MAX_QUESTION_CHARS } from '../../features/ask/guard';
 import { mentionedIds, nameMentions } from '../../features/ask/names';
@@ -60,6 +61,44 @@ const CHAT_FETCH_LIMIT = 10;
  * assistant), and, when the question points at the chat, the recent ones from other people. Without permission to read
  * the channel the answer is simply given without them. The service cleans and limits what is sent.
  */
+/** Who counts as "around" for a favorite person: those who wrote in the channel in the last half hour. */
+const PEOPLE_WINDOW_MS = 30 * 60_000;
+const PEOPLE_FETCH_LIMIT = 30;
+
+/**
+ * The people the assistant may pick from when the question asks it to choose a person (a favorite, a least favorite):
+ * the others who wrote in the channel lately, and when nobody did, the members who can see the channel. Never the
+ * member asking, and never a bot. The service rolls the dice among them.
+ */
+const peopleFor = async (ctx: CommandContext, question: string): Promise<string[]> => {
+  const channel = ctx.channel;
+  if (!channel || !asksToPickPerson(question)) return [];
+
+  const asker = ctx.user.id;
+  const names = new Map<string, string>();
+  try {
+    const recent = await channel.messages.fetch(
+      ctx.triggerMessageId ? { limit: PEOPLE_FETCH_LIMIT, before: ctx.triggerMessageId } : { limit: PEOPLE_FETCH_LIMIT },
+    );
+    const now = Date.now();
+    for (const message of recent.values()) {
+      if (message.author.bot || message.author.id === asker || now - message.createdTimestamp > PEOPLE_WINDOW_MS) continue;
+      names.set(message.author.id, message.member?.displayName ?? message.author.globalName ?? message.author.username);
+    }
+  } catch {
+    // No permission to read the channel history: fall back to who can see it
+  }
+
+  if (names.size === 0) {
+    const viewers = ctx.guild.members.cache.filter(member =>
+      !member.user.bot && member.id !== asker && !!channel.permissionsFor(member)?.has('ViewChannel'));
+    for (const member of viewers.values()) names.set(member.id, member.displayName);
+  }
+
+  // Shuffled, so that the names kept when there are too many are not always the same ones
+  return [...names.values()].sort(() => Math.random() - 0.5).slice(0, MAX_CANDIDATES);
+};
+
 const chatFor = async (ctx: CommandContext, question: string): Promise<ChatLine[]> => {
   const channel = ctx.channel;
   if (!channel) return [];
@@ -125,7 +164,7 @@ export default defineCommand({
     let settled = false;
     const answering = (async () => {
       if (await isTicketChannel(ctx)) throw new UserError(TICKET_REFUSAL);
-      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx), history, await chatFor(ctx, prompt));
+      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx), history, await chatFor(ctx, prompt), await peopleFor(ctx, prompt));
     })().finally(() => { settled = true; });
 
     await Promise.race([answering.catch(() => {}), waitFor(DEFER_AFTER_MS)]);
