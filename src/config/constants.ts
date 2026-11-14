@@ -9,6 +9,7 @@ export const URLS = {
   web: `${WEB_BASE}/`,
   login: `${WEB_BASE}/login`,
   api: 'https://api.panitacraft.com',
+  openai: 'https://api.openai.com/v1',
   tezzlar3: `${WEB_BASE}/tezzlar3`,
   gallery: (photoId: string) => `${WEB_BASE}/gallery?photo=${photoId}`,
   editionIcon: (editionId: string) => `https://res.cloudinary.com/panita/image/upload/panita-web/logos/icon_${editionId}.png`,
