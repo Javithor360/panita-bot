@@ -9,7 +9,7 @@ import { buildInstructions } from '../features/ask/prompt';
 import { createOpenAiClient, OpenAiError, type OpenAiClient } from './openai';
 
 export const ASK_MESSAGES = {
-  unavailable: '❌ El asistente no está disponible en este momento.',
+  unavailable: '❌ No puedo responder eso en este momento. Inténtalo más tarde.',
   empty: '❌ Escribe tu pregunta, por ejemplo: `/ask ¿Qué es Panitacraft?`',
   tooLong: `❌ Tu pregunta es muy larga: el máximo son ${MAX_QUESTION_CHARS} caracteres.`,
   cooldown: '⏳ Espera unos segundos antes de preguntarme otra vez.',
@@ -59,8 +59,6 @@ const providerFailure = (error: OpenAiError): UserError => {
   return new UserError(ASK_MESSAGES.failed);
 };
 
-let moderationWarned = false;
-
 export const createAskService = (deps: AskDeps): AskService => {
   const instructions = buildInstructions(deps.knowledge);
 
@@ -79,15 +77,13 @@ export const createAskService = (deps: AskDeps): AskService => {
         // Answered without the model, so nothing about it can leak
         if (findBlockedTerm(question, deps.blockedTerms)) return { text: ASK_MESSAGES.unannounced, photo: false };
 
+        // A question is never answered unchecked: when the moderation cannot run, the member is told so
         try {
           if (await deps.client.flagged(question)) throw new UserError(ASK_MESSAGES.flagged);
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
-          // The model has its own rules, so a failing moderation does not stop the command; it is reported once
-          if (!moderationWarned) {
-            moderationWarned = true;
-            console.warn(`${error.message} (moderation skipped; further failures are not logged)`);
-          }
+          deps.limits.refund(userId);
+          throw providerFailure(error);
         }
 
         let answer: string;

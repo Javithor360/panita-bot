@@ -82,10 +82,24 @@ describe('/ask service', () => {
     assert.equal(requests.length, 0);
   });
 
-  it('keeps working when the moderation cannot run', async () => {
+  it('says it cannot answer when the moderation cannot run, and does not call the model', async () => {
+    const logged: string[] = [];
+    mock.method(console, 'error', (message: string) => logged.push(message));
+    const { service, requests } = make({ flagged: new OpenAiError('rejected', 'HTTP 403'), answer: 'sigue' });
+    assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.unavailable);
+    assert.equal(requests.length, 0, 'an unchecked question is never answered');
+    assert.equal(logged.length, 1, 'the cause is logged on every failure');
+    assert.ok(!logged[0].includes('hola'));
+  });
+
+  it('asks the member to retry when the moderation only timed out, and does not count the question', async () => {
     mock.method(console, 'warn', () => {});
-    const { service } = make({ flagged: new OpenAiError('rejected', 'HTTP 403'), answer: 'sigue' });
-    assert.equal((await service.ask('1', 'hola')).text, 'sigue');
+    const { service } = make(
+      { flagged: new OpenAiError('timeout') },
+      { limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 1, dailyGlobal: 100, maxInFlight: 10 }) },
+    );
+    assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.failed);
+    assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.failed, 'the failed one was refunded');
   });
 
   it('answers a blocked term without the model', async () => {
