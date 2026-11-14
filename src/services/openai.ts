@@ -26,6 +26,8 @@ export interface AnswerRequest {
   instructions: string;
   /** What the member wrote. It always goes in the user role, never in the instructions. */
   input: string;
+  /** The exchanges that came before in the same talk, oldest first. They go as earlier turns of the conversation. */
+  history?: ReadonlyArray<{ question: string; answer: string }>;
   /** Stable, anonymous id of the member (never the Discord id), so OpenAI can tell abusers apart. */
   safetyId: string;
 }
@@ -108,11 +110,20 @@ export const createOpenAiClient = (config: OpenAiConfig): OpenAiClient => {
   return {
     configured: !!config.apiKey,
 
-    async answer({ instructions, input, safetyId }) {
+    async answer({ instructions, input, history = [], safetyId }) {
       const response = await post('/responses', {
         model: config.model,
         instructions,
-        input,
+        // With no history it is just the text; otherwise the earlier turns come first, in their own roles
+        input: history.length === 0
+          ? input
+          : [
+            ...history.flatMap(turn => [
+              { role: 'user', content: turn.question },
+              { role: 'assistant', content: turn.answer },
+            ]),
+            { role: 'user', content: input },
+          ],
         max_output_tokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
         // Nothing about the conversation is kept on OpenAI's side
         store: false,
