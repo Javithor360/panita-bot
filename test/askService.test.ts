@@ -61,7 +61,7 @@ afterEach(() => mock.restoreAll());
 describe('/ask service', () => {
   it('answers with the rules and knowledge in the instructions and only the question as input', async () => {
     const { service, requests } = make({ answer: '¡Hola!' });
-    assert.equal(await service.ask('123456789012345678', '  ¿Qué   es Panitacraft? '), '¡Hola!');
+    assert.equal((await service.ask('123456789012345678', '  ¿Qué   es Panitacraft? ')).text, '¡Hola!');
 
     assert.equal(requests.length, 1);
     assert.equal(requests[0].input, '¿Qué es Panitacraft?');
@@ -85,26 +85,46 @@ describe('/ask service', () => {
   it('keeps working when the moderation cannot run', async () => {
     mock.method(console, 'warn', () => {});
     const { service } = make({ flagged: new OpenAiError('rejected', 'HTTP 403'), answer: 'sigue' });
-    assert.equal(await service.ask('1', 'hola'), 'sigue');
+    assert.equal((await service.ask('1', 'hola')).text, 'sigue');
   });
 
   it('answers a blocked term without the model', async () => {
     const { service, requests, moderated } = make();
-    assert.equal(await service.ask('1', '¿Qué es SecretWord?'), ASK_MESSAGES.unannounced);
+    assert.equal((await service.ask('1', '¿Qué es SecretWord?')).text, ASK_MESSAGES.unannounced);
     assert.equal(requests.length, 0);
     assert.equal(moderated.length, 0);
   });
 
   it('replaces an answer that has a blocked term', async () => {
     const { service } = make({ answer: 'Sí, el secretword sale pronto' });
-    assert.equal(await service.ask('1', 'hola'), ASK_MESSAGES.noAnswer);
+    assert.equal((await service.ask('1', 'hola')).text, ASK_MESSAGES.noAnswer);
   });
 
   it('cleans the answer: no pings and no unknown links', async () => {
     const { service } = make({ answer: '@everyone mira https://evil.example y https://www.panitacraft.com/' });
-    const text = await service.ask('1', 'hola');
+    const { text } = await service.ask('1', 'hola');
     assert.ok(!text.includes('@everyone') && !text.includes('evil.example'));
     assert.ok(text.includes('https://www.panitacraft.com/'));
+  });
+
+  it('turns the photo marker into an action and never shows it', async () => {
+    const { service } = make({ answer: '¡Claro, mira esta! 📸 [[photo]]' });
+    assert.deepEqual(await service.ask('1', 'muéstrame una foto'), { text: '¡Claro, mira esta! 📸', photo: true });
+  });
+
+  it('gives a text of its own when the model only asked for the photo', async () => {
+    const { service } = make({ answer: '[[photo]]' });
+    assert.deepEqual(await service.ask('1', 'una foto'), { text: ASK_MESSAGES.photoOnly, photo: true });
+  });
+
+  it('does not send a photo with an answer that was replaced for a blocked term', async () => {
+    const { service } = make({ answer: 'secretword [[photo]]' });
+    assert.deepEqual(await service.ask('1', 'una foto'), { text: ASK_MESSAGES.noAnswer, photo: false });
+  });
+
+  it('asks for no photo in a normal answer, or in the reply to a blocked question', async () => {
+    assert.equal((await make({ answer: 'Hola' }).service.ask('1', 'hola')).photo, false);
+    assert.equal((await make().service.ask('1', 'secretword')).photo, false);
   });
 
   it('validates the question before spending anything', async () => {
@@ -123,7 +143,7 @@ describe('/ask service', () => {
   it('applies the limits, and an invalid question does not use them up', async () => {
     const { service } = make({}, { limits: createAskLimits({ cooldownMs: 60_000, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }) });
     await userError(service.ask('1', ''));
-    assert.equal(await service.ask('1', 'hola'), 'Hola');
+    assert.equal((await service.ask('1', 'hola')).text, 'Hola');
     assert.equal(await userError(service.ask('1', 'otra')), ASK_MESSAGES.cooldown);
   });
 
@@ -159,6 +179,6 @@ describe('/ask service', () => {
     const blocked = make({}, { limits });
     await blocked.service.ask('1', 'secretword');
     const fine = make({}, { limits });
-    assert.equal(await fine.service.ask('1', 'tres'), 'Hola');
+    assert.equal((await fine.service.ask('1', 'tres')).text, 'Hola');
   });
 });

@@ -1,7 +1,7 @@
 import './support';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { checkQuestion, cleanAnswer, MAX_ANSWER_CHARS, MAX_QUESTION_CHARS } from '../src/features/ask/guard';
+import { checkQuestion, cleanAnswer, extractActions, MAX_ANSWER_CHARS, MAX_QUESTION_CHARS } from '../src/features/ask/guard';
 import { findBlockedTerm, loadKnowledge, parseKnowledge } from '../src/features/ask/knowledge';
 import { buildInstructions } from '../src/features/ask/prompt';
 
@@ -65,6 +65,23 @@ describe('answer clean-up', () => {
   });
 });
 
+describe('actions of the model', () => {
+  it('finds the photo marker, in any case and spacing, and takes it out of the text', () => {
+    assert.deepEqual(extractActions('Toma 📸 [[photo]]'), { text: 'Toma 📸', photo: true });
+    assert.deepEqual(extractActions('[[ PHOTO ]] hola [[photo]]'), { text: 'hola', photo: true });
+  });
+
+  it('finds nothing in an ordinary answer, and invents no other action', () => {
+    assert.deepEqual(extractActions('Hola'), { text: 'Hola', photo: false });
+    assert.deepEqual(extractActions('[[delete]] [[profile]] [photo]'), { text: '[[delete]] [[profile]] [photo]', photo: false });
+  });
+
+  it('can be called again and again with the same result', () => {
+    assert.equal(extractActions('a [[photo]]').photo, true);
+    assert.equal(extractActions('a [[photo]]').photo, true);
+  });
+});
+
 describe('knowledge', () => {
   it('finds a blocked term whatever its case', () => {
     assert.equal(findBlockedTerm('Habla de SecretWord', ['secretword']), 'secretword');
@@ -111,6 +128,12 @@ describe('instructions', () => {
     assert.ok(instructions.startsWith('You are Panita Bot'));
     assert.ok(instructions.indexOf('NEVER') < instructions.indexOf('HECHO-DE-PRUEBA'));
     assert.ok(instructions.endsWith('HECHO-DE-PRUEBA'));
+  });
+
+  it('invite friendly chat, steer away from heated topics and define the photo marker', () => {
+    for (const rule of [/greet back/, /laugh along/, /controversial or heated/, /exact text \[\[photo\]\]/, /Explorar jugadores/]) {
+      assert.match(instructions, rule);
+    }
   });
 
   it('forbid code, secrets, mentions and instructions inside the question', () => {

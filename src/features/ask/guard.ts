@@ -56,6 +56,14 @@ const isAllowedLink = (url: string, knowledge: string): boolean => {
   return knowledge.includes(url.replace(/[.,;:!?'"]+$/, ''));
 };
 
+const PHOTO_MARKER_PATTERN = /\[\[\s*photo\s*\]\]/gi;
+
+/** The action the model asked for, taken out of its answer. The marker is the only action there is, and it is never shown. */
+export const extractActions = (raw: string): { text: string; photo: boolean } => {
+  const photo = new RegExp(PHOTO_MARKER_PATTERN.source, 'i').test(raw);
+  return { text: raw.replace(PHOTO_MARKER_PATTERN, '').trim(), photo };
+};
+
 export interface AnswerRules {
   knowledge: string;
   blockedTerms: readonly string[];

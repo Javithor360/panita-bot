@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { URLS } from '../config/constants';
 import { env } from '../config/env';
 import { UserError } from '../core/errors';
-import { checkQuestion, cleanAnswer, MAX_QUESTION_CHARS } from '../features/ask/guard';
+import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '../features/ask/guard';
 import { findBlockedTerm, loadKnowledge } from '../features/ask/knowledge';
 import { createAskLimits, type AskLimits } from '../features/ask/limits';
 import { buildInstructions } from '../features/ask/prompt';
@@ -21,6 +21,8 @@ export const ASK_MESSAGES = {
   /** For a question that names something that has not been announced: no model involved. */
   unannounced: '🤐 Eso aún no se ha anunciado. Por ahora solo puedo contarte lo que ya es público de Panitacraft.',
   noAnswer: '🤔 No supe cómo responder eso. ¿Puedes preguntármelo de otra forma?',
+  /** When the model asked for a photo and wrote nothing else. */
+  photoOnly: '📸 ¡Mira lo que encontré en la galería!',
 } as const;
 
 export interface AskDeps {
@@ -32,9 +34,16 @@ export interface AskDeps {
   safetyIdOf(userId: string): string;
 }
 
+export interface AskAnswer {
+  /** The text to post. */
+  text: string;
+  /** The member asked for a random photo of the gallery, the only thing the assistant can ask the bot to do. */
+  photo: boolean;
+}
+
 export interface AskService {
   /** The answer to post. Throws `UserError` with a message for the member whenever there is none. */
-  ask(userId: string, rawQuestion: string): Promise<string>;
+  ask(userId: string, rawQuestion: string): Promise<AskAnswer>;
 }
 
 const LIMIT_MESSAGES = { cooldown: ASK_MESSAGES.cooldown, daily: ASK_MESSAGES.daily, global: ASK_MESSAGES.global, busy: ASK_MESSAGES.busy } as const;
@@ -68,7 +77,7 @@ export const createAskService = (deps: AskDeps): AskService => {
 
       try {
         // Answered without the model, so nothing about it can leak
-        if (findBlockedTerm(question, deps.blockedTerms)) return ASK_MESSAGES.unannounced;
+        if (findBlockedTerm(question, deps.blockedTerms)) return { text: ASK_MESSAGES.unannounced, photo: false };
 
         try {
           if (await deps.client.flagged(question)) throw new UserError(ASK_MESSAGES.flagged);
@@ -90,7 +99,14 @@ export const createAskService = (deps: AskDeps): AskService => {
           throw providerFailure(error);
         }
 
-        return cleanAnswer(answer, { knowledge: deps.knowledge, blockedTerms: deps.blockedTerms }) ?? ASK_MESSAGES.noAnswer;
+        // The marker is read before the clean-up and never reaches the channel; a blocked term cancels the photo too
+        const { text, photo } = extractActions(answer);
+        const cleaned = cleanAnswer(text, { knowledge: deps.knowledge, blockedTerms: deps.blockedTerms });
+        if (cleaned === null) {
+          const refused = findBlockedTerm(text, deps.blockedTerms) !== null;
+          return photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo } : { text: ASK_MESSAGES.noAnswer, photo: false };
+        }
+        return { text: cleaned, photo };
       } finally {
         deps.limits.release();
       }
