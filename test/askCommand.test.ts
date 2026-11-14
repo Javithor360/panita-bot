@@ -5,7 +5,8 @@ import type { Message } from 'discord.js';
 import { CommandRegistry } from '../src/core/registry';
 import { createMessageHandler } from '../src/handlers/messageCreate';
 import { parsePrefixArgs } from '../src/core/prefixParser';
-import { askFromMention } from '../src/features/ask/mention';
+import { conversations, createConversations } from '../src/features/ask/conversations';
+import { askFromMention, askFromReply } from '../src/features/ask/mention';
 
 const BOT = '123456789012345678';
 
@@ -46,6 +47,36 @@ describe('@mention trigger', () => {
   });
 });
 
+describe('reply to an answer', () => {
+  const talks = createConversations();
+  talks.remember('ANSWER', [{ question: 'hola', answer: 'ey' }]);
+
+  it('continues the talk with what was written, no mention and no command needed', () => {
+    assert.equal(askFromReply('¿y qué más?', 'ANSWER', talks), '!ask ¿y qué más?');
+    assert.equal(askFromReply('  jaja  ', 'ANSWER', talks), '!ask jaja');
+  });
+
+  it('ignores a reply to anything that is not an answer of the assistant, or to nothing', () => {
+    assert.equal(askFromReply('¿y qué más?', 'OTHER', talks), null);
+    assert.equal(askFromReply('¿y qué más?', null, talks), null);
+    assert.equal(askFromReply('¿y qué más?', undefined, talks), null);
+  });
+
+  it('leaves a command alone, and an empty message too', () => {
+    assert.equal(askFromReply('!ip', 'ANSWER', talks), null);
+    assert.equal(askFromReply('   ', 'ANSWER', talks), null);
+  });
+
+  it('stops after the conversation expires', () => {
+    let clock = 0;
+    const old = createConversations(1000, 4, () => clock);
+    old.remember('A', [{ question: 'q', answer: 'a' }]);
+    assert.equal(askFromReply('hola', 'A', old), '!ask hola');
+    clock = 1000;
+    assert.equal(askFromReply('hola', 'A', old), null);
+  });
+});
+
 describe('message handler', () => {
   const handle = async (content: string, author = { bot: false }) => {
     const resolved: string[] = [];
@@ -62,6 +93,28 @@ describe('message handler', () => {
     assert.deepEqual(await handle(`<@${BOT}> ping`), ['ask'], 'a mention never runs another command');
     assert.deepEqual(await handle(`<@${BOT}>`), []);
     assert.deepEqual(await handle('!ask hola'), ['ask']);
+  });
+
+  it('resolves ask for a reply to a remembered answer, from anyone, and for nothing else', async () => {
+    conversations.remember('REMEMBERED', [{ question: 'hola', answer: 'ey' }]);
+    const reply = async (content: string, messageId: string | null) => {
+      const resolved: string[] = [];
+      const registry = { resolve: (name: string) => (resolved.push(name), undefined) } as never;
+      const message = {
+        author: { bot: false, id: 'someone-else' },
+        inGuild: () => true,
+        content,
+        reference: messageId ? { messageId } : null,
+        client: { user: { id: BOT } },
+      } as unknown as Message;
+      await createMessageHandler(registry)(message);
+      return resolved;
+    };
+
+    assert.deepEqual(await reply('¿y luego?', 'REMEMBERED'), ['ask']);
+    assert.deepEqual(await reply('¿y luego?', 'NOT-AN-ANSWER'), []);
+    assert.deepEqual(await reply('¿y luego?', null), []);
+    assert.deepEqual(await reply('!tps', 'REMEMBERED'), ['tps'], 'a command in a reply is still that command');
   });
 
   it('never answers a bot', async () => {

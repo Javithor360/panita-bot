@@ -1,4 +1,16 @@
 import { PREFIX } from '../../config/constants';
+import type { Conversations } from './conversations';
+
+/**
+ * A reply to an answer of the assistant continues the talk, so it is `!ask <what was written>` with no mention and no
+ * command. A message that starts with the prefix is left alone (it is a command), and so is a reply to anything the
+ * assistant did not answer or an answer that is too old to continue.
+ */
+export const askFromReply = (content: string, repliedTo: string | null | undefined, talks: Conversations): string | null => {
+  const text = content.trim();
+  if (!text || text.startsWith(PREFIX) || talks.recall(repliedTo).length === 0) return null;
+  return `${PREFIX}ask ${text}`;
+};
 
 /** Words that may follow the mention and are only the old way of starting a question: `@Panita Bot ask <question>`. */
 const ASK_WORDS = ['ask', 'pregunta', 'preguntar'];

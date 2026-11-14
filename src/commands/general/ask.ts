@@ -1,8 +1,10 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { CATEGORIES } from '../../config/constants';
+import { SlashCommandBuilder, type Message } from 'discord.js';
+import { CATEGORIES, PREFIX } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { UserError } from '../../core/errors';
+import { CHAT_WINDOW_MS, refersToChat, type ChatLine } from '../../features/ask/chatContext';
+import { conversations } from '../../features/ask/conversations';
 import type { ServerEmoji } from '../../features/ask/emojis';
 import { MAX_QUESTION_CHARS } from '../../features/ask/guard';
 import { mentionedIds, nameMentions } from '../../features/ask/names';
@@ -51,6 +53,44 @@ const withNames = async (ctx: CommandContext, prompt: string): Promise<string> =
   return nameMentions(prompt, id => names.get(id));
 };
 
+const CHAT_FETCH_LIMIT = 10;
+
+/**
+ * The messages of the channel the question may be about: the one the member replied to (unless it is an answer of the
+ * assistant), and, when the question points at the chat, the recent ones from other people. Without permission to read
+ * the channel the answer is simply given without them. The service cleans and limits what is sent.
+ */
+const chatFor = async (ctx: CommandContext, question: string): Promise<ChatLine[]> => {
+  const channel = ctx.channel;
+  if (!channel) return [];
+
+  const authorOf = (message: Message) => message.member?.displayName ?? message.author.globalName ?? message.author.username;
+  const readable = (message: Message) => !message.author.bot && !!message.content.trim() && !message.content.trim().startsWith(PREFIX);
+  const lines: ChatLine[] = [];
+
+  try {
+    const repliedId = ctx.referencedMessageId;
+    if (repliedId && conversations.recall(repliedId).length === 0) {
+      const replied = await channel.messages.fetch(repliedId).catch(() => null);
+      if (replied && readable(replied)) lines.push({ author: authorOf(replied), text: replied.content, repliedTo: true });
+    }
+
+    if (refersToChat(question)) {
+      const recent = await channel.messages.fetch(
+        ctx.triggerMessageId ? { limit: CHAT_FETCH_LIMIT, before: ctx.triggerMessageId } : { limit: CHAT_FETCH_LIMIT },
+      );
+      const now = Date.now();
+      const earlier = [...recent.values()]
+        .reverse()
+        .filter(message => readable(message) && message.id !== repliedId && now - message.createdTimestamp <= CHAT_WINDOW_MS);
+      lines.unshift(...earlier.map(message => ({ author: authorOf(message), text: message.content })));
+    }
+  } catch {
+    // No permission to read the channel history: the question is answered without the chat
+  }
+  return lines;
+};
+
 /** The custom emojis of the server that the bot can use (available, and not limited to some roles). */
 const usableEmojis = (ctx: CommandContext): ServerEmoji[] =>
   ctx.guild.emojis.cache
@@ -79,20 +119,30 @@ export default defineCommand({
   async run(ctx) {
     const prompt = ctx.options.getString('prompt', true);
 
+    // A reply to an answer of the assistant brings the exchanges before it; any other message starts a new talk
+    const history = conversations.recall(ctx.referencedMessageId);
+
     let settled = false;
     const answering = (async () => {
       if (await isTicketChannel(ctx)) throw new UserError(TICKET_REFUSAL);
-      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx));
+      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx), history, await chatFor(ctx, prompt));
     })().finally(() => { settled = true; });
 
     await Promise.race([answering.catch(() => {}), waitFor(DEFER_AFTER_MS)]);
     if (!settled) await ctx.defer();
 
-    const { text, photo } = await answering;
+    const { text, photo, turn } = await answering;
     const gallery = photo ? await randomPhotoMessage(ctx.user.id) : null;
 
-    if (!gallery) return ctx.reply({ content: text, allowedMentions: { parse: [] }, suppressEmbeds: true });
-    // The text and the photo go in one message, with the gallery's own buttons (🎲 and 🔗)
-    await ctx.reply({ ...gallery, content: text, allowedMentions: { parse: [] } });
+    if (gallery) {
+      // The text and the photo go in one message, with the gallery's own buttons (🎲 and 🔗)
+      await ctx.reply({ ...gallery, content: text, allowedMentions: { parse: [] } });
+    } else {
+      await ctx.reply({ content: text, allowedMentions: { parse: [] }, suppressEmbeds: true });
+    }
+
+    // Anyone replying to this answer in the next ten minutes continues the talk, with the last exchanges as context
+    const sent = await ctx.fetchReply().catch(() => null);
+    if (sent) conversations.remember(sent.id, [...history, turn]);
   },
 });

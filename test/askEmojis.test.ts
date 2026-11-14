@@ -75,6 +75,13 @@ describe('instructions with emojis', () => {
     assert.doesNotMatch(text, /one or two emojis at most/);
   });
 
+  it('ask to pick a favorite instead of saying there is none, without ever putting anyone down', () => {
+    const text = buildInstructions('K');
+    for (const rule of [/never say you have no favorite/, /as if rolling dice/, /pick the member who is asking/, /Never rank people against each other/, /least favorite/]) {
+      assert.match(text, rule);
+    }
+  });
+
   it('ask for the voice of a friend in a group chat, who may joke, laugh, tease and refuse', () => {
     const text = buildInstructions('K');
     for (const rule of [/friend in a group chat/, /No customer-service tone/, /tease lightly, joke back, laugh/, /refusing playfully is fine/, /refuse to gossip with humor/, /never say things like "no tengo información personal"/]) {
@@ -115,7 +122,7 @@ describe('/ask with emojis', () => {
       client,
       knowledge: 'K',
       blockedTerms: [],
-      limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
+      limits: createAskLimits({ cooldownMs: 0, replyCooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
       safetyIdOf: () => 'anon',
     });
     return { service, requests };

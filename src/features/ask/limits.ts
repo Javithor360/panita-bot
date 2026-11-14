@@ -4,6 +4,8 @@ export type LimitVerdict = 'ok' | 'cooldown' | 'daily' | 'global' | 'busy';
 
 export interface AskLimitsConfig {
   cooldownMs: number;
+  /** The wait between two replies in a conversation, shorter than between new questions. */
+  replyCooldownMs: number;
   dailyPerUser: number;
   dailyGlobal: number;
   /** Questions answered at the same moment, in total. */
@@ -12,7 +14,7 @@ export interface AskLimitsConfig {
 
 export interface AskLimits {
   /** Counts a question when the member may ask it now; otherwise says which limit stops them (and counts nothing). */
-  tryAcquire(userId: string): LimitVerdict;
+  tryAcquire(userId: string, kind?: 'new' | 'reply'): LimitVerdict;
   /** Gives back the daily count of a question that was never answered (the provider failed); the cooldown stays. */
   refund(userId: string): void;
   /** Call when the question finishes, answered or not. */
@@ -27,6 +29,7 @@ const dayOf = (at: number) => Math.floor(at / 86_400_000);
  */
 export const createAskLimits = (config: AskLimitsConfig, now: () => number = Date.now): AskLimits => {
   const cooldown = createCooldown(config.cooldownMs, now);
+  const replyCooldown = createCooldown(config.replyCooldownMs, now);
   let day = dayOf(now());
   let globalCount = 0;
   const perUser = new Map<string, number>();
@@ -41,13 +44,14 @@ export const createAskLimits = (config: AskLimitsConfig, now: () => number = Dat
   };
 
   return {
-    tryAcquire(userId) {
+    tryAcquire(userId, kind = 'new') {
       rollDay();
       if (inFlight >= config.maxInFlight) return 'busy';
       if (globalCount >= config.dailyGlobal) return 'global';
       if ((perUser.get(userId) ?? 0) >= config.dailyPerUser) return 'daily';
       // Last, because it is the only check that has a side effect when it passes
-      if (config.cooldownMs > 0 && !cooldown.tryAcquire(userId)) return 'cooldown';
+      const [wait, gate] = kind === 'reply' ? [config.replyCooldownMs, replyCooldown] : [config.cooldownMs, cooldown];
+      if (wait > 0 && !gate.tryAcquire(userId)) return 'cooldown';
 
       globalCount++;
       perUser.set(userId, (perUser.get(userId) ?? 0) + 1);

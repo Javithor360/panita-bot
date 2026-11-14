@@ -65,6 +65,10 @@ export interface CommandContext {
   readonly channel: GuildTextBasedChannel | null;
   readonly client: Client<true>;
   readonly createdTimestamp: number;
+  /** The message this one replies to (prefix only; always null on slash). */
+  readonly referencedMessageId: string | null;
+  /** The message that ran the command (prefix only; always null on slash, which has no message). */
+  readonly triggerMessageId: string | null;
   readonly options: CommandOptions;
 
   /** First call replies (or fills a deferred reply); later calls follow up. */
@@ -134,6 +138,8 @@ export class SlashContext extends BaseContext implements CommandContext {
   get channel() { return this.interaction.channel; }
   get client() { return this.interaction.client; }
   get createdTimestamp() { return this.interaction.createdTimestamp; }
+  get referencedMessageId() { return null; }
+  get triggerMessageId() { return null; }
 
   async reply(payload: ReplyPayload) {
     const { ephemeral, suppressEmbeds, rest } = normalize(payload);
@@ -195,6 +201,8 @@ export class PrefixContext extends BaseContext implements CommandContext {
   get channel() { return this.message.channel; }
   get client() { return this.message.client; }
   get createdTimestamp() { return this.message.createdTimestamp; }
+  get referencedMessageId() { return this.message.reference?.messageId ?? null; }
+  get triggerMessageId() { return this.message.id; }
 
   private track(message: Message) {
     this.firstResponse ??= message;

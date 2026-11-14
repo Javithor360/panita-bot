@@ -6,6 +6,9 @@ import { createAskLimits } from '../src/features/ask/limits';
 import { ASK_MESSAGES, createAskService, type AskDeps } from '../src/services/ask';
 import { OpenAiError, type AnswerRequest, type OpenAiClient } from '../src/services/openai';
 
+/** What is posted: the text and whether a photo goes with it (the turn to remember is checked apart). */
+const shown = ({ text, photo }: { text: string; photo: boolean }) => ({ text, photo });
+
 const KNOWLEDGE = 'Panitacraft es una comunidad. Web: https://www.panitacraft.com/';
 
 interface FakeOptions {
@@ -39,7 +42,7 @@ const make = (options: FakeOptions = {}, overrides: Partial<AskDeps> = {}) => {
     client: fake.client,
     knowledge: KNOWLEDGE,
     blockedTerms: ['secretword'],
-    limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
+    limits: createAskLimits({ cooldownMs: 0, replyCooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
     safetyIdOf: userId => `anon-${userId.length}`,
     ...overrides,
   });
@@ -106,7 +109,7 @@ describe('/ask service', () => {
       client,
       knowledge: KNOWLEDGE,
       blockedTerms: [],
-      limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
+      limits: createAskLimits({ cooldownMs: 0, replyCooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }),
       safetyIdOf: () => 'anon',
     });
     return { service, calls };
@@ -136,7 +139,7 @@ describe('/ask service', () => {
     mock.method(console, 'warn', () => {});
     const { service } = make(
       { flagged: new OpenAiError('timeout') },
-      { limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 1, dailyGlobal: 100, maxInFlight: 10 }) },
+      { limits: createAskLimits({ cooldownMs: 0, replyCooldownMs: 0, dailyPerUser: 1, dailyGlobal: 100, maxInFlight: 10 }) },
     );
     assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.failed);
     assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.failed, 'the failed one was refunded');
@@ -161,19 +164,50 @@ describe('/ask service', () => {
     assert.ok(text.includes('https://www.panitacraft.com/'));
   });
 
+  it('sends the earlier exchanges to the model and returns this one to be remembered', async () => {
+    const { service, requests } = make({ answer: 'Claro, jaja :feliz:' });
+    const history = [{ question: 'hola', answer: 'ey' }];
+    const answer = await service.ask('1', '¿y tú?', [{ name: 'feliz', id: '1', animated: false }], history);
+    assert.deepEqual(requests[0].history, history);
+    assert.equal(requests[0].input, '¿y tú?');
+    assert.deepEqual(answer.turn, { question: '¿y tú?', answer: 'Claro, jaja :feliz:' }, 'remembered as the model wrote it, with no emoji codes');
+  });
+
+  it('uses the short wait of a conversation for a reply, and the long one for a new question', async () => {
+    const limits = createAskLimits({ cooldownMs: 60_000, replyCooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 });
+    const { service } = make({}, { limits });
+    await service.ask('1', 'una');
+    assert.equal(await userError(service.ask('1', 'otra')), ASK_MESSAGES.cooldown);
+    assert.equal((await service.ask('1', 'respuesta', [], [{ question: 'una', answer: 'ok' }])).text, 'Hola');
+    assert.equal((await service.ask('1', 'otra respuesta', [], [{ question: 'una', answer: 'ok' }])).text, 'Hola');
+  });
+
+  it('does not keep a question that named something unannounced, so a reply never sends it to the model', async () => {
+    const { service } = make();
+    const answer = await service.ask('1', '¿qué es SecretWord?');
+    assert.equal(answer.turn.answer, ASK_MESSAGES.unannounced);
+    assert.ok(!/secretword/i.test(answer.turn.question));
+  });
+
+  it('remembers what was shown when the model\'s answer was replaced', async () => {
+    const { service } = make({ answer: 'secretword' });
+    const answer = await service.ask('1', 'hola');
+    assert.deepEqual(answer.turn, { question: 'hola', answer: ASK_MESSAGES.noAnswer });
+  });
+
   it('turns the photo marker into an action and never shows it', async () => {
     const { service } = make({ answer: '¡Claro, mira esta! 📸 [[photo]]' });
-    assert.deepEqual(await service.ask('1', 'muéstrame una foto'), { text: '¡Claro, mira esta! 📸', photo: true });
+    assert.deepEqual(shown(await service.ask('1', 'muéstrame una foto')), { text: '¡Claro, mira esta! 📸', photo: true });
   });
 
   it('gives a text of its own when the model only asked for the photo', async () => {
     const { service } = make({ answer: '[[photo]]' });
-    assert.deepEqual(await service.ask('1', 'una foto'), { text: ASK_MESSAGES.photoOnly, photo: true });
+    assert.deepEqual(shown(await service.ask('1', 'una foto')), { text: ASK_MESSAGES.photoOnly, photo: true });
   });
 
   it('does not send a photo with an answer that was replaced for a blocked term', async () => {
     const { service } = make({ answer: 'secretword [[photo]]' });
-    assert.deepEqual(await service.ask('1', 'una foto'), { text: ASK_MESSAGES.noAnswer, photo: false });
+    assert.deepEqual(shown(await service.ask('1', 'una foto')), { text: ASK_MESSAGES.noAnswer, photo: false });
   });
 
   it('asks for no photo in a normal answer, or in the reply to a blocked question', async () => {
@@ -195,7 +229,7 @@ describe('/ask service', () => {
   });
 
   it('applies the limits, and an invalid question does not use them up', async () => {
-    const { service } = make({}, { limits: createAskLimits({ cooldownMs: 60_000, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }) });
+    const { service } = make({}, { limits: createAskLimits({ cooldownMs: 60_000, replyCooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 10 }) });
     await userError(service.ask('1', ''));
     assert.equal((await service.ask('1', 'hola')).text, 'Hola');
     assert.equal(await userError(service.ask('1', 'otra')), ASK_MESSAGES.cooldown);
@@ -205,7 +239,7 @@ describe('/ask service', () => {
     mock.method(console, 'warn', () => {});
     const { service } = make(
       { answer: new OpenAiError('timeout') },
-      { limits: createAskLimits({ cooldownMs: 0, dailyPerUser: 1, dailyGlobal: 100, maxInFlight: 10 }) },
+      { limits: createAskLimits({ cooldownMs: 0, replyCooldownMs: 0, dailyPerUser: 1, dailyGlobal: 100, maxInFlight: 10 }) },
     );
     assert.equal(await userError(service.ask('1', 'hola')), ASK_MESSAGES.failed);
     // The failed one was refunded, so the only question of the day is still free
@@ -225,7 +259,7 @@ describe('/ask service', () => {
 
   it('frees its place in the limits after every outcome', async () => {
     mock.method(console, 'warn', () => {});
-    const limits = createAskLimits({ cooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 1 });
+    const limits = createAskLimits({ cooldownMs: 0, replyCooldownMs: 0, dailyPerUser: 100, dailyGlobal: 100, maxInFlight: 1 });
     const failing = make({ answer: new OpenAiError('timeout') }, { limits });
     await userError(failing.service.ask('1', 'uno'));
     const flagged = make({ flagged: true }, { limits });

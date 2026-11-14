@@ -4,6 +4,8 @@ import { env } from '../config/env';
 import { UserError } from '../core/errors';
 import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '../features/ask/guard';
 import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emojis';
+import { cleanChat, composeInput, type ChatLine } from '../features/ask/chatContext';
+import type { Turn } from '../features/ask/conversations';
 import { findBlockedTerm, loadKnowledge } from '../features/ask/knowledge';
 import { createAskLimits, type AskLimits } from '../features/ask/limits';
 import { buildInstructions } from '../features/ask/prompt';
@@ -20,6 +22,8 @@ export const ASK_MESSAGES = {
   flagged: '❌ No puedo ayudarte con eso.',
   failed: '❌ No pude responder ahora mismo. Inténtalo de nuevo en un momento.',
   /** For a question that names something that has not been announced: no model involved. */
+  /** Stands for the question in the history when it named something that was not announced. */
+  unannouncedQuestion: '(una pregunta sobre algo que aún no se anuncia)',
   unannounced: '🤐 Eso aún no se ha anunciado. Por ahora solo puedo contarte lo que ya es público de Panitacraft.',
   noAnswer: '🤔 No supe cómo responder eso. ¿Puedes preguntármelo de otra forma?',
   /** When the model asked for a photo and wrote nothing else. */
@@ -40,11 +44,21 @@ export interface AskAnswer {
   text: string;
   /** The member asked for a random photo of the gallery, the only thing the assistant can ask the bot to do. */
   photo: boolean;
+  /** This exchange as it is remembered for the next reply: the question and the text as the model wrote it (no emojis). */
+  turn: Turn;
 }
 
 export interface AskService {
   /** The answer to post. Throws `UserError` with a message for the member whenever there is none. */
-  ask(userId: string, rawQuestion: string, emojis?: readonly ServerEmoji[]): Promise<AskAnswer>;
+  /** `history` holds the exchanges before this question when it continues a talk (oldest first). */
+  /** `chat` holds the recent messages the member may be asking about (the service cleans and limits them). */
+  ask(
+    userId: string,
+    rawQuestion: string,
+    emojis?: readonly ServerEmoji[],
+    history?: readonly Turn[],
+    chat?: readonly ChatLine[],
+  ): Promise<AskAnswer>;
 }
 
 const LIMIT_MESSAGES = { cooldown: ASK_MESSAGES.cooldown, daily: ASK_MESSAGES.daily, global: ASK_MESSAGES.global, busy: ASK_MESSAGES.busy } as const;
@@ -83,23 +97,30 @@ export const createAskService =(deps: AskDeps): AskService => {
   };
 
   return {
-    async ask(userId, rawQuestion, emojis = []) {
+    async ask(userId, rawQuestion, emojis = [], history = [], chat = []) {
       if (!deps.client.configured) throw new UserError(ASK_MESSAGES.unavailable);
 
       const checked = checkQuestion(rawQuestion);
       if (!checked.ok) throw new UserError(checked.reason === 'empty' ? ASK_MESSAGES.empty : ASK_MESSAGES.tooLong);
       const { question } = checked;
+      // Messages with a blocked term never reach the model, just like a question with one
+      const quoted = cleanChat(chat, deps.blockedTerms);
 
-      const verdict = deps.limits.tryAcquire(userId);
+      const verdict = deps.limits.tryAcquire(userId, history.length > 0 ? 'reply' : 'new');
       if (verdict !== 'ok') throw new UserError(LIMIT_MESSAGES[verdict]);
 
       try {
         // Answered without the model, so nothing about it can leak
-        if (findBlockedTerm(question, deps.blockedTerms)) return { text: ASK_MESSAGES.unannounced, photo: false };
+        // The question is not kept either: a later reply would send it to the model
+        if (findBlockedTerm(question, deps.blockedTerms)) {
+          return { text: ASK_MESSAGES.unannounced, photo: false, turn: { question: ASK_MESSAGES.unannouncedQuestion, answer: ASK_MESSAGES.unannounced } };
+        }
 
         // A question is never answered unchecked: when the moderation cannot run, the member is told so
         try {
-          if (await flaggedWithRetry(deps.client, question)) throw new UserError(ASK_MESSAGES.flagged);
+          // The quoted chat is checked with the question: what the model reads is what is moderated
+          const checked = [...quoted.map(line => line.text), question].join('\n');
+          if (await flaggedWithRetry(deps.client, checked)) throw new UserError(ASK_MESSAGES.flagged);
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);
@@ -108,7 +129,7 @@ export const createAskService =(deps: AskDeps): AskService => {
 
         let answer: string;
         try {
-          answer = await deps.client.answer({ instructions: instructionsFor(emojiNames(emojis)), input: question, safetyId: deps.safetyIdOf(userId) });
+          answer = await deps.client.answer({ instructions: instructionsFor(emojiNames(emojis)), input: composeInput(question, quoted), history, safetyId: deps.safetyIdOf(userId) });
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);
@@ -120,9 +141,10 @@ export const createAskService =(deps: AskDeps): AskService => {
         const cleaned = cleanAnswer(text, { knowledge: deps.knowledge, blockedTerms: deps.blockedTerms });
         if (cleaned === null) {
           const refused = findBlockedTerm(text, deps.blockedTerms) !== null;
-          return photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo } : { text: ASK_MESSAGES.noAnswer, photo: false };
+          const shown = photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo } : { text: ASK_MESSAGES.noAnswer, photo: false };
+          return { ...shown, turn: { question, answer: shown.text } };
         }
-        return { text: expandEmojis(cleaned, emojis), photo };
+        return { text: expandEmojis(cleaned, emojis), photo, turn: { question, answer: cleaned } };
       } finally {
         deps.limits.release();
       }
@@ -158,6 +180,7 @@ export const getAskService = (): AskService => {
     blockedTerms: env.ASK_BLOCKED_TERMS,
     limits: createAskLimits({
       cooldownMs: env.ASK_COOLDOWN_SECONDS * 1000,
+      replyCooldownMs: env.ASK_REPLY_COOLDOWN_SECONDS * 1000,
       dailyPerUser: env.ASK_DAILY_LIMIT,
       dailyGlobal: env.ASK_GLOBAL_DAILY_LIMIT,
       maxInFlight: 5,

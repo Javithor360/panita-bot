@@ -8,7 +8,7 @@ const DAY = 86_400_000;
 const make = (overrides: Partial<Parameters<typeof createAskLimits>[0]> = {}) => {
   let clock = 10 * DAY + 1000;
   const limits = createAskLimits(
-    { cooldownMs: 20_000, dailyPerUser: 3, dailyGlobal: 5, maxInFlight: 2, ...overrides },
+    { cooldownMs: 20_000, replyCooldownMs: 5_000, dailyPerUser: 3, dailyGlobal: 5, maxInFlight: 2, ...overrides },
     () => clock,
   );
   return { limits, advance: (ms: number) => { clock += ms; } };
@@ -24,6 +24,29 @@ describe('/ask limits', () => {
     limits.release();
     advance(20_000);
     assert.equal(limits.tryAcquire('a'), 'ok');
+  });
+
+  it('makes a member wait less between replies in a conversation than between new questions', () => {
+    const { limits, advance } = make({ dailyPerUser: 10, dailyGlobal: 10 });
+    assert.equal(limits.tryAcquire('a', 'new'), 'ok');
+    limits.release();
+    assert.equal(limits.tryAcquire('a', 'reply'), 'ok', 'the first reply is not held by the wait between new questions');
+    limits.release();
+    assert.equal(limits.tryAcquire('a', 'reply'), 'cooldown');
+    advance(5_000);
+    assert.equal(limits.tryAcquire('a', 'reply'), 'ok');
+    limits.release();
+    assert.equal(limits.tryAcquire('a', 'new'), 'cooldown', 'a new question still waits its own 20 seconds');
+  });
+
+  it('counts a reply in the daily caps like any question', () => {
+    const { limits, advance } = make({ dailyPerUser: 2, replyCooldownMs: 0 });
+    for (let i = 0; i < 2; i++) {
+      assert.equal(limits.tryAcquire('a', 'reply'), 'ok');
+      limits.release();
+    }
+    assert.equal(limits.tryAcquire('a', 'reply'), 'daily');
+    advance(0);
   });
 
   it('caps the questions of a member per day and resets on the next day', () => {

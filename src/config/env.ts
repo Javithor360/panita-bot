@@ -156,8 +156,10 @@ export const env = {
   OPENAI_MODEL: optional('OPENAI_MODEL') ?? 'gpt-6-luna',
   /** Seconds a member waits between two questions to `/ask`. */
   ASK_COOLDOWN_SECONDS: integerInRange('ASK_COOLDOWN_SECONDS', 20, 0, 3600),
+  /** Seconds between two replies in a conversation (a reply to an answer of `/ask`). */
+  ASK_REPLY_COOLDOWN_SECONDS: integerInRange('ASK_REPLY_COOLDOWN_SECONDS', 5, 0, 3600),
   /** Questions per member per day, and in total per day. The OpenAI project has its own spending limit on top. */
-  ASK_DAILY_LIMIT: integerInRange('ASK_DAILY_LIMIT', 30, 1, 1000),
+  ASK_DAILY_LIMIT: integerInRange('ASK_DAILY_LIMIT', 60, 1, 1000),
   ASK_GLOBAL_DAILY_LIMIT: integerInRange('ASK_GLOBAL_DAILY_LIMIT', 1000, 1, 100000),
   /** Words an answer of `/ask` may never contain (a hit replaces the answer). Optional, comma-separated. */
   ASK_BLOCKED_TERMS: wordList('ASK_BLOCKED_TERMS'),
