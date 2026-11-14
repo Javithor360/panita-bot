@@ -63,7 +63,8 @@ test('the message handler runs a bare command as if it had the prefix, and ignor
   const resolved: string[] = [];
   const registry = { resolve: (name: string) => (resolved.push(name), undefined) } as never;
   const handler = createMessageHandler(registry, message => (message.content.trim() === 'playerlist' ? 'playerlist' : null));
-  const message = (content: string) => ({ author: { bot: false }, inGuild: () => true, content }) as unknown as Message;
+  const message = (content: string) =>
+    ({ author: { bot: false }, inGuild: () => true, content, client: { user: { id: '1'.repeat(18) } } }) as unknown as Message;
 
   await handler(message('playerlist'));
   await handler(message('hola'));

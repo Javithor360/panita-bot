@@ -2,6 +2,7 @@ import type { Message } from 'discord.js';
 import { PREFIX } from '../config/constants';
 import { accessDenial } from '../core/access';
 import { createPrefixContext } from '../core/context';
+import { askFromMention } from '../features/ask/mention';
 import { SLASH_ONLY_ERROR, userMessageFor } from '../core/errors';
 import { parsePrefixArgs } from '../core/prefixParser';
 import type { CommandRegistry } from '../core/registry';
@@ -16,7 +17,9 @@ export const createMessageHandler =
   (registry: CommandRegistry, bareCommandOf: (message: Message) => string | null = () => null) =>
   async (message: Message) => {
   if (message.author.bot || !message.inGuild()) return;
-  const content = bareCommandOf(message) !== null ? PREFIX + message.content.trim() : message.content;
+  // `@Panita Bot ask <question>` is `!ask <question>`; a channel may also allow a command without the prefix
+  const content = askFromMention(message.content, message.client.user?.id)
+    ?? (bareCommandOf(message) !== null ? PREFIX + message.content.trim() : message.content);
   if (!content.startsWith(PREFIX)) return;
 
   const body = content.slice(PREFIX.length);
