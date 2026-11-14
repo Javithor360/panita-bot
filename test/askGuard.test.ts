@@ -93,6 +93,7 @@ describe('knowledge', () => {
     assert.throws(() => parseKnowledge('  \n ', []), /empty/);
     assert.throws(() => parseKnowledge('Algo sobre SecretWord', ['secretword']), /blocked term/);
     assert.equal(parseKnowledge('\nPanitacraft\n', ['secretword']), 'Panitacraft');
+    assert.equal(parseKnowledge('Aerosmith\\_ y a\\*b', []), 'Aerosmith_ y a*b', 'markdown escapes are removed');
   });
 
   it('ships a knowledge file that loads and whose links all survive the clean-up', () => {

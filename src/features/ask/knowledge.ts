@@ -16,7 +16,8 @@ export const findBlockedTerm = (text: string, blockedTerms: readonly string[]): 
  * file is sent to OpenAI and can end up in an answer, so a slip while editing it must not go live.
  */
 export const parseKnowledge = (source: string, blockedTerms: readonly string[]): string => {
-  const knowledge = source.trim();
+  // A markdown editor may write `Aerosmith\_`; the model should read the name
+  const knowledge = source.replace(/\\([_*])/g, '$1').trim();
   if (!knowledge) throw new Error('[Ask] The knowledge file is empty');
   if (findBlockedTerm(knowledge, blockedTerms)) {
     throw new Error('[Ask] The knowledge file contains a blocked term; remove it before enabling /ask');
