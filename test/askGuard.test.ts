@@ -117,6 +117,14 @@ describe('knowledge', () => {
     assert.match(knowledge, /\*\*Miembro\*\*/);
   });
 
+  it('includes the data guide: edition history, glossary and the ticket system', () => {
+    const knowledge = loadKnowledge([]);
+    assert.match(knowledge, /## Historia de las ediciones/);
+    assert.match(knowledge, /\*\*Tezzlar I\*\* \(12 de junio al 12 de julio de 2020\)/);
+    assert.match(knowledge, /## Glosario/);
+    assert.match(knowledge, /Solo puedes tener \*\*un ticket abierto a la vez\*\*/);
+  });
+
   it('includes the Tezzlar III detail built from the data', () => {
     const knowledge = loadKnowledge([]);
     assert.match(knowledge, /### Día 1\b/);
