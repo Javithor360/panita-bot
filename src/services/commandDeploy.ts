@@ -3,6 +3,7 @@ import {
   InteractionContextType,
   REST,
   Routes,
+  type RESTPostAPIApplicationCommandsJSONBody,
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from 'discord.js';
 import { env } from '../config/env';
@@ -32,6 +33,14 @@ export const buildSlashPayload = (registry: CommandRegistry): RESTPostAPIChatInp
     integration_types: [ApplicationIntegrationType.GuildInstall],
   }));
 
+/** Right-click message actions, in the same contexts as the slash commands. */
+export const buildContextMenuPayload = (registry: CommandRegistry): RESTPostAPIApplicationCommandsJSONBody[] =>
+  registry.contextMenus.map(({ command }) => ({
+    ...command.contextMenu!.data.toJSON(),
+    contexts: [InteractionContextType.Guild],
+    integration_types: [ApplicationIntegrationType.GuildInstall],
+  }));
+
 const resolveApplicationId = async (rest: REST) =>
   env.CLIENT_ID ?? ((await rest.get(Routes.currentApplication())) as { id: string }).id;
 
@@ -41,7 +50,7 @@ export const deploySlashCommands = async (
 ): Promise<DeployResult> => {
   const rest = new REST().setToken(env.DISCORD_TOKEN);
   const appId = applicationId ?? await resolveApplicationId(rest);
-  const body = buildSlashPayload(registry);
+  const body = [...buildSlashPayload(registry), ...buildContextMenuPayload(registry)];
 
   if (scope === 'guild') {
     if (!env.GUILD_ID) throw new Error('GUILD_ID is required to register guild commands.');

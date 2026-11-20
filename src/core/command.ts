@@ -1,5 +1,7 @@
 import type {
   ButtonInteraction,
+  ContextMenuCommandBuilder,
+  MessageContextMenuCommandInteraction,
   ModalSubmitInteraction,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
   StringSelectMenuInteraction,
@@ -52,11 +54,18 @@ export interface CommandData {
   toJSON(): RESTPostAPIChatInputApplicationCommandsJSONBody;
 }
 
+/** A right-click action on a message (Apps → name). Registered next to the slash command that owns it. */
+export interface ContextMenuHandler {
+  data: ContextMenuCommandBuilder;
+  run(interaction: MessageContextMenuCommandInteraction<'cached'>): Promise<unknown>;
+}
+
 export interface Command {
   data: CommandData;
   meta: CommandMeta;
   prefix?: PrefixConfig;
   run(ctx: CommandContext): Promise<unknown>;
+  contextMenu?: ContextMenuHandler;
   /** Component handlers keyed by action. Their custom IDs use the command name as namespace. */
   components?: Record<string, ComponentHandler>;
   /**

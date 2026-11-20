@@ -22,6 +22,7 @@
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
     "fflate": "^0.8.3",
+    "tesseract.js": "^7.0.0",
     "ws": "^8.22.0",
     "yaml": "^2.9.1"
   },
@@ -32,5 +33,6 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0"
-  }
+  },
+  "packageManager": "pnpm@10.34.5+sha512.a4ee05f2f73658255bd6a89859c065a45c28a57daefae2c893a168ee2b73168c37b91e83e57ea67654ad03f03031746430e8bce38e362e042605fb8abc80192e"
 }
