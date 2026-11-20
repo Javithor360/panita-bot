@@ -27,6 +27,6 @@ export default defineCommand({
     await discordAction(() => ctx.guild.bans.remove(user.id, auditReason(ctx, reason)));
 
     const embed = caseEmbed({ action: 'unban', subject: subjectOf(user), moderatorId: ctx.user.id, reason });
-    await announce(ctx, { text: confirmation('unban', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'unban', user.username), embeds: [embed] });
   },
 });

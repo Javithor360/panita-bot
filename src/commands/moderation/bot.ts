@@ -1,6 +1,7 @@
 import { ActivityType, SlashCommandBuilder, type PresenceStatusData } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
+import { ok } from '../../lib/voice';
 
 export default defineCommand({
   data: new SlashCommandBuilder()
@@ -43,17 +44,17 @@ export default defineCommand({
     if (ctx.options.getSubcommand() === 'status') {
       const state = ctx.options.getString('state', true) as PresenceStatusData;
       user.setStatus(state);
-      return ctx.reply({ content: `✅ Estado del bot cambiado a **${state}**.`, ephemeral: true });
+      return ctx.reply({ content: ok(ctx.member, `Estado del bot cambiado a **${state}**.`), ephemeral: true });
     }
 
     const text = ctx.options.getString('text', true);
     if (text.toLowerCase() === 'clear') {
       user.setActivity();
-      return ctx.reply({ content: '✅ Actividad del bot eliminada.', ephemeral: true });
+      return ctx.reply({ content: ok(ctx.member, 'Actividad del bot eliminada.'), ephemeral: true });
     }
 
     // Custom activities show just the text, without a "Playing" prefix
     user.setActivity({ name: 'Custom Status', type: ActivityType.Custom, state: text });
-    await ctx.reply({ content: `✅ Actividad del bot actualizada a: **${text}**.`, ephemeral: true });
+    await ctx.reply({ content: ok(ctx.member, `Actividad del bot actualizada a: **${text}**.`), ephemeral: true });
   },
 });

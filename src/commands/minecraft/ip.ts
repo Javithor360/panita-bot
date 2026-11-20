@@ -14,7 +14,7 @@ export default defineCommand({
   meta: {
     category: CATEGORIES.minecraft,
     description: 'Proporciona la IP del servidor de Minecraft (dominio o numérica).',
-    aliases: ['server', 'jugar'],
+    aliases: ['jugar', 'minecraft'],
   },
   async run(ctx) {
     const ip = ctx.options.getBoolean('numeric') ? SERVER.numericIp : SERVER.domain;

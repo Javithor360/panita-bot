@@ -27,6 +27,6 @@ export const createDirectMessageHandler = (helpCooldown: Cooldown = createCooldo
       }
       if (helpCooldown.tryAcquire(message.author.id)) await reply(DM_HELP);
     } catch (error) {
-      await reply(userMessageFor(error, 'dm', 'DM'));
+      await reply(userMessageFor(error, 'dm', 'DM', message.author));
     }
   };

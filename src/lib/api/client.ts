@@ -1,5 +1,5 @@
 import { ApiError } from './errors';
-import type { ApiEnvelope } from './types';
+import type { ApiEnvelope, ApiHealth } from './types';
 
 /** Timeouts per kind of call. `preAck` is for calls made before a Discord interaction is acknowledged. */
 export const API_TIMEOUTS = { default: 8_000, preAck: 2_000, bulk: 30_000 } as const;
@@ -9,6 +9,9 @@ export const API_TIMEOUTS = { default: 8_000, preAck: 2_000, bulk: 30_000 } as c
  * retries, since a retry would outlast the interaction.
  */
 export const PRE_ACK_REQUEST = { timeoutMs: API_TIMEOUTS.preAck, idempotent: false } as const;
+
+/** The health probe gives up quickly: a slow API is as good as an absent one for a status line. */
+export const HEALTH_TIMEOUT_MS = 3_000;
 
 const MAX_CONCURRENT = 6;
 const MAX_RETRIES = 2;
@@ -94,6 +97,30 @@ export class ApiClient {
     this.sleep = deps.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
     this.random = deps.random ?? Math.random;
     this.logger = deps.logger ?? console;
+  }
+
+  /**
+   * Whether the API is up and which version it is. `GET /v1/health` is public and answers `{ status: 'ok', version }` without the
+   * usual `data` envelope, so it has its own raw call: no key is sent, there are no retries, and it never throws (any failure,
+   * a slow answer or an unexpected body is "offline").
+   */
+  async health(timeoutMs: number = HEALTH_TIMEOUT_MS): Promise<ApiHealth> {
+    const offline: ApiHealth = { online: false, version: null, latencyMs: null };
+    const started = Date.now();
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/health`, {
+        signal: AbortSignal.timeout(timeoutMs),
+        redirect: 'manual',
+        headers: { Accept: 'application/json' },
+      });
+      const latencyMs = Date.now() - started;
+      if (!response.ok) return offline;
+      const body = (await response.json()) as { status?: unknown; version?: unknown } | null;
+      if (body?.status !== 'ok') return offline;
+      return { online: true, version: typeof body.version === 'string' ? body.version : null, latencyMs };
+    } catch {
+      return offline;
+    }
   }
 
   /** Performs a call and returns the whole success body, for lists that also need `meta`. */

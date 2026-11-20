@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
+import { ok } from '../../lib/voice';
 import { UserError } from '../../core/errors';
 import { syncAvatars } from '../../services/memberSync';
 

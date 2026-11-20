@@ -3,6 +3,7 @@ import { CATEGORIES, COLORS } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { minieventsData } from '../../data/minievents';
 import { renderCatalogList, tezzlarAuthor } from '../../lib/embeds';
+import { fail } from '../../lib/voice';
 
 export default defineCommand({
   data: new SlashCommandBuilder()
@@ -37,7 +38,7 @@ export default defineCommand({
     const event = minieventsData[id];
     if (!event) {
       return ctx.reply({
-        content: `❌ No se encontró ningún minievento con el ID \`${id}\`. Usa \`!minievent list\` para ver los disponibles.`,
+        content: fail(ctx.member, `no se encontró ningún minievento con el ID \`${id}\`. Usa \`!minievent list\` para ver los disponibles.`),
         ephemeral: true,
       });
     }

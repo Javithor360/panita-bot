@@ -21,7 +21,7 @@ import { findTicketByChannel } from '../../services/tickets';
  */
 const DEFER_AFTER_MS = 1500;
 
-const TICKET_REFUSAL = '❌ No respondo preguntas dentro de los tickets. Pregúntame en cualquier otro canal.';
+const TICKET_REFUSAL = 'No respondo preguntas dentro de los tickets. Pregúntame en cualquier otro canal.';
 
 /** Whether the command runs in a ticket channel. When the API can't tell, the answer is not blocked. */
 const isTicketChannel = async (ctx: CommandContext): Promise<boolean> => {

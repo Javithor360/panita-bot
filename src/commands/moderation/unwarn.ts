@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { CATEGORIES, EMOJIS, MODERATION } from '../../config/constants';
+import { CATEGORIES, MODERATION } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { UserError } from '../../core/errors';
 import { announce, guardTarget, memberOf, refuse, subjectOf } from '../../features/moderation/actions';
@@ -35,14 +35,14 @@ export default defineCommand({
 
     const warning = warnings[position - 1];
     if (!warning) {
-      throw new UserError(`${EMOJIS.cross} Esa persona solo tiene ${total} advertencia${total === 1 ? '' : 's'} activa${total === 1 ? '' : 's'}.`);
+      throw new UserError(`Esa persona solo tiene ${total} advertencia${total === 1 ? '' : 's'} activa${total === 1 ? '' : 's'}.`);
     }
 
     try {
       await revokeWarning(warning.id, ctx.user.id, reason ?? undefined);
     } catch (error) {
       if (error instanceof WarningAlreadyRevokedError || error instanceof WarningNotFoundError) {
-        throw new UserError(`${EMOJIS.cross} Esa advertencia ya había sido quitada, vuelve a revisar con \`warns\`.`);
+        throw new UserError(`Esa advertencia ya había sido quitada, vuelve a revisar con \`warns\`.`);
       }
       throw error;
     }
@@ -55,6 +55,6 @@ export default defineCommand({
       extra: [{ name: 'Advertencia quitada', value: warning.reason.slice(0, 200) }],
       footer: `Advertencias activas: ${total - 1}/${MODERATION.warnKickAt}`,
     });
-    await announce(ctx, { text: confirmation('unwarn', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'unwarn', user.username), embeds: [embed] });
   },
 });

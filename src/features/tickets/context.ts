@@ -9,7 +9,7 @@ export const requireTicketChannel = async (ctx: CommandContext) => {
   const channel = ctx.channel;
   const ticket = channel ? await findTicketByChannel(channel.id) : null;
   if (!ticket || channel?.type !== ChannelType.GuildText) {
-    throw new UserError('❌ Este canal no pertenece a un ticket.');
+    throw new UserError('Este canal no pertenece a un ticket.');
   }
   return { ticket, channel };
 };

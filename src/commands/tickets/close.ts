@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
+import { fail } from '../../lib/voice';
 import { buildCloseConfirm } from '../../features/tickets/embeds';
 import { findTicketByChannel, TICKET_STATUS } from '../../services/tickets';
 
@@ -16,8 +17,8 @@ export default defineCommand({
   async run(ctx) {
     await ctx.defer();
     const ticket = ctx.channel ? await findTicketByChannel(ctx.channel.id) : null;
-    if (!ticket) return ctx.reply('❌ Este canal no pertenece a un ticket.');
-    if (ticket.status === TICKET_STATUS.closed) return ctx.reply('❌ Este ticket ya está cerrado.');
+    if (!ticket) return ctx.reply(fail(ctx.member, 'Este canal no pertenece a un ticket.'));
+    if (ticket.status === TICKET_STATUS.closed) return ctx.reply(fail(ctx.member, 'Este ticket ya está cerrado.'));
 
     await ctx.reply(buildCloseConfirm(ctx.user.id));
   },

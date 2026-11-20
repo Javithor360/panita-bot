@@ -1,7 +1,8 @@
 import { EmbedBuilder, escapeMarkdown, type APIEmbedField } from 'discord.js';
-import { COLORS, EMOJIS, MODERATION } from '../../config/constants';
+import { COLORS, MODERATION } from '../../config/constants';
 import type { Warning } from '../../lib/api/types';
 import { discordTimestamp, formatDuration } from '../../lib/format';
+import { ok, type Who } from '../../lib/voice';
 
 /**
  * The voice of the moderation commands, taken from the old Noa: short, friendly Spanish, a case embed headed
@@ -144,24 +145,23 @@ export const warningLine = (warning: Warning, activeNumber: number | null): stri
 type Random = () => number;
 const pick = <T>(items: readonly T[], random: Random = Math.random): T => items[Math.floor(random() * items.length)];
 
-const CONFIRMATIONS: Record<CaseAction, { emoji: keyof typeof EMOJIS; lines: readonly string[] }> = {
-  kick: { emoji: 'offline', lines: ['**{name}** fue expulsado del servidor.', 'Listo, **{name}** salió por la puerta.'] },
-  ban: { emoji: 'offline', lines: ['**{name}** fue baneado del servidor.', 'Hecho: **{name}** ya no puede volver.'] },
-  unban: { emoji: 'online', lines: ['**{name}** fue desbaneado, tiene otra oportunidad.', 'Listo, **{name}** puede volver al servidor.'] },
-  mute: { emoji: 'idle', lines: ['**{name}** fue silenciado.', 'Shhh... **{name}** quedó en silencio.'] },
-  unmute: { emoji: 'online', lines: ['**{name}** ya puede hablar de nuevo.', 'Listo, se le quitó el silencio a **{name}**.'] },
-  hide: { emoji: 'idle', lines: ['**{name}** ya no puede ver el canal.', 'Hecho: el canal desapareció para **{name}**.'] },
-  unhide: { emoji: 'online', lines: ['**{name}** ya puede ver el canal otra vez.', 'Listo, el canal volvió a aparecer para **{name}**.'] },
-  warn: { emoji: 'idle', lines: ['**{name}** fue advertido.', 'Advertencia registrada para **{name}**.'] },
-  unwarn: { emoji: 'online', lines: ['Se le quitó una advertencia a **{name}**.', 'Listo, **{name}** tiene una advertencia menos.'] },
-  clear: { emoji: 'check', lines: ['{name}'] },
+const CONFIRMATIONS: Record<CaseAction, readonly string[]> = {
+  kick: ['**{name}** fue expulsado del servidor.', 'Listo, **{name}** salió por la puerta.'],
+  ban: ['**{name}** fue baneado del servidor.', 'Hecho: **{name}** ya no puede volver.'],
+  unban: ['**{name}** fue desbaneado, tiene otra oportunidad.', 'Listo, **{name}** puede volver al servidor.'],
+  mute: ['**{name}** fue silenciado.', 'Shhh... **{name}** quedó en silencio.'],
+  unmute: ['**{name}** ya puede hablar de nuevo.', 'Listo, se le quitó el silencio a **{name}**.'],
+  hide: ['**{name}** ya no puede ver el canal.', 'Hecho: el canal desapareció para **{name}**.'],
+  unhide: ['**{name}** ya puede ver el canal otra vez.', 'Listo, el canal volvió a aparecer para **{name}**.'],
+  warn: ['**{name}** fue advertido.', 'Advertencia registrada para **{name}**.'],
+  unwarn: ['Se le quitó una advertencia a **{name}**.', 'Listo, **{name}** tiene una advertencia menos.'],
+  clear: ['{name}'],
 };
 
-/** The line that opens the answer of a command, for example `<emoji> **Ana** fue expulsada del servidor.` */
-export const confirmation = (action: CaseAction, name: string, random?: Random): string => {
-  const { emoji, lines } = CONFIRMATIONS[action];
+/** The line that opens the answer of a command, in the bot's voice: `✅ ~ **Javi**, **Ana** fue expulsada del servidor.` */
+export const confirmation = (who: Who | null | undefined, action: CaseAction, name: string, random?: Random): string => {
   const safeName = escapeMarkdown(clip(name, NAME_MAX));
-  return `${EMOJIS[emoji]} ${pick(lines, random).replaceAll('{name}', safeName)}`;
+  return ok(who, pick(CONFIRMATIONS[action], random).replaceAll('{name}', safeName));
 };
 
 export type Denial =
@@ -184,5 +184,5 @@ const DENIALS: Record<Denial, readonly string[]> = {
   noPermission: ['No tengo los permisos necesarios para hacer eso. Revisa mis permisos o mi rol.'],
 };
 
-/** A refusal, written as a user-facing error. */
-export const denialMessage = (reason: Denial, random?: Random): string => `${EMOJIS.cross} ${pick(DENIALS[reason], random)}`;
+/** A refusal, as the plain text of a `UserError` (the handler adds the cross and the name). */
+export const denialMessage = (reason: Denial, random?: Random): string => pick(DENIALS[reason], random);

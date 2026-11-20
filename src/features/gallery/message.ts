@@ -4,12 +4,13 @@ import { encodeCustomId } from '../../core/customId';
 import { discordTimestamp } from '../../lib/format';
 import { resolveEmbedImage } from '../../lib/images';
 import { mcHeadUrl } from '../../lib/minecraft';
+import { fail } from '../../lib/voice';
 import type { GalleryPhoto } from '../../services/gallery';
 
 /** Namespace of the gallery's buttons: they are components of the `/gallery` command, wherever the message is sent from. */
 export const GALLERY_NAMESPACE = 'gallery';
 
-export const EMPTY_GALLERY = '❌ Actualmente no hay fotos disponibles en la galería.';
+export const EMPTY_GALLERY = fail(null, 'actualmente no hay fotos disponibles en la galería.');
 
 const buildPhotoEmbed = (photo: GalleryPhoto, imageUrl: string) => {
   const ign = photo.user?.ign;

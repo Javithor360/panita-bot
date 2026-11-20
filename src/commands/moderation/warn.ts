@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, type EmbedBuilder, type GuildMember, type User } from 'discord.js';
-import { CATEGORIES, EMOJIS, MODERATION } from '../../config/constants';
+import { CATEGORIES, MODERATION } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { announce, discordAction, guardTarget, memberOf, notifyMember, subjectOf } from '../../features/moderation/actions';
@@ -7,6 +7,7 @@ import { sanctionFor, type AutoSanction } from '../../features/moderation/autoSa
 import { caseEmbed, confirmation, dmEmbed } from '../../features/moderation/messages';
 import { botActions } from '../../features/moderation/recent';
 import { discordTimestamp, formatDuration } from '../../lib/format';
+import { fail, ok } from '../../lib/voice';
 import { createWarning } from '../../services/moderation';
 
 /**
@@ -30,12 +31,12 @@ const applyAutoSanction = async (
   };
 
   if (sanction.kind === 'timeout') {
-    if (!member.moderatable) return { line: `${EMOJIS.cross} Llegó a ${count} advertencias, pero no puedo silenciarlo.` };
+    if (!member.moderatable) return { line: fail(null, `llegó a ${count} advertencias, pero no puedo silenciarlo.`) };
     await notifyMember(user, dmEmbed({ action: 'mute', durationMs: sanction.ms, ...dm }));
     botActions.mark('timeout', user.id);
     await discordAction(() => member.timeout(sanction.ms, `${reason} | Sanción automática`));
     return {
-      line: `${EMOJIS.idle} Por llegar a ${count} advertencias, **${user.username}** fue silenciado ${formatDuration(sanction.ms)}.`,
+      line: ok(null, `por llegar a ${count} advertencias, **${user.username}** fue silenciado ${formatDuration(sanction.ms)}.`),
       embed: caseEmbed({
         action: 'mute',
         subject: subjectOf(user),
@@ -49,12 +50,12 @@ const applyAutoSanction = async (
     };
   }
 
-  if (!member.kickable) return { line: `${EMOJIS.cross} Llegó a ${count} advertencias, pero no puedo expulsarlo.` };
+  if (!member.kickable) return { line: fail(null, `llegó a ${count} advertencias, pero no puedo expulsarlo.`) };
   await notifyMember(user, dmEmbed({ action: 'kick', ...dm }));
   botActions.mark('kick', user.id);
   await discordAction(() => member.kick(`${reason} | Sanción automática`));
   return {
-    line: `${EMOJIS.offline} Por llegar a ${count} advertencias, **${user.username}** fue expulsado del servidor.`,
+    line: ok(null, `por llegar a ${count} advertencias, **${user.username}** fue expulsado del servidor.`),
     embed: caseEmbed({ action: 'kick', subject: subjectOf(user), moderatorId, reason }),
   };
 };
@@ -101,7 +102,7 @@ export default defineCommand({
       reason,
       footer: `Advertencias activas: ${count}/${MODERATION.warnKickAt}`,
     })];
-    const lines = [confirmation('warn', user.username)];
+    const lines = [confirmation(ctx.member, 'warn', user.username)];
 
     const sanction = sanctionFor(count);
     if (sanction && member) {

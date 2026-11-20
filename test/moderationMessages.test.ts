@@ -83,19 +83,29 @@ test('the DM of a mute shows how long it lasts', () => {
   assert.equal(field(json, 'Razón'), 'Sin razón');
 });
 
-test('the confirmation opens with the emoji of the action, bolds the name and escapes its markdown', () => {
-  assert.equal(confirmation('kick', 'Ana', () => 0), `${EMOJIS.offline} **Ana** fue expulsado del servidor.`);
-  assert.equal(confirmation('unban', 'Ana', () => 0).startsWith(EMOJIS.online), true);
-  assert.equal(confirmation('mute', 'a*b_c', () => 0), `${EMOJIS.idle} **a\\*b\\_c** fue silenciado.`);
-  assert.notEqual(confirmation('kick', 'Ana', () => 0), confirmation('kick', 'Ana', () => 0.99));
+const JAVI = { displayName: 'Javi' };
+
+test('the confirmation is `✅ ~ **Name**, text`, bolds the target and escapes its markdown', () => {
+  assert.equal(confirmation(JAVI, 'kick', 'Ana', () => 0), `${EMOJIS.check} ~ **Javi**, **Ana** fue expulsado del servidor.`);
+  assert.equal(confirmation(JAVI, 'unban', 'Ana', () => 0.99), `${EMOJIS.check} ~ **Javi**, listo, **Ana** puede volver al servidor.`);
+  assert.equal(confirmation(JAVI, 'mute', 'a*b_c', () => 0), `${EMOJIS.check} ~ **Javi**, **a\\*b\\_c** fue silenciado.`);
+  assert.notEqual(confirmation(JAVI, 'kick', 'Ana', () => 0), confirmation(JAVI, 'kick', 'Ana', () => 0.99));
 });
 
-test('every refusal starts with the cross', () => {
+test('without a requester the confirmation has no name', () => {
+  assert.equal(confirmation(null, 'kick', 'Ana', () => 0), `${EMOJIS.check} ~ **Ana** fue expulsado del servidor.`);
+});
+
+test('every refusal is plain text: the handler adds the cross and the name', () => {
   const reasons: Denial[] = [
     'self', 'bot', 'owner', 'staff', 'hierarchyModerator', 'hierarchyBot',
     'notInServer', 'notBanned', 'notMuted', 'notHidden', 'alreadyHidden', 'noWarns', 'noPermission',
   ];
-  for (const reason of reasons) assert.equal(denialMessage(reason, () => 0).startsWith(`${EMOJIS.cross} `), true, reason);
+  for (const reason of reasons) {
+    const text = denialMessage(reason, () => 0);
+    assert.ok(text.length > 10, reason);
+    assert.equal(text.includes('<:'), false, reason);
+  }
 });
 
 test('the embed of a clear counts the messages and names the channel and the author when filtered', () => {

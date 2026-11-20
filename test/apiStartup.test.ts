@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { ApiClient } from '../src/lib/api/client';
 import { ApiError } from '../src/lib/api/errors';
 import { verifyApiAccess } from '../src/lib/api/startup';
+import { EMOJIS } from '../src/config/emojis';
 import { GENERIC_ERROR, SERVICE_UNAVAILABLE_ERROR, UserError, userMessageFor } from '../src/core/errors';
 
 afterEach(() => mock.restoreAll());
@@ -63,7 +64,17 @@ describe('userMessageFor with API errors', () => {
     assert.equal(out.error.mock.callCount(), 4);
   });
 
-  test('user errors still win', () => {
-    assert.equal(userMessageFor(new UserError('hola'), 'tag', 'Slash'), 'hola');
+  test('user errors still win, in the voice of the bot', () => {
+    assert.equal(userMessageFor(new UserError('hola'), 'tag', 'Slash'), `${EMOJIS.cross} ~ Hola`);
+    assert.equal(
+      userMessageFor(new UserError('Hola mundo.'), 'tag', 'Slash', { displayName: 'Javi' }),
+      `${EMOJIS.cross} ~ **Javi**, hola mundo.`,
+    );
+  });
+
+  test('the generic and unavailable messages carry the name of whoever asked', () => {
+    silenceConsole();
+    assert.match(userMessageFor(new ApiError(503, 'x', 'x'), 'tag', 'Slash', { displayName: 'Javi' }), /^<:cross:\d+> ~ \*\*Javi\*\*, el servicio no está disponible/);
+    assert.match(userMessageFor(new Error('boom'), 'tag', 'Slash', { displayName: 'Javi' }), /^<:cross:\d+> ~ \*\*Javi\*\*, hubo un error/);
   });
 });

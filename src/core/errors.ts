@@ -1,17 +1,24 @@
 import { Client, Events, MessageFlags, type RepliableInteraction } from 'discord.js';
 import { ApiError } from '../lib/api/errors';
+import { fail, type Who } from '../lib/voice';
 
-/** An expected failure whose message is safe to show to the user as-is. */
+/**
+ * An expected failure whose message is safe to show to the user. The text is plain, with no emoji and no name: the
+ * handlers show it as `❌ ~ **Name**, text` (see `lib/voice`).
+ */
 export class UserError extends Error {}
 
 /** Thrown when a prefix invocation reaches something only slash commands support (e.g. modals). */
 export class PrefixUnsupportedError extends Error {}
 
-export const GENERIC_ERROR = '❌ ¡Hubo un error al ejecutar este comando!';
-export const SERVICE_UNAVAILABLE_ERROR =
-  '❌ El servicio no está disponible en este momento. Inténtalo de nuevo en unos segundos.';
-export const SLASH_ONLY_ERROR =(name: string) =>
-  `❌ Esta acción es interactiva y solo se puede usar como **Slash Command** (ejemplo: \`/${name}\`).`;
+const GENERIC_ERROR_TEXT = 'hubo un error al ejecutar este comando.';
+const SERVICE_UNAVAILABLE_TEXT = 'el servicio no está disponible en este momento, inténtalo de nuevo en unos segundos.';
+
+/** The same messages for places that do not know who asked. */
+export const GENERIC_ERROR = fail(null, GENERIC_ERROR_TEXT);
+export const SERVICE_UNAVAILABLE_ERROR = fail(null, SERVICE_UNAVAILABLE_TEXT);
+export const SLASH_ONLY_ERROR = (name: string, who?: Who | null) =>
+  fail(who, `esta acción es interactiva y solo se puede usar como **Slash Command** (ejemplo: \`/${name}\`).`);
 
 /** Ephemeral reply that never throws (the interaction may have expired). */
 export const safeReply = async (interaction: RepliableInteraction, content: string) => {
@@ -24,14 +31,14 @@ export const safeReply = async (interaction: RepliableInteraction, content: stri
   }
 };
 
-/** Maps any thrown error to the message the user should see, logging unexpected ones. */
-export const userMessageFor = (error: unknown, commandName: string, scope: string): string => {
-  if (error instanceof UserError) return error.message;
-  if (error instanceof PrefixUnsupportedError) return SLASH_ONLY_ERROR(commandName);
+/** Maps any thrown error to the message the user should see (in the bot's voice), logging unexpected ones. */
+export const userMessageFor = (error: unknown, commandName: string, scope: string, who?: Who | null): string => {
+  if (error instanceof UserError) return fail(who, error.message);
+  if (error instanceof PrefixUnsupportedError) return SLASH_ONLY_ERROR(commandName, who);
   // The API client already logged this call; a rejected key or a bug falls through and is logged below
-  if (error instanceof ApiError && error.transient) return SERVICE_UNAVAILABLE_ERROR;
+  if (error instanceof ApiError && error.transient) return fail(who, SERVICE_UNAVAILABLE_TEXT);
   console.error(`[${scope}] ${commandName}:`, error);
-  return GENERIC_ERROR;
+  return fail(who, GENERIC_ERROR_TEXT);
 };
 
 export const installProcessHandlers = (client: Client) => {

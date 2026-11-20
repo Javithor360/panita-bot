@@ -2,7 +2,7 @@
 
 The official Discord bot of the **Panitacraft** community. It keeps Discord and [Panita Web](https://www.panitacraft.com) in sync (accounts, roles and editions), and gives members a Minecraft server toolkit, a ticket system, quick-reply tags and more.
 
-- **One command, two styles.** Every command works as a Slash Command (`/ip`) and with the classic prefix (`!ip`). Prefix commands also accept aliases (`!server`, `!jugar`).
+- **One command, two styles.** Every command works as a Slash Command (`/ip`) and with the classic prefix (`!ip`). Prefix commands also accept aliases (`!jugar`, `!minecraft`).
 - **Spanish-first.** The bot talks to the community in Spanish. This document and the code are in English.
 
 ## Table of contents
@@ -21,6 +21,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
   - [Quick upload to the gallery](#quick-upload-to-the-gallery)
   - [Birthday greeting](#birthday-greeting)
   - [Moderation and audit log](#moderation-and-audit-log)
+  - [Info commands and the bot's voice](#info-commands-and-the-bots-voice)
   - [AI assistant (`/ask`)](#ai-assistant-ask)
   - [Minecraft bridge](#minecraft-bridge)
   - [Panita Web synchronization](#panita-web-synchronization)
@@ -147,7 +148,7 @@ src/
   services/      business logic and every call to the Panita API
   lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
-  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload, birthdays, moderation, auditLog)
+  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload, birthdays, moderation, auditLog, info, lookup)
   commands/      one file per command, grouped by category
 test/            unit tests
 ```
@@ -197,6 +198,14 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `help [command]` | Lists the available commands, or details one of them. | `ayuda` |
 | `ping` | Bot and gateway latency. | `latencia` |
 | `uptime` | How long the bot has been online, and its version. | `tiempo`, `online` |
+| `info` | About the bot: its version, statistics, what it is made with and its links, and a separate **API** field with the Panita API's status, version and latency (it shows "Sin conexión" when the API does not answer in 3 seconds). | `botinfo`, `about` |
+| `server [--roles\|--emojis\|--channels\|--activity\|--community\|--stickers\|--events\|--sounds\|--boost\|--icon\|--banner]` | Information about the server. Each flag shows something else, one at a time: the roles, the emojis, the channels **you** can see, the activity (who is in voice, active threads, the newest and oldest members), the community setup (rules, vanity URL, language, 2FA, filters), the stickers, the scheduled events, the soundboard, the boosts (with the server tag, who wears it and who boosts), the icon or the banner. | `serverinfo`, `sinfo`, `guild` |
+| `user [user] [--badges\|--cosmetics\|--permissions]` | A person's account, when they joined and their place (the footer says `Miembro #37 en entrar · 12 roles`), roles, key permissions, status, and their voice channel while they are in one. `--badges` shows their Discord badges, `--cosmetics` their avatar decoration, nameplate and server tag, `--permissions` what they can do in the current channel. Works with a mention, an ID (even of someone who left) or a name. | `userinfo`, `whois`, `u` |
+| `avatar [user] [--global\|--banner\|--decoration]` | A person's picture big, with download links and a Google search. Shows their server avatar when they have one; `--global` shows the account's. `--banner` shows their banner and `--decoration` their avatar decoration. Same ways to name a person. | `av`, `pfp`, `picture` |
+| `emoji <emoji> [--info]` | Shows an emoji big (a custom one from any server, a unicode one, an ID, or the name of one of this server). `--info` adds its name, ID, date and server. | `emote`, `e` |
+| `emoji add <name> [emoji\|link]` | **Staff only.** Adds an emoji to the server from an attached image, by copying another emoji, or from a Discord image link. Big static images are shrunk to fit; big animated ones are refused. | `emoji agregar` |
+| `emoji remove <emoji>` / `emoji rename <emoji> <name>` | **Staff only.** Deletes an emoji (after a confirmation button) / renames it. | `emoji eliminar`, `emoji renombrar` |
+| `sticker <name or ID> [--info]` | Shows a sticker big: one of this server by name, any sticker by ID (Discord's own too), the one sent with the command, or the one in the message it replies to. A Lottie sticker has no picture, so it shows its information instead. | `stk` |
 
 </details>
 
@@ -221,7 +230,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `commands` | Useful commands inside the Minecraft server. | `comandos`, `cmds` |
 | `enchantments` | Maximum enchantment and potion levels in Tezzlar III. | `enchantment`, `encantamientos`, `enchants` |
 | `food` | Rebalanced food values and special dishes in Tezzlar III. | `comida`, `foods`, `comidas` |
-| `ip [--numeric]` | Server address (domain or numeric IP). | `server`, `jugar` |
+| `ip [--numeric]` | Server address (domain or numeric IP). | `jugar`, `minecraft` |
 | `minievent <id\|list>` | Details of a Tezzlar minievent, or the full list. | `minieventos`, `minievents`, `me` |
 | `playerlist` | Who is online on the Minecraft server, in an embed with a picture drawn like the game's tab list: head, rank, name and latency of each player. Asks the server live. Category *Servidor de Minecraft*. In a channel joined to the server it also answers to the bare word `playerlist` (no prefix), which is not passed on to the game chat. | `jugadores`, `conectados` |
 | `playerinfo <jugador>` | A player's card: their head, rank and name as the game shows them, whether they are online and their time played. Asks the server live. Category *Servidor de Minecraft*. | `jugador`, `infojugador` |
@@ -375,6 +384,22 @@ The staff commands (`kick`, `ban`, `unban`, `mute`, `unmute`, `clear`, `hide`, `
 - Remember to run `npm run deploy` after updating so Discord learns the new slash commands. The warning commands need the matching version of panita-api (the `warnings` endpoints and the `discord.warnings` table).
 
 The logic is in `src/features/moderation/` (`messages` has the voice and the embeds, `checks` the hierarchy rules, `duration`, `autoSanction`, `recent`, `modlog`, `actions` the shared Discord calls) and `src/features/auditLog/` (`embeds`, `handlers`), wired by `src/events/auditLog.ts`; the API calls are in `src/services/moderation.ts`.
+
+### Info commands and the bot's voice
+
+`server`, `user`, `avatar`, `info` and `emoji` are the old Noa commands brought back and updated for what Discord has added since: badges, server avatars, banners, boosts, timeouts and expressions. They keep Noa's layouts (the `⚡ ~ name` header and `Label: **value**` columns of `server`, the bold headings with `•` bullets of `user`, the "Búscalo en Google" avatar embed, the big picture of `emoji`) and its random pastel colors.
+
+- **The bot's voice.** Every answer opens like Noa's: the check or the cross emoji, a `~`, the name of whoever asked in bold and a comma, then the text in lowercase: `✅ ~ **Javi**, latencias de Panita`, `❌ ~ **Aaron**, no tienes los suficientes permisos`. A bad command adds a quoted `Uso:` line. It all goes through `src/lib/voice.ts`, so the old commands and errors speak the same way. The emojis come from the dictionary in `src/config/emojis.ts`.
+- **Naming a person.** `user` and `avatar` take a mention, an **ID** (even of someone who is not in the server or who was banned: then only what the account has is shown, with no roles, nickname or join date), or a **name**. A name is searched like Noa did, ignoring case and accents: one match is used, and if several people match a menu asks which one you mean. In prefix, `!user Javi`, `!user 481512865795145730`, `!user @Javi --badges`. In slash, `usuario` is the picker and `buscar` takes a name, an ID or a mention.
+- **Lists.** `server --roles`, `--emojis` and `--channels` are paged with ◀ ▶ buttons that only whoever asked can press. `--channels` shows only the channels **the person asking can see**, and only counts the rest, so staff and ticket channels are never named.
+- **Status needs the Presence intent.** The colour of the `user` embed (green online, yellow idle, red do not disturb), its "Estado" and "Actividad" and the circles of `server` come from Discord's privileged Presence intent, which the bot always asks for. *Presence Intent* must be switched on for the bot in the Developer Portal, otherwise Discord refuses the login. Members who are offline have no presence, so they show as disconnected and the embed takes its color from the highest role.
+- **`emoji add` is careful.** The image can come only from an attachment, another emoji or a link of `cdn.discordapp.com` / `media.discordapp.net` (https, 15 s timeout, 8 MB cap, redirects must stay on Discord, and the file type is checked by its first bytes). Discord needs at most 256 KB: a bigger static image is shrunk to fit in 128 px, a bigger animated one is refused. Free slots by boost tier are checked first, and every add, rename and delete is also posted to the mod log. It needs the *Manage Expressions* permission, and only the staff can use it.
+- **Voice and the intents.** `user` shows who is in a voice channel and what they are doing, and `server --activity` counts them, which needs Discord's *Voice States* intent (not privileged, already requested in code). The status needs the privileged *Presence* intent, as above.
+- **What Discord does not give a bot.** A person's "About me" bio cannot be read by bots, so `user` does not show it. Servers have no region any more, so `server` shows the language instead (in `--community`). A nameplate has no image address, so `--cosmetics` shows its name and palette.
+- **The Panita API in `info`.** The field calls the public `GET /v1/health` with a 3-second limit and no retries; a slow or down API only shows "Sin conexión" and never delays the answer.
+- `server` took the `!server` alias that `ip` used to have; `!ip` answers to `!jugar` and `!minecraft` now.
+
+The logic is in `src/features/info/` (the views, `emojiParse`, `emojiMedia`, `serverData`), `src/features/lookup/` (the name search and its menu) and `src/lib/voice.ts`; the commands are in `src/commands/utility/`.
 
 ### AI assistant (`/ask`)
 

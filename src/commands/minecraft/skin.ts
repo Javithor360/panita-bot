@@ -2,6 +2,7 @@ import { ActionRowBuilder, EmbedBuilder, MessageFlags, SlashCommandBuilder, Stri
 import { CATEGORIES, COLORS } from '../../config/constants';
 import { defineCommand, select } from '../../core/command';
 import { DEFAULT_SKIN_VIEW, isSkinView, isValidIgn, SKIN_VIEWS, skinRenderUrl, type SkinView } from '../../lib/minecraft';
+import { fail, whoOf } from '../../lib/voice';
 
 const buildSkinEmbed = (ign: string, view: SkinView) =>
   new EmbedBuilder()
@@ -26,7 +27,7 @@ export default defineCommand({
   async run(ctx) {
     const ign = ctx.options.getString('jugador', true).trim();
     if (!isValidIgn(ign)) {
-      return ctx.reply({ content: '❌ Ese no es un nombre de Minecraft válido (3-16 caracteres: letras, números y `_`).', ephemeral: true });
+      return ctx.reply({ content: fail(ctx.member, 'ese no es un nombre de Minecraft válido (3-16 caracteres: letras, números y `_`).'), ephemeral: true });
     }
 
     const menu = new StringSelectMenuBuilder()
@@ -44,7 +45,7 @@ export default defineCommand({
       async run(interaction, [ign]) {
         const [view] = interaction.values;
         if (!isSkinView(view)) {
-          return interaction.reply({ content: '❌ Vista no válida.', flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: fail(whoOf(interaction), 'vista no válida.'), flags: MessageFlags.Ephemeral });
         }
         await interaction.update({ embeds: [buildSkinEmbed(ign, view)] });
       },

@@ -3,6 +3,7 @@ import { CATEGORIES, PREFIX } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { refreshAttachmentUrls } from '../../lib/discord';
+import { fail, ok } from '../../lib/voice';
 import { deleteTag, getTag, listTags, saveTag, TAG_CONTENT_MAX } from '../../services/tags';
 
 /** `!tag <nombre>`: posts the tag's content in the channel. */
@@ -10,7 +11,7 @@ const showTag = async (ctx: CommandContext, rawArgs: string) => {
   const name = rawArgs.split(/\s+/)[0].toLowerCase();
   const tag = await getTag(name);
   if (!tag) {
-    return ctx.reply(`❌ No existe el tag \`${name}\`. Usa \`${PREFIX}tag list\` para ver los disponibles.`);
+    return ctx.reply(fail(ctx.member, `No existe el tag \`${name}\`. Usa \`${PREFIX}tag list\` para ver los disponibles.`));
   }
 
   const files = await refreshAttachmentUrls(ctx.client, tag.media_urls);
@@ -73,7 +74,9 @@ export default defineCommand({
     if (subcommand === 'delete') {
       const deleted = await deleteTag(name);
       return ctx.reply({
-        content: deleted ? `🗑️ Tag \`${name}\` eliminado.` : `❌ No se encontró ningún tag llamado \`${name}\`.`,
+        content: deleted
+          ? ok(ctx.member, `el tag \`${name}\` fue eliminado.`)
+          : fail(ctx.member, `no se encontró ningún tag llamado \`${name}\`.`),
         ephemeral: true,
       });
     }
@@ -82,10 +85,10 @@ export default defineCommand({
     const content = ctx.options.getString('texto');
     const mediaUrls = ctx.options.getAttachments().map(attachment => attachment.url);
     if (!content && mediaUrls.length === 0) {
-      return ctx.reply({ content: '❌ Debes proporcionar un texto o adjuntar al menos una imagen para crear el tag.', ephemeral: true });
+      return ctx.reply({ content: fail(ctx.member, 'debes proporcionar un texto o adjuntar al menos una imagen para crear el tag.'), ephemeral: true });
     }
 
     await saveTag({ name, content, mediaUrls, authorId: ctx.user.id });
-    await ctx.reply({ content: `✅ Tag \`${name}\` guardado correctamente.`, ephemeral: true });
+    await ctx.reply({ content: ok(ctx.member, `el tag \`${name}\` se guardó correctamente.`), ephemeral: true });
   },
 });

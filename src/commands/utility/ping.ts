@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
+import { ok } from '../../lib/voice';
 
 export default defineCommand({
   data: new SlashCommandBuilder()
@@ -15,7 +16,8 @@ export default defineCommand({
     await ctx.reply('Calculando...');
     const reply = await ctx.fetchReply();
     const latency = reply.createdTimestamp - ctx.createdTimestamp;
-    const gateway = ctx.client.ws.ping >= 0 ? ` · Gateway: \`${ctx.client.ws.ping}ms\`` : '';
-    await ctx.edit(`Pong! Latencia: \`${latency}ms\`${gateway}`);
+    // The gateway ping is -1 until the first heartbeat has been answered
+    const api = ctx.client.ws.ping >= 0 ? `**API**: ${ctx.client.ws.ping}ms\n` : '';
+    await ctx.edit(`${ok(ctx.member, 'latencias de Panita')}\n${api}**Bot**: ${latency}ms`);
   },
 });

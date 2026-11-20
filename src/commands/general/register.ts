@@ -25,9 +25,10 @@ import {
   type FormFields,
   type MinecraftStatus,
 } from '../../lib/registration';
-import { SERVICE_UNAVAILABLE_ERROR } from '../../core/errors';
+import { userMessageFor } from '../../core/errors';
 import { passwordResetComponents } from '../../features/passwordReset/components';
 import { ApiError } from '../../lib/api';
+import { fail, ok, whoOf, type Who } from '../../lib/voice';
 import {
   activateAccount,
   AlreadyActivatedError,
@@ -49,7 +50,7 @@ const MESSAGES = {
   alt: 'No puedes registrar una cuenta secundaria. Por favor, ejecuta este comando utilizando tu cuenta principal de Discord.',
   alreadyActive: '¡Tu cuenta ya está activada! Si prefieres una contraseña para iniciar sesión, usa `/register with_password`.',
   invalidIgn: 'El IGN no es válido. Debe tener entre 3 y 16 caracteres y solo puede contener letras, números y guiones bajos (`_`).',
-  ignTaken: (ign: string) => `❌ El IGN \`${ign}\` ya está registrado por otra cuenta. Si crees que es un error, contacta al Staff.`,
+  ignTaken: (ign: string) => `El IGN \`${ign}\` ya está registrado por otra cuenta. Si crees que es un error, contacta al Staff.`,
   passwordMismatch: 'Las contraseñas no coinciden. Vuelve a ejecutar `/register with_password` para intentarlo de nuevo.',
   passwordSpecial: PASSWORD_RULE_MESSAGES.special,
   passwordLength: PASSWORD_RULE_MESSAGES.length,
@@ -60,26 +61,26 @@ const MESSAGES = {
     `🎉 **¡Éxito!** Tu cuenta ha sido activada con el IGN \`${ign}\` (${STATUS_LABEL[status]}).\n\n` +
     `Ya puedes iniciar sesión en <${URLS.login}> y en el launcher con un código que confirmas con \`/confirm\`, y entrar al servidor de Minecraft.` +
     (withPassword ? '' : '\n\nSi prefieres una contraseña, usa `/register with_password`.'),
-  statusSaved: (status: MinecraftStatus) => `✅ Listo, registramos tu cuenta como **${STATUS_LABEL[status]}**.`,
+  statusSaved: (who: Who, status: MinecraftStatus) => ok(who, `listo, registramos tu cuenta como **${STATUS_LABEL[status]}**.`),
   passwordSet: 'Contraseña establecida. Ahora también puedes iniciar sesión con ella.',
   passwordReplaced: 'Contraseña actualizada. Se cerraron las sesiones que tenías abiertas.',
   statusPending: '\n\nTodavía no elegiste tu tipo de cuenta de Minecraft: ejecuta `/register` para hacerlo.',
 };
 
 /** The message for an activation that did not go through; unexpected failures are logged. */
-const activationFailureMessage = (error: unknown, ign: string): string => {
+const activationFailureMessage = (error: unknown, ign: string, who: Who): string => {
   if (error instanceof InvalidActivationError) {
-    return {
+    return fail(who, {
       ign_format: MESSAGES.invalidIgn,
       special: MESSAGES.passwordSpecial,
       length: MESSAGES.passwordLength,
-    }[error.reason];
+    }[error.reason]);
   }
-  if (error instanceof IgnTakenError) return MESSAGES.ignTaken(ign);
+  if (error instanceof IgnTakenError) return fail(who, MESSAGES.ignTaken(ign));
   if (error instanceof AlreadyActivatedError) return MESSAGES.alreadyActive;
-  if (error instanceof ApiError && error.transient) return SERVICE_UNAVAILABLE_ERROR;
+  if (error instanceof ApiError && error.transient) return userMessageFor(error, NAME, 'Register', who);
   console.error('[Activation Error]', error);
-  return MESSAGES.failure;
+  return fail(who, MESSAGES.failure);
 };
 
 const flag = (value: boolean) => (value ? '1' : '0');
@@ -155,7 +156,7 @@ const activate = async (
     }
     await finish(interaction, MESSAGES.success(ign, status, input.password !== undefined));
   } catch (error) {
-    await finish(interaction, activationFailureMessage(error, ign));
+    await finish(interaction, activationFailureMessage(error, ign, whoOf(interaction)));
   }
 };
 
@@ -238,7 +239,7 @@ export default defineCommand({
         await interaction.deferUpdate();
         try {
           await setMinecraftStatus(interaction.user.id, status);
-          await finish(interaction, MESSAGES.statusSaved(status));
+          await finish(interaction, MESSAGES.statusSaved(whoOf(interaction), status));
         } catch (error) {
           if (error instanceof NotActivatedError || error instanceof UserNotFoundError) {
             return finish(interaction, MESSAGES.notActivated);
@@ -316,7 +317,7 @@ export default defineCommand({
           await setPassword(interaction.user.id, result.password!);
           await interaction.editReply(hadPassword === '1' ? MESSAGES.passwordReplaced : MESSAGES.passwordSet);
         } catch (error) {
-          if (error instanceof InvalidActivationError) return interaction.editReply(activationFailureMessage(error, ''));
+          if (error instanceof InvalidActivationError) return interaction.editReply(activationFailureMessage(error, '', whoOf(interaction)));
           if (error instanceof NotActivatedError || error instanceof UserNotFoundError) {
             return interaction.editReply(MESSAGES.notActivated);
           }

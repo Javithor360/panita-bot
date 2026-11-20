@@ -2,7 +2,7 @@ import { ChannelType, MessageFlags, MessageType, OverwriteType, type ButtonInter
 import * as discordTranscripts from 'discord-html-transcripts';
 import { COLORS } from '../../config/constants';
 import { button, modal, type ComponentHandler } from '../../core/command';
-import { SERVICE_UNAVAILABLE_ERROR, UserError } from '../../core/errors';
+import { UserError } from '../../core/errors';
 import { ApiError } from '../../lib/api';
 import {
   createPanel,
@@ -26,18 +26,19 @@ import {
 } from './embeds';
 import { sendPanel } from './panel';
 import { buildTicketOverwrites, canManageTicket, TICKET_MEMBER_OVERWRITE } from './permissions';
+import { fail, ok, whoOf } from '../../lib/voice';
 
 const CHANNEL_DELETE_DELAY_MS = 3000;
 const PIN_NOTICE_CLEANUP_DELAY_MS = 1000;
 
 const cachedGuildOf = (interaction: ButtonInteraction) => {
-  if (!interaction.inCachedGuild()) throw new UserError('❌ Esta acción solo funciona dentro del servidor.');
+  if (!interaction.inCachedGuild()) throw new UserError('Esta acción solo funciona dentro del servidor.');
   return interaction;
 };
 
 const ticketChannelOf = (interaction: ButtonInteraction) => {
   const channel = interaction.channel;
-  if (channel?.type !== ChannelType.GuildText) throw new UserError('❌ Esta acción solo funciona en un canal de ticket.');
+  if (channel?.type !== ChannelType.GuildText) throw new UserError('Esta acción solo funciona en un canal de ticket.');
   return channel;
 };
 
@@ -49,24 +50,24 @@ const removePinNotice = (channel: TextChannel) =>
     await notice?.delete().catch(() => {});
   }, PIN_NOTICE_CLEANUP_DELAY_MS);
 
-const NOT_ALLOWED_CLOSE = '❌ Solo el creador del ticket o un staff puede cerrarlo.';
-const NOT_ALLOWED_STAFF = '❌ Solo el equipo de soporte puede usar estos controles.';
+const NOT_ALLOWED_CLOSE = 'Solo el creador del ticket o un staff puede cerrarlo.';
+const NOT_ALLOWED_STAFF = 'Solo el equipo de soporte puede usar estos controles.';
 
 /** Guard: the ticket's creator or its panel staff. */
 const creatorOrStaff = async (interaction: ButtonInteraction) => {
-  if (!interaction.inCachedGuild()) return NOT_ALLOWED_CLOSE;
+  if (!interaction.inCachedGuild()) return fail(whoOf(interaction), NOT_ALLOWED_CLOSE);
   const ticket = await ticketOfInteraction(interaction);
   if (!ticket) return null; // the handler reports the invalid ticket
   const allowed = interaction.user.id === ticket.creator_id || canManageTicket(interaction.member, ticket.panel);
-  return allowed ? null : NOT_ALLOWED_CLOSE;
+  return allowed ? null : fail(whoOf(interaction), NOT_ALLOWED_CLOSE);
 };
 
 /** Guard: panel staff or administrators only (closed-ticket controls). */
 const staffOnly = async (interaction: ButtonInteraction) => {
-  if (!interaction.inCachedGuild()) return NOT_ALLOWED_STAFF;
+  if (!interaction.inCachedGuild()) return fail(whoOf(interaction), NOT_ALLOWED_STAFF);
   const ticket = await ticketOfInteraction(interaction);
   if (!ticket) return null;
-  return canManageTicket(interaction.member, ticket.panel) ? null : NOT_ALLOWED_STAFF;
+  return canManageTicket(interaction.member, ticket.panel) ? null : fail(whoOf(interaction), NOT_ALLOWED_STAFF);
 };
 
 const createTicketChannel = button({
@@ -101,7 +102,7 @@ const createTicketChannel = button({
         },
       );
 
-      if (result.status === 'panel_not_found') return interaction.editReply('❌ No se encontró el panel de tickets.');
+      if (result.status === 'panel_not_found') return interaction.editReply(fail(whoOf(interaction), 'No se encontró el panel de tickets.'));
       if (result.status === 'already_open') {
         const where = result.channelId ? ` en <#${result.channelId}>` : '';
         return interaction.editReply(`Parece que ya tienes un ticket abierto${where}, para abrir uno nuevo primero debes cerrar el ya existente.`);
@@ -114,11 +115,11 @@ const createTicketChannel = button({
         removePinNotice(channel);
       }
 
-      await interaction.editReply(`✅ Tu ticket ha sido creado: <#${result.channelId}>`);
+      await interaction.editReply(ok(whoOf(interaction), `Tu ticket ha sido creado: <#${result.channelId}>`));
     } catch (error) {
       console.error('[Tickets] Failed to create ticket channel:', error);
       await interaction.editReply(
-        error instanceof ApiError && error.transient ? SERVICE_UNAVAILABLE_ERROR : '❌ Hubo un error al crear tu canal de ticket.',
+        error instanceof ApiError && error.transient ? fail(whoOf(interaction), 'el servicio no está disponible en este momento, inténtalo de nuevo en unos segundos.') : fail(whoOf(interaction), 'hubo un error al crear tu canal de ticket.'),
       );
     }
   },
@@ -129,7 +130,7 @@ const closePrompt = button({
   async run(interaction) {
     const ticket = await ticketOfInteraction(interaction);
     if (!ticket || ticket.status === TICKET_STATUS.closed) {
-      return interaction.reply({ content: '❌ Este ticket ya está cerrado o es inválido.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: fail(whoOf(interaction), 'este ticket ya está cerrado o es inválido.'), flags: MessageFlags.Ephemeral });
     }
     await interaction.reply(buildCloseConfirm(interaction.user.id));
   },
@@ -213,7 +214,7 @@ const transcript = button({
       await interaction.editReply({ content: 'Aquí tienes la transcripción del ticket:', files: [attachment] });
     } catch (error) {
       console.error('[Tickets] Error generating transcript:', error);
-      await interaction.editReply('❌ Hubo un error al generar la transcripción.');
+      await interaction.editReply(fail(whoOf(interaction), 'Hubo un error al generar la transcripción.'));
     }
   },
 });
@@ -221,21 +222,21 @@ const transcript = button({
 const panelModal = modal({
   async run(interaction, [targetChannelId]) {
     await interaction.deferReply();
-    if (!interaction.inCachedGuild()) return interaction.editReply('❌ No se puede crear el panel fuera del servidor.');
+    if (!interaction.inCachedGuild()) return interaction.editReply(fail(whoOf(interaction), 'No se puede crear el panel fuera del servidor.'));
 
     const id = interaction.fields.getTextInputValue('indole').trim().toLowerCase();
     const title = interaction.fields.getTextInputValue('title');
     const description = interaction.fields.getTextInputValue('description') || 'Para crear un ticket, pulsa el botón de abajo.';
 
     if (!PANEL_ID_PATTERN.test(id)) {
-      return interaction.editReply('❌ El identificador solo puede contener letras minúsculas, números, `-` y `_` (máx. 32 caracteres).');
+      return interaction.editReply(fail(whoOf(interaction), 'El identificador solo puede contener letras minúsculas, números, `-` y `_` (máx. 32 caracteres).'));
     }
     if (await getPanel(id)) {
-      return interaction.editReply(`❌ Ya existe un panel con la índole/ID **${id}**. Por favor elige otro o elimínalo primero.`);
+      return interaction.editReply(fail(whoOf(interaction), `Ya existe un panel con la índole/ID **${id}**. Por favor elige otro o elimínalo primero.`));
     }
 
     const channel = interaction.guild.channels.cache.get(targetChannelId) ?? interaction.channel;
-    if (!channel?.isTextBased()) return interaction.editReply('❌ No se puede crear el panel en ese canal.');
+    if (!channel?.isTextBased()) return interaction.editReply(fail(whoOf(interaction), 'No se puede crear el panel en ese canal.'));
 
     const message = await sendPanel(channel, { id, title, description });
     try {
@@ -244,12 +245,12 @@ const panelModal = modal({
       await message.delete().catch(() => {});
       // Someone created the same id between the check above and now
       if (error instanceof PanelExistsError) {
-        return interaction.editReply(`❌ Ya existe un panel con la índole/ID **${id}**. Por favor elige otro o elimínalo primero.`);
+        return interaction.editReply(fail(whoOf(interaction), `Ya existe un panel con la índole/ID **${id}**. Por favor elige otro o elimínalo primero.`));
       }
       throw error;
     }
 
-    await interaction.editReply(`✅ Panel creado con éxito! ID del panel: \`${id}\``);
+    await interaction.editReply(ok(whoOf(interaction), `Panel creado con éxito! ID del panel: \`${id}\``));
   },
 });
 

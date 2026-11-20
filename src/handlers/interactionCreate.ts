@@ -11,20 +11,22 @@ import { SlashContext } from '../core/context';
 import { decodeCustomId } from '../core/customId';
 import { safeReply, userMessageFor } from '../core/errors';
 import type { CommandRegistry } from '../core/registry';
+import { fail, whoOf } from '../lib/voice';
 
 type ComponentInteraction = ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
 
-const NOT_OWNER = '❌ Solo la persona que ejecutó el comando puede usar esto.';
-const EXPIRED = 'Este componente ya no está disponible.';
-const EXPIRED_COMMAND = 'Este comando ya no existe.';
-const GUILD_ONLY = '❌ Este comando solo se puede usar dentro del servidor.';
+const NOT_OWNER = 'solo la persona que ejecutó el comando puede usar esto.';
+const EXPIRED = 'este componente ya no está disponible.';
+const EXPIRED_COMMAND = 'este comando ya no existe.';
+const GUILD_ONLY = 'este comando solo se puede usar dentro del servidor.';
 
 const handleChatInput = async (registry: CommandRegistry, interaction: ChatInputCommandInteraction) => {
+  const who = whoOf(interaction);
   // Also resolves aliases, in case Discord still has old alias slash commands registered
   const command = registry.resolve(interaction.commandName);
-  if (!command) return safeReply(interaction, EXPIRED_COMMAND);
+  if (!command) return safeReply(interaction, fail(who, EXPIRED_COMMAND));
 
-  if (!interaction.inCachedGuild()) return safeReply(interaction, GUILD_ONLY);
+  if (!interaction.inCachedGuild()) return safeReply(interaction, fail(who, GUILD_ONLY));
 
   const denial = accessDenial(command.meta.access, interaction.member);
   if (denial) return safeReply(interaction, denial);
@@ -32,7 +34,7 @@ const handleChatInput = async (registry: CommandRegistry, interaction: ChatInput
   try {
     await command.run(new SlashContext(interaction, command.data.name));
   } catch (error) {
-    await safeReply(interaction, userMessageFor(error, command.data.name, 'Slash'));
+    await safeReply(interaction, userMessageFor(error, command.data.name, 'Slash', who));
   }
 };
 
@@ -61,12 +63,13 @@ type VerifiedHandler = {
 };
 
 const handleComponent = async (registry: CommandRegistry, interaction: ComponentInteraction) => {
+  const who = whoOf(interaction);
   const found = findComponent(registry, interaction.customId);
   const handler = found?.command?.components?.[found.action];
 
-  if (!found?.command || !handler || !matchesKind(handler, interaction)) return safeReply(interaction, EXPIRED);
+  if (!found?.command || !handler || !matchesKind(handler, interaction)) return safeReply(interaction, fail(who, EXPIRED));
 
-  if (found.owner && interaction.user.id !== found.owner) return safeReply(interaction, NOT_OWNER);
+  if (found.owner && interaction.user.id !== found.owner) return safeReply(interaction, fail(who, NOT_OWNER));
 
   const verified = handler as unknown as VerifiedHandler;
   try {
@@ -74,7 +77,7 @@ const handleComponent = async (registry: CommandRegistry, interaction: Component
     if (denial) return safeReply(interaction, denial);
     await verified.run(interaction, found.args);
   } catch (error) {
-    await safeReply(interaction, userMessageFor(error, `${found.command.data.name}:${found.action}`, 'Component'));
+    await safeReply(interaction, userMessageFor(error, `${found.command.data.name}:${found.action}`, 'Component', who));
   }
 };
 

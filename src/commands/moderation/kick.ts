@@ -37,6 +37,6 @@ export default defineCommand({
     await discordAction(() => member.kick(auditReason(ctx, reason)));
 
     const embed = caseEmbed({ action: 'kick', subject: subjectOf(user), moderatorId: ctx.user.id, reason });
-    await announce(ctx, { text: confirmation('kick', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'kick', user.username), embeds: [embed] });
   },
 });

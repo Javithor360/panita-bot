@@ -13,15 +13,15 @@ import { buildInstructions } from '../features/ask/prompt';
 import { createOpenAiClient, OpenAiError, type OpenAiClient } from './openai';
 
 export const ASK_MESSAGES = {
-  unavailable: '❌ No puedo responder eso en este momento. Inténtalo más tarde.',
-  empty: '❌ Escribe tu pregunta, por ejemplo: `/ask ¿Qué es Panitacraft?`',
-  tooLong: `❌ Tu pregunta es muy larga: el máximo son ${MAX_QUESTION_CHARS} caracteres.`,
-  cooldown: '⏳ Espera unos segundos antes de preguntarme otra vez.',
-  daily: '⏳ Ya hiciste muchas preguntas hoy. Vuelve mañana y seguimos charlando.',
-  global: '⏳ Hoy ya respondí muchísimas preguntas. Vuelve mañana.',
-  busy: '⏳ Estoy atendiendo a varias personas a la vez. Inténtalo de nuevo en un momento.',
-  flagged: '❌ No puedo ayudarte con eso.',
-  failed: '❌ No pude responder ahora mismo. Inténtalo de nuevo en un momento.',
+  unavailable: 'No puedo responder eso en este momento. Inténtalo más tarde.',
+  empty: 'Escribe tu pregunta, por ejemplo: `/ask ¿Qué es Panitacraft?`',
+  tooLong: `Tu pregunta es muy larga: el máximo son ${MAX_QUESTION_CHARS} caracteres.`,
+  cooldown: 'Espera unos segundos antes de preguntarme otra vez.',
+  daily: 'Ya hiciste muchas preguntas hoy. Vuelve mañana y seguimos charlando.',
+  global: 'Hoy ya respondí muchísimas preguntas. Vuelve mañana.',
+  busy: 'Estoy atendiendo a varias personas a la vez. Inténtalo de nuevo en un momento.',
+  flagged: 'No puedo ayudarte con eso.',
+  failed: 'No pude responder ahora mismo. Inténtalo de nuevo en un momento.',
   /** For a question that names something that has not been announced: no model involved. */
   /** Stands for the question in the history when it named something that was not announced. */
   unannouncedQuestion: '(una pregunta sobre algo que aún no se anuncia)',
