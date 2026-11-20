@@ -15,6 +15,13 @@ export interface ListMeta {
 
 export type ApiClientName = 'web' | 'bot' | 'launcher' | 'mod';
 
+/** What the health probe found: whether the API answered, its version and how long it took. */
+export interface ApiHealth {
+  online: boolean;
+  version: string | null;
+  latencyMs: number | null;
+}
+
 /** `GET /v1/whoami` */
 export interface WhoAmI {
   client: ApiClientName;

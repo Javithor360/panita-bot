@@ -246,6 +246,7 @@ const info = (extra: Partial<InfoData> = {}): InfoData => ({
   stats: { guilds: 2, users: 150, channels: 67, commands: 57 },
   programming: { discordjs: '14.26.4', node: 'v22.14.0', memoryMb: 92.456, uptime: '2d 3h 5m 10s', apiMs: 105 },
   links: { web: 'https://www.panitacraft.com/', donate: 'https://paypal.example', discord: 'https://discord.gg/x' },
+  api: { online: true, version: '2.0.0', latencyMs: 80 },
   ...extra,
 });
 
@@ -257,14 +258,14 @@ test('the bot info is Noa\'s botinfo: statistics and technology in code blocks, 
   assert.ok(json.timestamp);
   assert.ok(json.description!.startsWith(`${EMOJIS.stats} **Estadísticas**\n\`\`\`\nServidores: 2\nUsuarios: 150\nCanales: 67\nComandos: 57\n\`\`\``));
   assert.ok(json.description!.includes(`${EMOJIS.dev} **Programación**`));
-  for (const line of ['Lenguaje: TypeScript', 'discord.js: v14.26.4', 'Node.js: v22.14.0', 'Memoria usada: 92.5 MB', 'En línea: 2d 3h 5m 10s', 'Latencia API: 105ms']) {
+  for (const line of ['Lenguaje: TypeScript', 'discord.js: v14.26.4', 'Node.js: v22.14.0', 'Memoria usada: 92.5 MB', 'En línea: 2d 3h 5m 10s', 'Latencia Discord: 105ms']) {
     assert.ok(json.description!.includes(line), line);
   }
   assert.ok(json.description!.endsWith('[Web](https://www.panitacraft.com/) · [Donar](https://paypal.example) · [Discord](https://discord.gg/x)'));
 });
 
 test('the bot info leaves out the API latency until the gateway has answered', () => {
-  assert.equal(infoEmbed(info({ programming: { ...info().programming, apiMs: null } })).toJSON().description!.includes('Latencia API'), false);
+  assert.equal(infoEmbed(info({ programming: { ...info().programming, apiMs: null } })).toJSON().description!.includes('Latencia Discord'), false);
 });
 
 const boostDescription = (extra: Partial<ServerData>) => embedOf(message('boost', data(extra))).description as string;

@@ -5,6 +5,7 @@ import { env } from '../../config/env';
 import { defineCommand } from '../../core/command';
 import { getRegistry } from '../../core/registry';
 import { infoEmbed } from '../../features/info/infoView';
+import { api } from '../../lib/api';
 import { formatDuration } from '../../lib/format';
 
 export default defineCommand({
@@ -17,7 +18,8 @@ export default defineCommand({
   async run(ctx) {
     await ctx.defer();
     const { client } = ctx;
-    const developer = await client.users.fetch(env.DEVELOPER_ID).catch(() => null);
+    // Both at once; the probe gives up after 3 seconds and never throws, so a down API cannot hold the answer back
+    const [developer, health] = await Promise.all([client.users.fetch(env.DEVELOPER_ID).catch(() => null), api.health()]);
 
     const embed = infoEmbed({
       botName: client.user.displayName,
@@ -39,6 +41,7 @@ export default defineCommand({
         apiMs: client.ws.ping >= 0 ? client.ws.ping : null,
       },
       links: { web: URLS.web, donate: URLS.paypal, discord: URLS.discordInvite },
+      api: health,
     });
 
     await ctx.reply({ embeds: [embed] });
