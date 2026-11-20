@@ -43,6 +43,9 @@ src/
   features/minecraft/  puente con el servidor de Minecraft: protocol, link, server (WebSocket), inbound, outbound, webhook, messageConfig (lee `config/minecraft-messages.yml`), template, render, announcer, crashWatch, roles, sync, directory, queries, embeds, discord (los únicos adaptadores de discord.js)
   features/moderation/ comandos de moderación: messages (voz y embeds), checks (jerarquía), duration, autoSanction, recent (qué hizo el bot), modlog (canal de registro), channels, actions (llamadas compartidas a Discord)
   features/auditLog/   registro de auditoría: embeds y handlers (dependencias inyectadas); los listeners están en `events/auditLog.ts`
+  features/info/       comandos de información (`server`, `user`, `avatar`, `info`, `emoji`): una vista pura por comando (datos planos → embed), `serverData`/`replies` (leen Discord), `pages`, `badges`, `labels`, `presence`, `palette`, `dates`, `emojiParse`, `emojiMedia`
+  features/lookup/     detector de usuarios de Noa: `rank` (coincidencia por nombre), `resolve` (mención, ID o nombre → una persona, un menú o un fallo), `pick` (el menú), `command` (el flujo común)
+  lib/voice.ts         la voz del bot: `ok`, `fail`, `ask`, `usageLine`, `whoOf`
   commands/<cat>/      un archivo por comando (`export default defineCommand({...})`)
   scripts/             deploy-commands.ts (registro de comandos slash)
 test/                  tests unitarios (node:test) del parser y del customId
@@ -118,6 +121,18 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - **No duplicar entradas**: lo que hace el bot se marca con `botActions.mark(kind, id)` (`features/moderation/recent`, 30 s) y los listeners lo omiten. Un comando nuevo que cause un evento que el registro también escucha **debe marcarlo** antes de actuar. Quién hizo algo sale del registro de auditoría de Discord (`findAction`), que puede tardar: es de mejor esfuerzo y la entrada dice "No se pudo saber" si no lo encuentra.
 - Requiere el intent `GuildModeration` y los permisos *Expulsar*, *Banear*, *Moderar miembros*, *Gestionar mensajes*, *Gestionar canales* y *Ver el registro de auditoría*.
 - Los emojis personalizados están **solo** en `config/emojis.ts` (`EMOJI_DEFS`; `EMOJIS` para texto, `emojiOf` para botones y reacciones, `emojiUrl` para imágenes). Nunca escribir `<:nombre:id>` ni una ID de emoji en otro archivo.
+
+### Voz del bot (Noa)
+- **Toda respuesta a un miembro sale por `lib/voice.ts`**: `ok(quien, texto)` → `✅ ~ **Nombre**, texto`, `fail(...)` → `❌ ~ **Nombre**, texto`, `ask(...)` para una pregunta. El texto va en minúscula tras la coma (la función lo baja si empieza con mayúscula) y `quien` es el miembro (o `null`, que da `✅ ~ Texto`). **Nunca escribir un ✅ o un ❌ suelto** en un mensaje de respuesta; las únicas excepciones son las reacciones (`message.react`) y las vistas sin nadie a quien nombrar (títulos de embed, tarjetas de `passwordReset`, el aviso de `login/confirm`, `quickUpload/view`).
+- **Un `UserError` lleva texto plano**, sin emoji ni nombre: `userMessageFor(error, comando, ámbito, quien)` le pone el `❌ ~ **Nombre**,`. Los handlers (`interactionCreate`, `messageCreate`, `dmMessage`) pasan siempre a quien preguntó (`whoOf(interaction)` o el miembro). Un error de uso se responde con `formatParseError` (el problema más la línea citada `> **Uso:** ...`, `usageLine`).
+- **Un custom emoji no se ve en el título, el pie ni el autor de un embed** (sí en el contenido, la descripción y los valores de campo): ahí van emojis unicode o ninguno.
+
+### Comandos de información
+- Cada vista (`serverView`, `userView`, `avatarView`, `infoView`, `emojiView`) recibe **datos planos** y devuelve el embed, así se prueba con objetos falsos; solo `serverData` y `replies` leen objetos de discord.js. Los colores sin color propio usan `pastel()` (la paleta de Noa) con el azar inyectado.
+- **Toda persona que se nombra pasa por `features/lookup`** (`answerFor` + `finishPick`, opciones `usuario` y `buscar`): una mención o un **ID** funciona aunque la persona **no esté en el servidor** (entonces se omite todo lo que sea del servidor, nunca es un error); un nombre se busca sin mayúsculas ni acentos, uno solo se usa, varios abren un menú con el dueño en el `customId`. Los comandos de sanción **no** lo usan: un nombre aproximado no debe banear a nadie sin confirmar.
+- **Listas largas con botones** (`pages.ts`): la página va en el `customId` (`server:page:<vista>:<n>:<slot>|dueño`), la lista se vuelve a leer del servidor con quien presionó, y nada se guarda. **`server --channels` solo nombra canales que quien pregunta puede ver** (`permissionsFor(miembro)`); los demás solo se cuentan.
+- **El estado (online/idle/dnd, actividad) necesita el intent privilegiado `GuildPresences`**, que solo se pide con `PRESENCE_INTENT=true` (sin activarlo antes en el Developer Portal, Discord rechaza el login). Sin él esas partes se omiten, no se rompen.
+- **`emoji add`**: la imagen solo viene de un adjunto, de otro emoji o de un enlace https de `cdn.discordapp.com` / `media.discordapp.net` (los redireccionamientos deben quedarse en Discord); tiempo límite, tope de 8 MB, tipo por los primeros bytes, 256 KB como máximo (una imagen estática más grande se reduce a 128 px, una animada no). `emoji add/remove/rename` se limitan al Staff **dentro de `run`** con `accessDenial('staff', ...)` (el comando es de todos para `ver`), y los botones de confirmación lo repiten en su `guard`.
 
 ### Agregar un comando
 ```ts
