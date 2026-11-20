@@ -34,6 +34,6 @@ The image comes from an attachment, another emoji or a link of `cdn.discordapp.c
 
 ## 7. Open points
 
-- `dnd` and `streaming` have no custom emoji in the emoji server yet, so the status row uses 🔴 and 🟣; once they are uploaded they only need adding to `EMOJI_DEFS`.
+- `dnd` has no custom emoji in the emoji server yet, so do not disturb uses 🔴; once uploaded it only needs adding to `EMOJI_DEFS`.
 - The sanction commands could take names with the same menu, asking for a confirmation.
 - `user` is Discord-only; the linked Minecraft name and editions from the API are not shown.

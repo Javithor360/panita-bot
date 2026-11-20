@@ -22,9 +22,8 @@ export interface ActivityInfo {
   state: string | null;
 }
 
-/** Discord has no `dnd` or `streaming` emoji in the emoji server yet, so those two are unicode circles. */
+/** There is no `dnd` emoji in the emoji server yet, so do not disturb is a unicode circle. */
 const DND = '🔴';
-const STREAMING = '🟣';
 
 const STATUS_EMOJI: Record<Status, string> = { online: EMOJIS.online, idle: EMOJIS.idle, dnd: DND, offline: EMOJIS.offline };
 const STATUS_LABEL: Record<Status, string> = { online: 'Online', idle: 'Ausente', dnd: 'No molestar', offline: 'Desconectado' };
@@ -80,7 +79,7 @@ export const presenceRow = (counts: PresenceCounts): string =>
     `${EMOJIS.online} ${counts.online}`,
     `${EMOJIS.idle} ${counts.idle}`,
     `${DND} ${counts.dnd}`,
-    `${STREAMING} ${counts.streaming}`,
+    `${EMOJIS.streaming} ${counts.streaming}`,
     `${EMOJIS.offline} ${counts.offline}`,
     `${EMOJIS.mobile} ${counts.mobile}`,
   ].join(' · ');

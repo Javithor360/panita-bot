@@ -230,7 +230,7 @@ test('the row of circles counts each status, streaming and phones, and the rest 
   ];
   const counts = countPresences(presences, 10);
   assert.deepEqual(counts, { online: 2, idle: 1, dnd: 1, streaming: 1, offline: 6, mobile: 2 });
-  assert.equal(presenceRow(counts), `${EMOJIS.online} 2 · ${EMOJIS.idle} 1 · 🔴 1 · 🟣 1 · ${EMOJIS.offline} 6 · ${EMOJIS.mobile} 2`);
+  assert.equal(presenceRow(counts), `${EMOJIS.online} 2 · ${EMOJIS.idle} 1 · 🔴 1 · ${EMOJIS.streaming} 1 · ${EMOJIS.offline} 6 · ${EMOJIS.mobile} 2`);
 });
 
 test('server limits follow the boost tier and never go out of the table', () => {
