@@ -1,7 +1,7 @@
 import { PermissionFlagsBits, type BaseMessageOptions, type Guild, type GuildBasedChannel, type GuildMember, type User } from 'discord.js';
 import { UserError } from '../../core/errors';
 import { lookupFailureText } from '../lookup/resolve';
-import { avatarMessage } from './avatarView';
+import { avatarMessage, pictureMessage } from './avatarView';
 import { ensureMembers, isMemberListComplete, joinPosition } from './members';
 import type { PresenceInfo } from './presence';
 import type { CosmeticsInput, PermissionsInput, VoiceInfo } from './userExtras';
@@ -145,5 +145,35 @@ export const buildAvatarReply = async (guild: Guild, userId: string, global: boo
     formats: { png: url('png', true), jpg: url('jpg', true), webp: url('webp', true), gif: animated ? url('gif', false) : null },
     fromServer,
     hasServerAvatar,
+  });
+};
+
+/**
+ * `avatar --banner` and `avatar --decoration`. A member's server banner is shown unless `global`; a person with none gets a
+ * refusal. The banner only comes with the account fetched fresh, which `accountOf` does.
+ */
+export const buildPictureReply = async (guild: Guild, userId: string, kind: 'banner' | 'decoration', global: boolean): Promise<BaseMessageOptions> => {
+  const user = await accountOf(guild, userId);
+
+  if (kind === 'decoration') {
+    const url = user.avatarDecorationURL({ size: 512 });
+    if (!url) throw new UserError('esa persona no tiene una decoración de avatar.');
+    return pictureMessage({ kind, displayName: user.displayName, imageUrl: url, formats: null });
+  }
+
+  const member = await guild.members.fetch(userId).catch(() => null);
+  const fromServer = !global && !!member?.banner;
+  const source = fromServer ? member! : user;
+  const hash = fromServer ? member!.banner : user.banner;
+  if (!hash) throw new UserError('esa persona no tiene un banner.');
+
+  const animated = hash.startsWith('a_');
+  const url = (extension: 'png' | 'jpg' | 'webp' | 'gif') => source.bannerURL({ size: 2048, extension, forceStatic: extension !== 'gif' }) ?? '';
+  return pictureMessage({
+    kind,
+    displayName: fromServer ? member!.displayName : user.displayName,
+    imageUrl: source.bannerURL({ size: 2048, extension: animated ? 'gif' : 'png' }) ?? '',
+    formats: { png: url('png'), jpg: url('jpg'), webp: url('webp'), gif: animated ? source.bannerURL({ size: 2048, extension: 'gif' }) ?? null : null },
+    fromServer,
   });
 };

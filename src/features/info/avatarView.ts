@@ -41,3 +41,33 @@ export const avatarMessage = (input: AvatarViewInput): BaseMessageOptions => {
 
   return { embeds: [embed], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(buttons)] };
 };
+
+export interface PictureViewInput {
+  kind: 'banner' | 'decoration';
+  displayName: string;
+  imageUrl: string;
+  /** Links to download it in each format, when there are several. */
+  formats: { png: string; jpg: string; webp: string; gif: string | null } | null;
+  /** For a banner, whether it is the one of the server and not of the account. */
+  fromServer?: boolean;
+  random?: () => number;
+}
+
+/** The banner or the avatar decoration of a person, big, in the same style as the avatar. */
+export const pictureMessage = (input: PictureViewInput): BaseMessageOptions => {
+  const label = input.kind === 'banner' ? 'Banner' : 'Decoración';
+  const embed = new EmbedBuilder()
+    .setColor(pastel(input.random))
+    .setTitle(`${label} de ${input.displayName}`.slice(0, 256))
+    .setURL(input.imageUrl)
+    .setImage(input.imageUrl);
+  if (input.kind === 'banner') {
+    embed.setFooter({ text: input.fromServer ? 'Banner del servidor · usa --global para ver el de la cuenta' : 'Banner de la cuenta' });
+  }
+
+  const link = (text: string, url: string) => new ButtonBuilder().setLabel(text).setStyle(ButtonStyle.Link).setURL(url);
+  const buttons = input.formats
+    ? [link('PNG', input.formats.png), link('JPG', input.formats.jpg), link('WebP', input.formats.webp), ...(input.formats.gif ? [link('GIF', input.formats.gif)] : [])]
+    : [link('Abrir', input.imageUrl)];
+  return { embeds: [embed], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(buttons)] };
+};
