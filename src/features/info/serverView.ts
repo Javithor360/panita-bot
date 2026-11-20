@@ -1,20 +1,31 @@
 import { EmbedBuilder, type BaseMessageOptions } from 'discord.js';
 import { EMOJIS } from '../../config/emojis';
 import { UserError } from '../../core/errors';
-import { formatDuration } from '../../lib/format';
+import { discordTimestamp, formatDuration } from '../../lib/format';
 import { clip } from '../moderation/messages';
 import { dateWithAge } from './dates';
 import { BOOST_TIER, boostsToNextTier, emojiLimit, featureLabels, stickerLimit, VERIFICATION } from './labels';
 import { clampPage, pageRow, paginate, type PageSlot } from './pages';
 import { pastel } from './palette';
 import { presenceRow, type PresenceCounts } from './presence';
+import {
+  activityLines,
+  communityLines,
+  eventLine,
+  EVENTS_PER_PAGE,
+  soundLine,
+  SOUNDS_PER_PAGE,
+  stickerLine,
+  STICKERS_PER_PAGE,
+  type ServerExtra,
+} from './serverExtras';
 
 /**
  * Noa's `server` embed (the `⚡ ~ name` header, "Creado el ... (Hace N días)" and the columns written `Label: **value**`),
  * and the views behind its flags. Built from plain data so it can be tested without Discord.
  */
 
-export const SERVER_VIEWS = ['info', 'roles', 'emojis', 'channels', 'boost', 'icon', 'banner'] as const;
+export const SERVER_VIEWS = ['info', 'roles', 'emojis', 'channels', 'activity', 'community', 'stickers', 'events', 'sounds', 'boost', 'icon', 'banner'] as const;
 export type ServerView = (typeof SERVER_VIEWS)[number];
 
 /** The flags of `server`, in the order the "Parámetros" column lists them. */
@@ -22,6 +33,11 @@ export const SERVER_FLAGS: ReadonlyArray<{ flag: Exclude<ServerView, 'info'>; he
   { flag: 'roles', help: 'Muestra los roles del servidor' },
   { flag: 'emojis', help: 'Muestra los emojis del servidor' },
   { flag: 'channels', help: 'Muestra los canales que puedes ver' },
+  { flag: 'activity', help: 'Muestra la actividad: voz, hilos y miembros' },
+  { flag: 'community', help: 'Muestra la configuración de la comunidad' },
+  { flag: 'stickers', help: 'Muestra los stickers del servidor' },
+  { flag: 'events', help: 'Muestra los eventos programados' },
+  { flag: 'sounds', help: 'Muestra los sonidos del tablero' },
   { flag: 'boost', help: 'Muestra el estado de las mejoras' },
   { flag: 'icon', help: 'Muestra el ícono del servidor' },
   { flag: 'banner', help: 'Muestra el banner del servidor' },
@@ -71,6 +87,10 @@ export interface ServerData {
   vanityCode: string | null;
   /** The server tag: `null` when the server has none. */
   serverTag: ServerTagData | null;
+  /** Members that boost the server, oldest boost first. */
+  boosters: Array<{ id: string; since: Date }>;
+  /** Whether the member list was complete, so counts and lists are exact. */
+  membersComplete: boolean;
   tree: CategoryNode[];
 }
 
@@ -222,6 +242,14 @@ export const tagLines = (tag: ServerTagData | null): string[] => {
   return [title, count, shown + (rest > 0 ? ` y ${rest} más` : '')];
 };
 
+/** The members that boost the server, with since when. The first 25 are named and the rest only counted. */
+export const boosterLines = (boosters: ServerData['boosters']): string[] => {
+  if (boosters.length === 0) return ['**Impulsores**', 'Nadie impulsa el servidor todavía.'];
+  const shown = boosters.slice(0, TAG_LIST_MAX).map(booster => `<@${booster.id}> ${discordTimestamp(booster.since, 'R')}`);
+  const rest = boosters.length - shown.length;
+  return [`**Impulsores** (${boosters.length})`, ...shown, ...(rest > 0 ? [`… y ${rest} más`] : [])];
+};
+
 const boostEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
   const next = boostsToNextTier(data.boostTier, data.boosts);
   const perks = featureLabels(data.features);
@@ -238,6 +266,8 @@ const boostEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
         perks.length > 0 ? perks.map(perk => `\`${perk}\``).join(', ') : 'Ninguna',
         '',
         ...tagLines(data.serverTag),
+        '',
+        ...boosterLines(data.boosters),
       ].join('\n'),
     );
   const thumbnail = data.splashUrl ?? data.iconUrl;
@@ -256,6 +286,26 @@ const imageEmbed = (data: ServerData, kind: 'icon' | 'banner', random?: () => nu
     .setImage(url);
 };
 
+/** A paged list of lines (events, sounds, stickers). */
+const listPage = (data: ServerData, title: string, lines: string[], perPage: number, empty: string, requested: number, random?: () => number): Paged => {
+  const pages = paginate(lines, perPage);
+  const page = clampPage(requested, pages.length);
+  const embed = header(data, random).setDescription(
+    pages[page].length > 0 ? `**${title}** (${lines.length})\n${pages[page].join('\n')}` : empty,
+  );
+  return { embed, total: pages.length, page };
+};
+
+const activityEmbed = (data: ServerData, extra: ServerExtra, random?: () => number): EmbedBuilder =>
+  header(data, random).setDescription(
+    extra.activity ? activityLines(extra.activity, data.presence, data.membersComplete).join('\n') : 'No pude leer la actividad del servidor.',
+  );
+
+const communityEmbed = (data: ServerData, extra: ServerExtra, random?: () => number): EmbedBuilder => {
+  const lines = extra.community ? communityLines(extra.community) : [];
+  return header(data, random).setDescription(lines.length > 0 ? lines.join('\n') : 'Este servidor no tiene configuración de comunidad que mostrar.');
+};
+
 /**
  * The reply for a view: the embed and, for the lists that have more than one page, the buttons. `makeId` builds the
  * custom id of a button from the page it leads to, so the buttons carry the page and need no memory.
@@ -266,11 +316,15 @@ export const serverMessage = (
   page: number,
   makeId: (view: ServerView, page: number, slot: PageSlot) => string,
   random?: () => number,
+  extra: ServerExtra = {},
 ): BaseMessageOptions => {
   const paged =
     view === 'roles' ? rolesPage(data, page, random)
     : view === 'emojis' ? emojisPage(data, page, random)
     : view === 'channels' ? channelsPage(data, page, random)
+    : view === 'events' ? listPage(data, 'Eventos', (extra.events ?? []).map(eventLine), EVENTS_PER_PAGE, 'No hay eventos programados.', page, random)
+    : view === 'sounds' ? listPage(data, 'Sonidos', (extra.sounds ?? []).map(soundLine), SOUNDS_PER_PAGE, 'Este servidor no tiene sonidos en el tablero.', page, random)
+    : view === 'stickers' ? listPage(data, 'Stickers', (extra.stickers ?? []).map(stickerLine), STICKERS_PER_PAGE, 'Este servidor no tiene stickers.', page, random)
     : null;
 
   if (paged) {
@@ -280,6 +334,8 @@ export const serverMessage = (
 
   const embed =
     view === 'boost' ? boostEmbed(data, random)
+    : view === 'activity' ? activityEmbed(data, extra, random)
+    : view === 'community' ? communityEmbed(data, extra, random)
     : view === 'icon' || view === 'banner' ? imageEmbed(data, view, random)
     : infoEmbed(data, random);
   return { embeds: [embed], components: [], allowedMentions: { parse: [] } };

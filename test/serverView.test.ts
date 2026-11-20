@@ -39,6 +39,8 @@ const data = (extra: Partial<ServerData> = {}): ServerData => ({
   features: [],
   vanityCode: null,
   serverTag: null,
+  boosters: [],
+  membersComplete: true,
   tree: [],
   ...extra,
 });
@@ -103,7 +105,7 @@ test('extras, content and boosts have a column each', () => {
 test('the parameters list every flag', () => {
   const params = fieldValue(embedOf(message('info', data())), 'Parámetros');
   for (const { flag } of SERVER_FLAGS) assert.ok(params.includes(`\`--${flag}\``), flag);
-  assert.deepEqual(SERVER_FLAGS.map(f => f.flag), ['roles', 'emojis', 'channels', 'boost', 'icon', 'banner']);
+  assert.deepEqual(SERVER_FLAGS.map(f => f.flag), ['roles', 'emojis', 'channels', 'activity', 'community', 'stickers', 'events', 'sounds', 'boost', 'icon', 'banner']);
 });
 
 test('roles are listed by position with their members, 20 to a page, with buttons that carry the page', () => {
@@ -268,14 +270,14 @@ test('the bot info leaves out the API latency until the gateway has answered', (
 const boostDescription = (extra: Partial<ServerData>) => embedOf(message('boost', data(extra))).description as string;
 
 test('boost says when the server has no tag', () => {
-  assert.ok(boostDescription({ serverTag: null }).endsWith('**Etiqueta del servidor**\nEste servidor no tiene etiqueta.'));
+  assert.ok(boostDescription({ serverTag: null }).includes('**Etiqueta del servidor**\nEste servidor no tiene etiqueta.'));
 });
 
 test('boost tells the tag, how many members wear it and who', () => {
   const text = boostDescription({
     serverTag: { text: 'PANA', count: 2, userIds: ['111111111111111111', '222222222222222222'], approximate: false },
   });
-  assert.ok(text.endsWith('**Etiqueta del servidor** `PANA`\nMiembros que la usan: **2**\n<@111111111111111111> <@222222222222222222>'));
+  assert.ok(text.includes('**Etiqueta del servidor** `PANA`\nMiembros que la usan: **2**\n<@111111111111111111> <@222222222222222222>'));
 });
 
 test('a long list of members names the first 25 and counts the rest, and an incomplete list says it is approximate', () => {
@@ -284,12 +286,12 @@ test('a long list of members names the first 25 and counts the rest, and an inco
 
   assert.ok(text.includes('Miembros que la usan: **30** (aprox.)'));
   assert.equal(text.match(/<@\d+>/g)?.length, 25);
-  assert.ok(text.endsWith(' y 5 más'));
+  assert.ok(text.includes(' y 5 más\n'));
 });
 
 test('a tag nobody wears yet shows a zero and no list, and a tag without a known text has no code span', () => {
   const none = boostDescription({ serverTag: { text: null, count: 0, userIds: [], approximate: false } });
-  assert.ok(none.endsWith('**Etiqueta del servidor**\nMiembros que la usan: **0**'));
+  assert.ok(none.includes('**Etiqueta del servidor**\nMiembros que la usan: **0**'));
 });
 
 test('no line of the channel list can be read by Discord as a title or a list', () => {

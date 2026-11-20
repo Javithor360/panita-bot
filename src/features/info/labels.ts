@@ -56,3 +56,37 @@ const FEATURES: Record<string, string> = {
 
 export const featureLabels = (features: readonly string[]): string[] =>
   features.map(feature => FEATURES[feature]).filter((label): label is string => !!label);
+
+/** `GuildMFALevel`: whether moderators need two-step verification. */
+export const MFA_LEVEL: Record<number, string> = { 0: 'Ninguno', 1: 'Obligatoria para moderadores' };
+
+/** `GuildExplicitContentFilter`. */
+export const EXPLICIT_FILTER: Record<number, string> = { 0: 'Desactivado', 1: 'Miembros sin rol', 2: 'Todos los miembros' };
+
+/** `GuildDefaultMessageNotifications`. */
+export const NOTIFICATIONS: Record<number, string> = { 0: 'Todos los mensajes', 1: 'Solo menciones' };
+
+/** `GuildNSFWLevel`. */
+export const NSFW_LEVEL: Record<number, string> = { 0: 'Por defecto', 1: 'Explícito', 2: 'Seguro', 3: 'Solo adultos' };
+
+/** The languages Discord offers for a server, with their flag; an unknown code is shown as it is. */
+const LOCALES: Record<string, string> = {
+  'es-ES': 'Español (España) 🇪🇸',
+  'es-419': 'Español (Latinoamérica) 🌎',
+  'en-US': 'Inglés (EE. UU.) 🇺🇸',
+  'en-GB': 'Inglés (Reino Unido) 🇬🇧',
+  'pt-BR': 'Portugués (Brasil) 🇧🇷',
+  fr: 'Francés 🇫🇷',
+  de: 'Alemán 🇩🇪',
+  it: 'Italiano 🇮🇹',
+  ja: 'Japonés 🇯🇵',
+  ko: 'Coreano 🇰🇷',
+  ru: 'Ruso 🇷🇺',
+  'zh-CN': 'Chino (China) 🇨🇳',
+  'zh-TW': 'Chino (Taiwán) 🇹🇼',
+  pl: 'Polaco 🇵🇱',
+  tr: 'Turco 🇹🇷',
+  nl: 'Neerlandés 🇳🇱',
+};
+
+export const localeLabel = (code: string): string => LOCALES[code] ?? code;

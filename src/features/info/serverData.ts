@@ -1,8 +1,10 @@
-import { ChannelType, GuildFeature, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
-import { ensureMembers, isMemberListComplete } from './members';
+import { ChannelType, GuildFeature, GuildScheduledEventStatus, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
+import { ensureMembers, isMemberListComplete, joinExtremes } from './members';
 import { countPresences } from './presence';
 import { presenceOf } from './replies';
-import type { CategoryNode, ChannelKind, ChannelNode, ServerData } from './serverView';
+import type { ActivityData, CommunityData, EventRow, ServerExtra, SoundRow, StickerRow } from './serverExtras';
+import { ACTIVITY_MEMBERS } from './serverExtras';
+import type { CategoryNode, ChannelKind, ChannelNode, ServerData, ServerView } from './serverView';
 
 /** Reads a live server into the plain data of the `server` views. */
 
@@ -96,6 +98,96 @@ export const collectServerData = async (guild: Guild, viewer: GuildMember): Prom
     features: guild.features,
     vanityCode: guild.vanityURLCode,
     serverTag: serverTagOf(guild, members, counted),
+    boosters: members
+      .filter(member => member.premiumSince)
+      .map(member => ({ id: member.id, since: member.premiumSince! }))
+      .sort((a, b) => a.since.getTime() - b.since.getTime()),
+    membersComplete: counted,
     tree,
   };
+};
+
+const STICKER_FORMAT: Record<number, string> = { 1: 'PNG', 2: 'APNG', 3: 'Lottie', 4: 'GIF' };
+
+const activityOf = async (guild: Guild): Promise<ActivityData> => {
+  const inVoice = [...guild.voiceStates.cache.values()].filter(state => state.channelId && !state.member?.user.bot);
+  const perChannel = new Map<string, number>();
+  for (const state of inVoice) perChannel.set(state.channelId!, (perChannel.get(state.channelId!) ?? 0) + 1);
+
+  const threads = await guild.channels.fetchActiveThreads().then(found => found.threads.size).catch(() => 0);
+  const stamps = [...guild.members.cache.values()]
+    .filter(member => member.joinedAt)
+    .map(member => ({ id: member.id, joinedAt: member.joinedAt!, joinedTimestamp: member.joinedTimestamp }));
+  const { oldest, newest } = joinExtremes(stamps, ACTIVITY_MEMBERS);
+
+  return {
+    voiceTotal: inVoice.length,
+    voiceChannels: [...perChannel.entries()].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count),
+    activeThreads: threads,
+    oldest: oldest.map(({ id, joinedAt }) => ({ id, joinedAt })),
+    newest: newest.map(({ id, joinedAt }) => ({ id, joinedAt })),
+  };
+};
+
+const communityOf = async (guild: Guild): Promise<CommunityData> => ({
+  description: guild.description,
+  rulesChannelId: guild.rulesChannelId,
+  systemChannelId: guild.systemChannelId,
+  updatesChannelId: guild.publicUpdatesChannelId,
+  safetyChannelId: guild.safetyAlertsChannelId,
+  // The cached code is not always there; asking for it needs Manage Server, so a refusal just leaves it out
+  vanityCode:
+    guild.vanityURLCode ?? (guild.features.includes(GuildFeature.VanityURL) ? await guild.fetchVanityData().then(vanity => vanity.code).catch(() => null) : null),
+  locale: guild.preferredLocale,
+  mfaLevel: guild.mfaLevel,
+  explicitFilter: guild.explicitContentFilter,
+  notifications: guild.defaultMessageNotifications,
+  maxMembers: guild.maximumMembers,
+  nsfwLevel: guild.nsfwLevel,
+});
+
+const eventsOf = async (guild: Guild): Promise<EventRow[]> => {
+  const events = await guild.scheduledEvents.fetch().catch(() => null);
+  if (!events) return [];
+  return [...events.values()]
+    .filter(event => event.status === GuildScheduledEventStatus.Scheduled || event.status === GuildScheduledEventStatus.Active)
+    .sort((a, b) => (a.scheduledStartTimestamp ?? 0) - (b.scheduledStartTimestamp ?? 0))
+    .map(event => ({
+      name: event.name,
+      startsAt: event.scheduledStartAt,
+      active: event.status === GuildScheduledEventStatus.Active,
+      where: event.channelId ? { channelId: event.channelId } : event.entityMetadata?.location ? { location: event.entityMetadata.location } : null,
+    }));
+};
+
+const soundsOf = async (guild: Guild): Promise<SoundRow[]> => {
+  const sounds = await guild.soundboardSounds.fetch().catch(() => null);
+  if (!sounds) return [];
+  return [...sounds.values()].map(sound => ({
+    name: sound.name,
+    emoji: sound.emoji?.toString() ?? null,
+    volume: sound.volume,
+    uploader: sound.user?.username ?? null,
+    available: sound.available,
+  }));
+};
+
+const stickersOf = (guild: Guild): StickerRow[] =>
+  [...guild.stickers.cache.values()].map(sticker => ({
+    name: sticker.name,
+    tags: sticker.tags,
+    format: STICKER_FORMAT[sticker.format] ?? 'Desconocido',
+    available: sticker.available !== false,
+  }));
+
+/** What a flag needs besides the plain data. It is read only for that flag, so the plain `server` never pays for it. */
+export const collectExtra = async (guild: Guild, view: ServerView): Promise<ServerExtra> => {
+  switch (view) {
+    case 'activity': return { activity: await activityOf(guild) };
+    case 'community': return { community: await communityOf(guild) };
+    case 'events': return { events: await eventsOf(guild) };
+    case 'sounds': return { sounds: await soundsOf(guild) };
+    case 'stickers': return { stickers: stickersOf(guild) };
+    default: return {};
+  }
 };
