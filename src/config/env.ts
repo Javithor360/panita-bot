@@ -153,6 +153,11 @@ export const env = {
   BIRTHDAY_HOUR: integerInRange('BIRTHDAY_HOUR', 10, 0, 23),
   /** Staff channel where every moderation case and the audit log (deleted and edited messages, joins, leaves, bans, timeouts) are posted. Without it nothing is logged there. */
   MODLOG_CHANNEL_ID: optionalId('MODLOG_CHANNEL_ID'),
+  /**
+   * Asks Discord for the Presence intent, which gives online status for `user` and `server`. It is privileged: switch on
+   * "Presence Intent" in the Developer Portal first, because without it Discord refuses the login and the bot does not start.
+   */
+  PRESENCE_INTENT: booleanFlag('PRESENCE_INTENT', false),
   /** Key of the OpenAI project of the bot. Without it `/ask` answers that it is not available. Never logged. */
   OPENAI_API_KEY: optional('OPENAI_API_KEY'),
   OPENAI_MODEL: optional('OPENAI_MODEL') ?? 'gpt-6-luna',

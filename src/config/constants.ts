@@ -13,6 +13,10 @@ export const URLS = {
   openai: 'https://api.openai.com/v1',
   tezzlar3: `${WEB_BASE}/tezzlar3`,
   gallery: (photoId: string) => `${WEB_BASE}/gallery?photo=${photoId}`,
+  /** Reverse image search of Google, for the "Búscalo en Google" line of `avatar`. */
+  googleLens: (imageUrl: string) => `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageUrl)}`,
+  /** A unicode emoji as an image, for `emoji` (a Twemoji file is named by its code points). */
+  twemoji: (codepoints: string) => `https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/72x72/${codepoints}.png`,
   editionIcon: (editionId: string) => `https://res.cloudinary.com/panita/image/upload/panita-web/logos/icon_${editionId}.png`,
   cloudinaryApi: (cloudName: string, action: 'upload' | 'destroy') => `https://api.cloudinary.com/v1_1/${cloudName}/image/${action}`,
   paypal: 'https://www.paypal.me/Javithor360',
