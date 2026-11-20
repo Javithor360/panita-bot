@@ -206,6 +206,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `emoji add <name> [emoji\|link]` | **Staff only.** Adds an emoji to the server from an attached image, by copying another emoji, or from a Discord image link. Big static images are shrunk to fit; big animated ones are refused. | `emoji agregar` |
 | `emoji remove <emoji>` / `emoji rename <emoji> <name>` | **Staff only.** Deletes an emoji (after a confirmation button) / renames it. | `emoji eliminar`, `emoji renombrar` |
 | `sticker <name or ID> [--info]` | Shows a sticker big: one of this server by name, any sticker by ID (Discord's own too), the one sent with the command, or the one in the message it replies to. A Lottie sticker has no picture, so it shows its information instead. | `stk` |
+| `ocr [imagen]` | Reads the text in an image (Spanish and English). Attach the image, use the `imagen` option, or reply to a message with an image or a link preview. Also available as right-click on a message → Apps → **Leer texto**. One reading per person every 15 seconds; only PNG, JPG, WEBP and BMP under 8 MB from Discord's own file hosts. The first reading downloads the language data into `data/tesseract`. | `leer` |
 
 </details>
 

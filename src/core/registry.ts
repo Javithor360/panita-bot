@@ -67,6 +67,11 @@ export class CommandRegistry {
     return [...this.byName.values()];
   }
 
+  /** Message context menus, by their display name. */
+  get contextMenus(): Array<{ name: string; command: Command }> {
+    return this.commands.flatMap(command => (command.contextMenu ? [{ name: command.contextMenu.data.name, command }] : []));
+  }
+
   /** Normalized descriptions of every command (used by /help). */
   info(): CommandInfo[] {
     return this.commands.map(c => this.commandInfo(c)).sort((a, b) => a.name.localeCompare(b.name));

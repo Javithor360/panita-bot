@@ -3,6 +3,7 @@ import {
   type ButtonInteraction,
   type ChatInputCommandInteraction,
   type Interaction,
+  type MessageContextMenuCommandInteraction,
   type ModalSubmitInteraction,
   type StringSelectMenuInteraction,
 } from 'discord.js';
@@ -43,7 +44,28 @@ const handleChatInput = async (registry: CommandRegistry, interaction: ChatInput
   }
 };
 
-const matchesKind = (handler: ComponentHandler, interaction: ComponentInteraction) =>
+const handleContextMenu = async (registry: CommandRegistry, interaction: MessageContextMenuCommandInteraction) => {
+  const who = whoOf(interaction);
+  const entry = registry.contextMenus.find(menu => menu.name === interaction.commandName);
+  if (!entry) return safeReply(interaction, fail(who, EXPIRED_COMMAND));
+
+  if (!interaction.inCachedGuild()) return safeReply(interaction, fail(who, GUILD_ONLY));
+
+  const { command } = entry;
+  const denial = accessDenial(command.meta.access, interaction.member);
+  if (denial) return safeReply(interaction, denial);
+
+  const barred = await blacklistDenial(interaction.member);
+  if (barred) return safeReply(interaction, barred);
+
+  try {
+    await command.contextMenu!.run(interaction);
+  } catch (error) {
+    await safeReply(interaction, userMessageFor(error, command.data.name, 'ContextMenu', who));
+  }
+};
+
+const matchesKind =(handler: ComponentHandler, interaction: ComponentInteraction) =>
   (handler.kind === 'button' && interaction.isButton()) ||
   (handler.kind === 'select' && interaction.isStringSelectMenu()) ||
   (handler.kind === 'modal' && interaction.isModalSubmit());
@@ -90,6 +112,7 @@ const handleComponent = async (registry: CommandRegistry, interaction: Component
 
 export const createInteractionHandler = (registry: CommandRegistry) => async (interaction: Interaction) => {
   if (interaction.isChatInputCommand()) return handleChatInput(registry, interaction);
+  if (interaction.isMessageContextMenuCommand()) return handleContextMenu(registry, interaction);
   if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
     return handleComponent(registry, interaction);
   }
