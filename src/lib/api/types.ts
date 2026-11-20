@@ -263,3 +263,33 @@ export interface WarningsMeta extends ListMeta {
   limit: number;
   offset: number;
 }
+
+/** An entry of the blacklist (`/v1/discord/blacklist`): a Discord user barred from the bot. A removed one stays in the history. */
+export interface BlacklistEntry {
+  id: string;
+  /** Discord id of the barred user; it has no relation to a website account. */
+  user_id: string;
+  moderator_id: string;
+  reason: string;
+  created_at: string;
+  /** `null` for a permanent entry. */
+  expires_at: string | null;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  revoke_reason: string | null;
+  /** Not removed and not expired, as the API clock sees it. */
+  active: boolean;
+}
+
+/** `GET /v1/discord/blacklist/users/{discordId}`: `entry` is the active one, or `null`. */
+export interface BlacklistStatus {
+  blacklisted: boolean;
+  entry: BlacklistEntry | null;
+}
+
+/** `meta` of `GET /v1/discord/blacklist`: `total` counts what the filter keeps, not the page. */
+export interface BlacklistMeta extends ListMeta {
+  total: number;
+  limit: number;
+  offset: number;
+}

@@ -1,11 +1,13 @@
-import type {
-  ButtonInteraction,
-  ChatInputCommandInteraction,
-  Interaction,
-  ModalSubmitInteraction,
-  StringSelectMenuInteraction,
+import {
+  GuildMember,
+  type ButtonInteraction,
+  type ChatInputCommandInteraction,
+  type Interaction,
+  type ModalSubmitInteraction,
+  type StringSelectMenuInteraction,
 } from 'discord.js';
 import { accessDenial } from '../core/access';
+import { blacklistDenial } from '../features/moderation/blacklist';
 import type { ComponentHandler } from '../core/command';
 import { SlashContext } from '../core/context';
 import { decodeCustomId } from '../core/customId';
@@ -30,6 +32,9 @@ const handleChatInput = async (registry: CommandRegistry, interaction: ChatInput
 
   const denial = accessDenial(command.meta.access, interaction.member);
   if (denial) return safeReply(interaction, denial);
+
+  const barred = await blacklistDenial(interaction.member);
+  if (barred) return safeReply(interaction, barred);
 
   try {
     await command.run(new SlashContext(interaction, command.data.name));
@@ -73,6 +78,8 @@ const handleComponent = async (registry: CommandRegistry, interaction: Component
 
   const verified = handler as unknown as VerifiedHandler;
   try {
+    const barred = await blacklistDenial(interaction.member instanceof GuildMember ? interaction.member : null, interaction.user.id, who);
+    if (barred) return safeReply(interaction, barred);
     const denial = await verified.guard?.(interaction, found.args);
     if (denial) return safeReply(interaction, denial);
     await verified.run(interaction, found.args);
