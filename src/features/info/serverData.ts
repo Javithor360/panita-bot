@@ -1,4 +1,5 @@
 import { ChannelType, GuildFeature, GuildScheduledEventStatus, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
+import { stickerFormatName } from './labels';
 import { ensureMembers, isMemberListComplete, joinExtremes } from './members';
 import { countPresences } from './presence';
 import { presenceOf } from './replies';
@@ -107,8 +108,6 @@ export const collectServerData = async (guild: Guild, viewer: GuildMember): Prom
   };
 };
 
-const STICKER_FORMAT: Record<number, string> = { 1: 'PNG', 2: 'APNG', 3: 'Lottie', 4: 'GIF' };
-
 const activityOf = async (guild: Guild): Promise<ActivityData> => {
   const inVoice = [...guild.voiceStates.cache.values()].filter(state => state.channelId && !state.member?.user.bot);
   const perChannel = new Map<string, number>();
@@ -176,7 +175,7 @@ const stickersOf = (guild: Guild): StickerRow[] =>
   [...guild.stickers.cache.values()].map(sticker => ({
     name: sticker.name,
     tags: sticker.tags,
-    format: STICKER_FORMAT[sticker.format] ?? 'Desconocido',
+    format: stickerFormatName(sticker.format),
     available: sticker.available !== false,
   }));
 

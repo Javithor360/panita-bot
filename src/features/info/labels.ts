@@ -90,3 +90,8 @@ const LOCALES: Record<string, string> = {
 };
 
 export const localeLabel = (code: string): string => LOCALES[code] ?? code;
+
+/** `StickerFormatType`: the file format of a sticker. Lottie is an animation in JSON that Discord gives no picture of. */
+export const STICKER_FORMAT: Record<number, string> = { 1: 'PNG', 2: 'APNG', 3: 'Lottie', 4: 'GIF' };
+
+export const stickerFormatName = (format: number): string => STICKER_FORMAT[format] ?? 'Desconocido';
