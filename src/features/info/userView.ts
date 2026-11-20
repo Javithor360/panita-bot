@@ -5,6 +5,7 @@ import { pastel } from './palette';
 import { activityText, statusColor, statusText, type PresenceInfo } from './presence';
 import { discordTimestamp } from '../../lib/format';
 import { clip } from '../moderation/messages';
+import { cosmeticsLines, permissionLines, profileFooter, voiceLines, type CosmeticsInput, type PermissionsInput, type VoiceInfo } from './userExtras';
 
 /**
  * Noa's `user` embed: bold headings with `•` bullets in the description (Identificación, Cuenta, Actividad, Roles) and a
@@ -39,14 +40,24 @@ export interface UserViewMember {
   roleColor: number;
   /** Names of `PermissionFlagsBits` the member holds, for `KEY_PERMISSIONS` to pick from. */
   permissions: string[];
+  /** Their place by join date, 1 being the first; `null` when the member list is incomplete. */
+  joinPosition: number | null;
+  /** Set only while they are in a voice channel. */
+  voice: VoiceInfo | null;
 }
+
+/** What `user` shows: the profile, or one of its flags. */
+export type UserView = 'profile' | 'badges' | 'cosmetics' | 'permissions';
 
 export interface UserViewInput {
   user: UserViewUser;
   member: UserViewMember | null;
   presence: PresenceInfo | null;
-  /** `--badges`: the badges instead of the profile. */
-  badges: boolean;
+  view: UserView;
+  /** For `--cosmetics`. */
+  cosmetics?: CosmeticsInput;
+  /** For `--permissions`. */
+  permissions?: PermissionsInput | null;
   now?: Date;
   random?: () => number;
 }
@@ -113,8 +124,25 @@ export const userBadgesEmbed = (input: UserViewInput): EmbedBuilder => {
   return header(input).setDescription(`${identification(input)}\n\n${section('Insignias', lines.length > 0 ? lines : [NO_BADGES])}`);
 };
 
+/** The embed of `--cosmetics`: decoration, nameplate, server tag, banner and accent color. */
+export const userCosmeticsEmbed = (input: UserViewInput): EmbedBuilder => {
+  const embed = header(input).setDescription(cosmeticsLines(input.cosmetics!).join('\n'));
+  if (input.cosmetics?.decorationUrl) embed.setThumbnail(input.cosmetics.decorationUrl);
+  return embed;
+};
+
+/** The embed of `--permissions`. A person outside the server has no permissions, which is said and not guessed. */
+export const userPermissionsEmbed = (input: UserViewInput): EmbedBuilder =>
+  header(input).setDescription(
+    input.permissions && input.member
+      ? permissionLines(input.permissions).join('\n')
+      : 'Esa persona no está en el servidor, así que no tiene permisos en ningún canal.',
+  );
+
 export const userEmbed = (input: UserViewInput): EmbedBuilder => {
-  if (input.badges) return userBadgesEmbed(input);
+  if (input.view === 'badges') return userBadgesEmbed(input);
+  if (input.view === 'cosmetics') return userCosmeticsEmbed(input);
+  if (input.view === 'permissions') return userPermissionsEmbed(input);
 
   const { user, member, presence } = input;
   const now = (input.now ?? new Date()).getTime();
@@ -135,6 +163,8 @@ export const userEmbed = (input: UserViewInput): EmbedBuilder => {
     sections.push(section('Actividad', [bullet('Estado', statusText(presence)), ...(activity ? [`• ${activity}`] : [])]));
   }
 
+  if (member?.voice) sections.push(section('Voz', voiceLines(member.voice)));
+
   if (member) {
     const roles = member.roles.length > 0
       ? [
@@ -150,6 +180,7 @@ export const userEmbed = (input: UserViewInput): EmbedBuilder => {
   }
 
   const embed = header(input).setDescription(sections.join('\n\n'));
+  if (member) embed.setFooter({ text: profileFooter(member.joinPosition, member.roles.length) });
   if (user.bannerUrl) embed.setImage(user.bannerUrl);
   return embed;
 };

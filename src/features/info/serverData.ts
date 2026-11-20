@@ -1,28 +1,10 @@
 import { ChannelType, GuildFeature, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
-import { createTtlCache } from '../../lib/ttlCache';
+import { ensureMembers, isMemberListComplete } from './members';
 import { countPresences } from './presence';
 import { presenceOf } from './replies';
 import type { CategoryNode, ChannelKind, ChannelNode, ServerData } from './serverView';
 
-/**
- * Reads a live server into the plain data of the `server` views. The member list is fetched once every ten minutes
- * (Discord limits it); in between, the cache is used.
- */
-
-const MEMBERS_TTL_MS = 10 * 60 * 1000;
-const refreshed = createTtlCache<true>(MEMBERS_TTL_MS);
-
-const ensureMembers = async (guild: Guild): Promise<void> => {
-  if (refreshed.get(guild.id)) return;
-  refreshed.set(guild.id, true);
-  try {
-    await guild.members.fetch();
-  } catch (error) {
-    // The cache is used, and the next call tries again
-    refreshed.delete(guild.id);
-    console.warn('[Server] Could not fetch the members:', error);
-  }
-};
+/** Reads a live server into the plain data of the `server` views. */
 
 const KIND: Partial<Record<ChannelType, ChannelKind>> = {
   [ChannelType.GuildText]: 'text',
@@ -55,7 +37,7 @@ export const collectServerData = async (guild: Guild, viewer: GuildMember): Prom
   const members = [...guild.members.cache.values()];
   const bots = members.filter(member => member.user.bot).length;
   // A cache that is far from complete would give wrong numbers: then they are left out
-  const counted = members.length > 0 && members.length >= guild.memberCount * 0.9;
+  const counted = isMemberListComplete(members.length, guild.memberCount);
 
   const channels = [...guild.channels.cache.values()];
   const categories = channels.filter(channel => channel.type === ChannelType.GuildCategory).sort((a, b) => position(a) - position(b));

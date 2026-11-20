@@ -36,6 +36,8 @@ const client = new Client({
     GatewayIntentBits.GuildModeration,
     // Keeps the emoji cache right when someone changes emojis by hand, for `emoji` and `server --emojis`
     GatewayIntentBits.GuildEmojisAndStickers,
+    // Who is in a voice channel and what they are doing, for `user` and `server --activity`
+    GatewayIntentBits.GuildVoiceStates,
     // Online status for `user` and `server`. Privileged: "Presence Intent" must be on for the bot in the Developer Portal
     GatewayIntentBits.GuildPresences,
   ],

@@ -1,9 +1,11 @@
-import type { BaseMessageOptions, Guild, GuildMember, User } from 'discord.js';
+import { PermissionFlagsBits, type BaseMessageOptions, type Guild, type GuildBasedChannel, type GuildMember, type User } from 'discord.js';
 import { UserError } from '../../core/errors';
 import { lookupFailureText } from '../lookup/resolve';
 import { avatarMessage } from './avatarView';
+import { ensureMembers, isMemberListComplete, joinPosition } from './members';
 import type { PresenceInfo } from './presence';
-import { userEmbed, type UserViewMember, type UserViewUser } from './userView';
+import type { CosmeticsInput, PermissionsInput, VoiceInfo } from './userExtras';
+import { userEmbed, type UserView, type UserViewMember, type UserViewUser } from './userView';
 
 /**
  * Reads real Discord objects into the plain inputs of the views, and builds each reply. Commands and the "which one do
@@ -32,7 +34,7 @@ const userInputOf = (user: User): UserViewUser => ({
   flags: user.flags?.toArray() ?? [],
 });
 
-const memberInputOf = (member: GuildMember): UserViewMember => ({
+const memberInputOf = (member: GuildMember, position: number | null): UserViewMember => ({
   nickname: member.nickname,
   displayName: member.displayName,
   joinedAt: member.joinedAt,
@@ -43,7 +45,55 @@ const memberInputOf = (member: GuildMember): UserViewMember => ({
     .map(role => ({ id: role.id, color: role.color })),
   roleColor: member.roles.color?.color ?? 0,
   permissions: member.permissions.toArray(),
+  joinPosition: position,
+  voice: voiceOf(member),
 });
+
+/** What a member is doing in voice; `null` when they are not in a voice channel. */
+const voiceOf = (member: GuildMember): VoiceInfo | null => {
+  const state = member.voice;
+  if (!state.channelId) return null;
+  return {
+    channelId: state.channelId,
+    serverMute: !!state.serverMute,
+    serverDeaf: !!state.serverDeaf,
+    selfMute: !!state.selfMute,
+    selfDeaf: !!state.selfDeaf,
+    streaming: !!state.streaming,
+    camera: !!state.selfVideo,
+  };
+};
+
+const cosmeticsOf = (user: User, guild: Guild): CosmeticsInput => {
+  const primary = user.primaryGuild;
+  const wearing = !!primary?.identityEnabled && !!primary.tag;
+  const nameplate = user.collectibles?.nameplate;
+  return {
+    decorationUrl: user.avatarDecorationURL() ?? null,
+    nameplate: nameplate ? { label: nameplate.label, palette: nameplate.palette } : null,
+    tag: wearing
+      ? {
+          text: primary.tag!,
+          badgeUrl: user.guildTagBadgeURL() ?? null,
+          guildName: primary.identityGuildId === guild.id ? guild.name : guild.client.guilds.cache.get(primary.identityGuildId ?? '')?.name ?? null,
+        }
+      : null,
+    hasBanner: !!user.banner,
+    accentColor: user.accentColor ?? null,
+  };
+};
+
+/** What the member can do in a channel. `null` when there is no channel to ask about. */
+const permissionsOf = (member: GuildMember, channel: GuildBasedChannel | null): PermissionsInput | null => {
+  if (!channel || !('permissionsFor' in channel)) return null;
+  const permissions = channel.permissionsFor(member);
+  return {
+    channelId: channel.id,
+    voice: channel.isVoiceBased(),
+    administrator: permissions?.has(PermissionFlagsBits.Administrator) ?? false,
+    allowed: permissions?.toArray() ?? [],
+  };
+};
 
 /** The account, fresh from Discord (the banner and the accent color only come that way), or what the cache has. */
 const accountOf = async (guild: Guild, userId: string): Promise<User> => {
@@ -52,15 +102,28 @@ const accountOf = async (guild: Guild, userId: string): Promise<User> => {
   return user;
 };
 
-/** `user`: the profile, or with `badges` the badges. Someone who is not in the server only gets the account's part. */
-export const buildUserReply = async (guild: Guild, userId: string, badges: boolean): Promise<BaseMessageOptions> => {
+/**
+ * `user`: the profile, or with a flag the badges, the cosmetics or the permissions in `channel`. Someone who is not in the
+ * server only gets what the account has.
+ */
+export const buildUserReply = async (guild: Guild, userId: string, view: UserView, channel: GuildBasedChannel | null): Promise<BaseMessageOptions> => {
   const user = await accountOf(guild, userId);
   const member = await guild.members.fetch(userId).catch(() => null);
+
+  let position: number | null = null;
+  if (member && view === 'profile') {
+    await ensureMembers(guild);
+    const entries = [...guild.members.cache.values()].map(entry => ({ id: entry.id, joinedTimestamp: entry.joinedTimestamp }));
+    position = joinPosition(entries, member.id, isMemberListComplete(entries.length, guild.memberCount));
+  }
+
   const embed = userEmbed({
     user: userInputOf(user),
-    member: member ? memberInputOf(member) : null,
+    member: member ? memberInputOf(member, position) : null,
     presence: presenceOf(member),
-    badges,
+    view,
+    cosmetics: view === 'cosmetics' ? cosmeticsOf(user, guild) : undefined,
+    permissions: view === 'permissions' && member ? permissionsOf(member, channel) : null,
   });
   return { embeds: [embed], allowedMentions: { parse: [] } };
 };

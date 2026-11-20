@@ -35,6 +35,8 @@ const member = (extra: Partial<UserViewMember> = {}): UserViewMember => ({
   roles: [{ id: 'r2', color: 0 }, { id: 'r1', color: 0xff0000 }],
   roleColor: 0xff0000,
   permissions: ['SendMessages', 'ManageMessages'],
+  joinPosition: 37,
+  voice: null,
   ...extra,
 });
 
@@ -44,7 +46,7 @@ const input = (extra: Partial<UserViewInput> = {}): UserViewInput => ({
   user: user(),
   member: member(),
   presence: null,
-  badges: false,
+  view: 'profile',
   random: () => 0,
   ...extra,
 });
@@ -125,12 +127,12 @@ test('the author is the display name with the picture, and the banner is the ima
 });
 
 test('--badges lists the public badges, the server booster, or says there are none, and never claims Nitro', () => {
-  const none = description({ badges: true });
+  const none = description({ view: 'badges' });
   assert.match(none, /\*\*Insignias\*\*\nSin insignias/);
   assert.equal(NO_BADGES, 'Sin insignias');
 
   const some = description({
-    badges: true,
+    view: 'badges',
     user: user({ flags: ['Staff', 'HypeSquadOnlineHouse2', 'ActiveDeveloper', 'Spammer', 'Quarantined', 'MFASMS'] }),
     member: member({ boostingSince: new Date('2025-01-01T00:00:00Z') }),
   });
@@ -141,7 +143,7 @@ test('--badges lists the public badges, the server booster, or says there are no
   for (const hidden of ['Spammer', 'Quarantined', 'MFA', 'Nitro']) assert.equal(some.includes(hidden), false, hidden);
 
   assert.deepEqual(badgeLines({ flags: ['VerifiedBot'] }), ['✔️ Bot verificado']);
-  assert.equal(description({ badges: true, member: null, user: user({ flags: ['Partner'] }) }).includes('Impulsor'), false);
+  assert.equal(description({ view: 'badges', member: null, user: user({ flags: ['Partner'] }) }).includes('Impulsor'), false);
 });
 
 test('the avatar embed is Noa\'s: the title links to the picture, a Google line and the picture big', () => {
