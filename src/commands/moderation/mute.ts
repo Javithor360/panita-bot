@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { CATEGORIES, EMOJIS, MODERATION } from '../../config/constants';
+import { CATEGORIES, MODERATION } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { UserError } from '../../core/errors';
 import { announce, auditReason, discordAction, guardTarget, memberOf, notifyMember, refuse, subjectOf } from '../../features/moderation/actions';
@@ -28,7 +28,7 @@ export default defineCommand({
     const { durationMs, reason } = splitTimeAndReason(ctx.options.getString('tiempo'), ctx.options.getString('razon'));
     const ms = durationMs ?? MODERATION.defaultMuteMs;
     if (!isValidTimeout(ms)) {
-      throw new UserError(`${EMOJIS.cross} Un silencio puede durar como máximo ${formatDuration(MODERATION.maxTimeoutMs)}.`);
+      throw new UserError(`Un silencio puede durar como máximo ${formatDuration(MODERATION.maxTimeoutMs)}.`);
     }
 
     const member = await memberOf(ctx, user);
@@ -57,6 +57,6 @@ export default defineCommand({
         { name: 'Termina', value: discordTimestamp(Date.now() + ms, 'R'), inline: true },
       ],
     });
-    await announce(ctx, { text: confirmation('mute', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'mute', user.username), embeds: [embed] });
   },
 });

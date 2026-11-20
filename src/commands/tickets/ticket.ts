@@ -12,6 +12,7 @@ import {
 } from 'discord.js';
 import { CATEGORIES, COLORS } from '../../config/constants';
 import { defineCommand } from '../../core/command';
+import { fail, ok } from '../../lib/voice';
 import type { CommandContext } from '../../core/context';
 import { UserError } from '../../core/errors';
 import { panelModalId, TICKET_NAMESPACE } from '../../features/tickets/embeds';
@@ -19,7 +20,7 @@ import { legacyTicketCustomId, ticketComponents } from '../../features/tickets/c
 import { deletePanelMessage, sendPanel } from '../../features/tickets/panel';
 import { deletePanel, getPanel, listPanels, updatePanel, type PanelConfigUpdate } from '../../services/tickets';
 
-const PANEL_NOT_FOUND = '❌ No se encontró ningún panel con ese ID.';
+const PANEL_NOT_FOUND = 'No se encontró ningún panel con ese ID.';
 /** The API refuses larger counters. */
 const COUNTER_MAX = 1_000_000_000;
 
@@ -42,8 +43,8 @@ const requirePanel = async (panelId: string) => {
 const configurePanel = async (ctx: CommandContext, data: PanelConfigUpdate, message: (panelId: string) => string) => {
   await ctx.defer();
   const panel = await updatePanel(ctx.options.getString('panel_id', true), data);
-  if (!panel) return ctx.reply(PANEL_NOT_FOUND);
-  await ctx.reply({ content: message(panel.id), allowedMentions: { roles: [] } });
+  if (!panel) return ctx.reply(fail(ctx.member, PANEL_NOT_FOUND));
+  await ctx.reply({ content: ok(ctx.member, message(panel.id)), allowedMentions: { roles: [] } });
 };
 
 const subcommands: Record<string, (ctx: CommandContext) => Promise<unknown>> = {
@@ -67,25 +68,25 @@ const subcommands: Record<string, (ctx: CommandContext) => Promise<unknown>> = {
     await deletePanelMessage(ctx.client, panel);
     // It may have been deleted since the lookup above
     if (!(await deletePanel(panel.id))) throw new UserError(PANEL_NOT_FOUND);
-    await ctx.reply(`✅ Panel **${panel.id}** eliminado.`);
+    await ctx.reply(ok(ctx.member, `Panel **${panel.id}** eliminado.`));
   },
 
   async 'panel resend'(ctx) {
     const channel = ctx.options.getChannel('canal', true);
-    if (channel.type !== ChannelType.GuildText) throw new UserError('❌ Debes mencionar un canal de texto válido.');
+    if (channel.type !== ChannelType.GuildText) throw new UserError('Debes mencionar un canal de texto válido.');
 
     await ctx.defer();
     const panel = await requirePanel(ctx.options.getString('panel_id', true));
     await deletePanelMessage(ctx.client, panel);
     const message = await sendPanel(channel, panel);
     await updatePanel(panel.id, { channel_id: channel.id, message_id: message.id });
-    await ctx.reply(`✅ Panel reenviado a <#${channel.id}>.`);
+    await ctx.reply(ok(ctx.member, `Panel reenviado a <#${channel.id}>.`));
   },
 
   async 'panel list'(ctx) {
     await ctx.defer();
     const panels = await listPanels(ctx.guild.id);
-    if (panels.length === 0) return ctx.reply('❌ No hay ningún panel de tickets configurado en este servidor.');
+    if (panels.length === 0) return ctx.reply(fail(ctx.member, 'No hay ningún panel de tickets configurado en este servidor.'));
 
     const embed = new EmbedBuilder()
       .setTitle('Paneles de Tickets Existentes')
@@ -124,26 +125,26 @@ const subcommands: Record<string, (ctx: CommandContext) => Promise<unknown>> = {
   'config staff_role'(ctx) {
     const role = ctx.options.getRole('role', true);
     return configurePanel(ctx, { staff_role_id: role.id },
-      id => `✅ El rol de staff para el panel **${id}** ha sido configurado a <@&${role.id}>.`);
+      id => `El rol de staff para el panel **${id}** ha sido configurado a <@&${role.id}>.`);
   },
 
   'config category'(ctx) {
     const category = ctx.options.getChannel('category', true);
-    if (category.type !== ChannelType.GuildCategory) throw new UserError('❌ Debes indicar una categoría válida.');
+    if (category.type !== ChannelType.GuildCategory) throw new UserError('Debes indicar una categoría válida.');
     return configurePanel(ctx, { category_id: category.id },
-      id => `✅ Los tickets para el panel **${id}** se crearán en la categoría \`${category.name}\`.`);
+      id => `Los tickets para el panel **${id}** se crearán en la categoría \`${category.name}\`.`);
   },
 
   'config counter'(ctx) {
     const number = ctx.options.getInteger('number', true);
     return configurePanel(ctx, { ticket_counter: number },
-      id => `✅ El contador del panel **${id}** ha sido seteado a ${number}.`);
+      id => `El contador del panel **${id}** ha sido seteado a ${number}.`);
   },
 
   'config show_id_in_name'(ctx) {
     const show = ctx.options.getBoolean('show', true);
     return configurePanel(ctx, { show_panel_id_in_name: show },
-      id => `✅ Mostrar ID en el nombre del canal para el panel **${id}** ha sido seteado a \`${show}\`.`);
+      id => `Mostrar ID en el nombre del canal para el panel **${id}** ha sido seteado a \`${show}\`.`);
   },
 };
 
@@ -205,7 +206,7 @@ export default defineCommand({
   },
   async run(ctx) {
     const handler = subcommands[`${ctx.options.getSubcommandGroup()} ${ctx.options.getSubcommand()}`];
-    if (!handler) throw new UserError('❌ Subcomando inválido.');
+    if (!handler) throw new UserError('Subcomando inválido.');
     await handler(ctx);
   },
   components: ticketComponents,

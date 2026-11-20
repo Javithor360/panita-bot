@@ -12,7 +12,7 @@ export const TAG_CONTENT_MAX = 4000;
 const TAG_MEDIA_MAX = 10;
 
 export const INVALID_TAG_NAME =
-  '❌ El nombre del tag solo puede tener letras, números, `-` y `_` (máximo 64 caracteres).';
+  'El nombre del tag solo puede tener letras, números, `-` y `_` (máximo 64 caracteres).';
 
 export const listTags = () => api.get<Tag[]>('/v1/tags');
 
@@ -30,7 +30,7 @@ export const getTag = async (name: string): Promise<Tag | null> => {
 /** Creates the tag or replaces its content. */
 export const saveTag = async (tag: { name: string; content: string | null; mediaUrls: string[]; authorId: string }) => {
   if (!TAG_NAME_PATTERN.test(tag.name)) throw new UserError(INVALID_TAG_NAME);
-  if (tag.mediaUrls.length > TAG_MEDIA_MAX) throw new UserError(`❌ Un tag puede tener como máximo ${TAG_MEDIA_MAX} adjuntos.`);
+  if (tag.mediaUrls.length > TAG_MEDIA_MAX) throw new UserError(`Un tag puede tener como máximo ${TAG_MEDIA_MAX} adjuntos.`);
 
   const content = tag.content?.trim() ? tag.content : null;
   return api.put<Tag>(

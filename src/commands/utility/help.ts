@@ -4,14 +4,15 @@ import { canAccess } from '../../core/access';
 import { defineCommand, type Access } from '../../core/command';
 import { bridge } from '../../features/minecraft';
 import { getRegistry, type CommandInfo } from '../../core/registry';
+import { fail } from '../../lib/voice';
 
 const buildCommandEmbed = (command: CommandInfo | undefined, query: string) => {
   const embed = new EmbedBuilder().setColor(COLORS.blurple);
 
   if (!command) {
     return embed.setColor(COLORS.error)
-      .setTitle('❌ Comando no encontrado')
-      .setDescription(`No se encontró ningún comando con el nombre \`${query}\`.`);
+      .setTitle('Comando no encontrado')
+      .setDescription(fail(null, `no se encontró ningún comando con el nombre \`${query}\`.`));
   }
 
   const aliasesText = command.aliases.length > 0 ? command.aliases.map(a => `\`${PREFIX}${a}\``).join(', ') : 'Ninguno';

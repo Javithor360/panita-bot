@@ -1,9 +1,10 @@
 import { SlashCommandBuilder, type GuildTextBasedChannel, type Message } from 'discord.js';
-import { CATEGORIES, EMOJIS, MODERATION } from '../../config/constants';
+import { CATEGORIES, MODERATION } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { UserError } from '../../core/errors';
 import { discordAction } from '../../features/moderation/actions';
 import { clearEmbed } from '../../features/moderation/messages';
+import { ok } from '../../lib/voice';
 import { modlogOf } from '../../features/moderation/modlog';
 import { botActions } from '../../features/moderation/recent';
 
@@ -34,7 +35,7 @@ export default defineCommand({
     const requested = ctx.options.getInteger('cantidad', true);
     const author = ctx.options.getUser('usuario');
     const channel = ctx.channel;
-    if (!isClearable(channel)) throw new UserError(`${EMOJIS.cross} No puedo borrar mensajes en este tipo de canal.`);
+    if (!isClearable(channel)) throw new UserError(`No puedo borrar mensajes en este tipo de canal.`);
 
     await ctx.defer({ ephemeral: true });
     // The command that asked for it is the first message to go, so it does not count
@@ -48,12 +49,12 @@ export default defineCommand({
     const deleted = messages.length > 0 ? (await discordAction(() => channel.bulkDelete(messages, true))).size : 0;
 
     if (deleted === 0) {
-      throw new UserError(`${EMOJIS.cross} No encontré mensajes que pueda borrar (los de más de 14 días no se pueden borrar en bloque).`);
+      throw new UserError(`No encontré mensajes que pueda borrar (los de más de 14 días no se pueden borrar en bloque).`);
     }
 
     const people = author ? ` de **${author.username}**` : '';
     await ctx.reply({
-      content: `${EMOJIS.check} Se borraron ${deleted} mensaje${deleted === 1 ? '' : 's'}${people} correctamente.`,
+      content: ok(ctx.member, `se borraron ${deleted} mensaje${deleted === 1 ? '' : 's'}${people} correctamente.`),
       ephemeral: true,
       allowedMentions: { parse: [] },
     });

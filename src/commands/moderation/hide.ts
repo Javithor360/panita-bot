@@ -38,6 +38,6 @@ export default defineCommand({
       reason,
       extra: [{ name: 'Canal oculto', value: `<#${channel.id}>`, inline: true }],
     });
-    await announce(ctx, { text: confirmation('hide', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'hide', user.username), embeds: [embed] });
   },
 });

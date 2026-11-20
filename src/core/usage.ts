@@ -1,4 +1,5 @@
 import { ApplicationCommandOptionType, type APIApplicationCommandOption } from 'discord.js';
+import { fail, usageLine, type Who } from '../lib/voice';
 import type { ParseFailure } from './prefixParser';
 
 /**
@@ -68,25 +69,25 @@ export const buildUsage = (
   return path.group || path.subcommand ? lines : [...lines, ...extraLines.map(l => join(name, l))];
 };
 
-/** Spanish error message for a failed prefix parse. */
+/** Spanish error message, in the bot's voice, for a failed prefix parse: the problem and a quoted usage line. */
 export const formatParseError = (
   prefix: string,
   name: string,
   schema: readonly Option[],
   failure: ParseFailure,
   extraLines: string[] = [],
+  who?: Who | null,
 ): string => {
-  const lines = buildUsage(name, schema, failure, extraLines).map(l => `\`${prefix}${l}\``);
-  const usage = `**Uso correcto:**\n${lines.join('\n')}`;
+  const usage = usageLine(buildUsage(name, schema, failure, extraLines).map(l => `${prefix}${l}`));
 
   switch (failure.reason) {
     case 'out_of_range':
-      return `❌ El valor de \`${failure.option}\` está fuera del rango permitido.\n${usage}`;
+      return `${fail(who, `el valor de \`${failure.option}\` está fuera del rango permitido.`)}\n${usage}`;
     case 'invalid_choice':
-      return `❌ Valor inválido para \`${failure.option}\`.\n${usage}`;
+      return `${fail(who, `valor inválido para \`${failure.option}\`.`)}\n${usage}`;
     case 'missing_option':
-      return `❌ Falta el argumento \`${failure.option}\`.\n${usage}`;
+      return `${fail(who, `falta el argumento \`${failure.option}\`.`)}\n${usage}`;
     default:
-      return `❌ Subcomando inválido.\n${usage}`;
+      return `${fail(who, 'subcomando inválido.')}\n${usage}`;
   }
 };

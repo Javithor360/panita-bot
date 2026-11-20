@@ -29,6 +29,6 @@ export default defineCommand({
     await discordAction(() => member.timeout(null, auditReason(ctx, reason)));
 
     const embed = caseEmbed({ action: 'unmute', subject: subjectOf(user), moderatorId: ctx.user.id, reason });
-    await announce(ctx, { text: confirmation('unmute', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'unmute', user.username), embeds: [embed] });
   },
 });

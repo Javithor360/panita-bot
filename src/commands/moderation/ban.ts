@@ -58,6 +58,6 @@ export default defineCommand({
       reason,
       extra: days > 0 ? [{ name: 'Mensajes borrados', value: `Últimos ${days} día${days === 1 ? '' : 's'}`, inline: true }] : [],
     });
-    await announce(ctx, { text: confirmation('ban', user.username), embeds: [embed] });
+    await announce(ctx, { text: confirmation(ctx.member, 'ban', user.username), embeds: [embed] });
   },
 });

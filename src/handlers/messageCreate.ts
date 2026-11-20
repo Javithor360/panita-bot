@@ -39,7 +39,7 @@ export const createMessageHandler =
 
   const reply = (content: string) => message.reply({ content, allowedMentions: { repliedUser: false } }).catch(() => {});
 
-  if (command.meta.slashOnly) return reply(SLASH_ONLY_ERROR(commandName));
+  if (command.meta.slashOnly) return reply(SLASH_ONLY_ERROR(commandName, member));
 
   const denial = accessDenial(command.meta.access, member);
   if (denial) return reply(denial);
@@ -54,7 +54,7 @@ export const createMessageHandler =
   });
 
   if (parsed.kind === 'error') {
-    return reply(formatParseError(PREFIX, commandName, schema, parsed, fallback ? [fallback.usage] : []));
+    return reply(formatParseError(PREFIX, commandName, schema, parsed, fallback ? [fallback.usage] : [], member));
   }
 
   try {
@@ -64,6 +64,6 @@ export const createMessageHandler =
     if (parsed.kind === 'fallback') await fallback!.run(ctx, parsed.rawArgs);
     else await command.run(ctx);
   } catch (error) {
-    await reply(userMessageFor(error, commandName, 'Prefix'));
+    await reply(userMessageFor(error, commandName, 'Prefix', member));
   }
 };

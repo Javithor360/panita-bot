@@ -1,5 +1,4 @@
 import { ChannelType, type GuildBasedChannel, type GuildChannel } from 'discord.js';
-import { EMOJIS } from '../../config/constants';
 import { UserError } from '../../core/errors';
 
 /** The channels `hide` and `unhide` work on. */
@@ -14,7 +13,7 @@ export const HIDE_CHANNEL_TYPES = [
 /** A channel with its own permission overwrites (a thread has none: it follows its parent). */
 export const overwritableChannel = (channel: GuildBasedChannel | null): GuildChannel => {
   if (!channel || !('permissionOverwrites' in channel)) {
-    throw new UserError(`${EMOJIS.cross} Ese tipo de canal no se puede ocultar. Elige un canal de texto, de voz o un foro.`);
+    throw new UserError('Ese tipo de canal no se puede ocultar. Elige un canal de texto, de voz o un foro.');
   }
   return channel as GuildChannel;
 };

@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
+import { ok } from '../../lib/voice';
 import { isAltAccount } from '../../lib/discord';
 import { deleteUsersByDiscordIds } from '../../services/users';
 
@@ -23,6 +24,6 @@ export default defineCommand({
 
     const { deleted, skipped } = await deleteUsersByDiscordIds(altIds);
     const omitted = skipped.length > 0 ? `\n${skipped.length} cuentas omitidas porque tienen contenido en la web.` : '';
-    await ctx.reply(`✅ Se han eliminado **${deleted}** cuentas secundarias de la base de datos.${omitted}`);
+    await ctx.reply(ok(ctx.member, `Se han eliminado **${deleted}** cuentas secundarias de la base de datos.${omitted}`));
   },
 });

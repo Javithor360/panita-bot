@@ -25,9 +25,9 @@ const PAGE_SIZE = 100;
 /** A reason for the API: trimmed, never empty and never longer than it accepts. */
 const reasonFor = (text: string): string => {
   const reason = text.trim();
-  if (!reason) throw new UserError('❌ Debes indicar una razón.');
+  if (!reason) throw new UserError('Debes indicar una razón.');
   if (reason.length > MODERATION.reasonMax) {
-    throw new UserError(`❌ La razón es demasiado larga (máximo ${MODERATION.reasonMax} caracteres).`);
+    throw new UserError(`La razón es demasiado larga (máximo ${MODERATION.reasonMax} caracteres).`);
   }
   return reason;
 };

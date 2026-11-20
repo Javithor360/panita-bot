@@ -14,6 +14,7 @@ import {
   type User,
 } from 'discord.js';
 import { encodeCustomId } from './customId';
+import { fail } from '../lib/voice';
 import { PrefixUnsupportedError } from './errors';
 import type { ParsedValue, ParseSuccess } from './prefixParser';
 
@@ -306,7 +307,7 @@ export const createPrefixContext = async (
     if (entity === null && value.type in ENTITY_LABELS) {
       const label = ENTITY_LABELS[value.type as keyof typeof ENTITY_LABELS];
       const raw = 'name' in value && value.name ? value.name : 'id' in value ? value.id : name;
-      return `❌ No se encontró ${label} \`${raw}\`.`;
+      return fail(member, `no se encontró ${label} \`${raw}\`.`);
     }
     resolved.set(name, entity);
   }

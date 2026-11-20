@@ -3,6 +3,7 @@ import { CATEGORIES, COLORS } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import { recipesData } from '../../data/recipes';
 import { renderCatalogList, tezzlarAuthor } from '../../lib/embeds';
+import { fail } from '../../lib/voice';
 
 export default defineCommand({
   data: new SlashCommandBuilder()
@@ -37,7 +38,7 @@ export default defineCommand({
     const recipe = recipesData[id];
     if (!recipe) {
       return ctx.reply({
-        content: `❌ No se encontró ninguna receta con el ID \`${id}\`. Usa \`!recipes list\` para ver las disponibles.`,
+        content: fail(ctx.member, `no se encontró ninguna receta con el ID \`${id}\`. Usa \`!recipes list\` para ver las disponibles.`),
         ephemeral: true,
       });
     }
