@@ -9,7 +9,7 @@ import { ok, type Who } from '../../lib/voice';
  * `[KICK] name` with the target's picture and the fields Usuario, Razón and Moderador, and a message to the member.
  */
 
-export type CaseAction = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'hide' | 'unhide' | 'warn' | 'unwarn' | 'clear';
+export type CaseAction = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'hide' | 'unhide' | 'warn' | 'unwarn' | 'blacklist' | 'unblacklist' | 'clear';
 
 const STYLES: Record<CaseAction, { label: string; color: number }> = {
   kick: { label: 'KICK', color: 0xffa05c },
@@ -21,6 +21,8 @@ const STYLES: Record<CaseAction, { label: string; color: number }> = {
   unhide: { label: 'UNHIDE', color: COLORS.success },
   warn: { label: 'WARN', color: COLORS.warning },
   unwarn: { label: 'UNWARN', color: COLORS.success },
+  blacklist: { label: 'BLACKLIST', color: COLORS.error },
+  unblacklist: { label: 'UNBLACKLIST', color: COLORS.success },
   clear: { label: 'CLEAR', color: 0xabb3ed },
 };
 
@@ -155,6 +157,8 @@ const CONFIRMATIONS: Record<CaseAction, readonly string[]> = {
   unhide: ['**{name}** ya puede ver el canal otra vez.', 'Listo, el canal volvió a aparecer para **{name}**.'],
   warn: ['**{name}** fue advertido.', 'Advertencia registrada para **{name}**.'],
   unwarn: ['Se le quitó una advertencia a **{name}**.', 'Listo, **{name}** tiene una advertencia menos.'],
+  blacklist: ['**{name}** ya no puede usar el bot.', 'Listo, **{name}** entró a la lista negra.'],
+  unblacklist: ['**{name}** salió de la lista negra y puede usar el bot otra vez.', 'Listo, **{name}** ya no está en la lista negra.'],
   clear: ['{name}'],
 };
 
@@ -166,7 +170,7 @@ export const confirmation = (who: Who | null | undefined, action: CaseAction, na
 
 export type Denial =
   | 'self' | 'bot' | 'owner' | 'staff' | 'hierarchyModerator' | 'hierarchyBot'
-  | 'notInServer' | 'notBanned' | 'notMuted' | 'notHidden' | 'alreadyHidden' | 'noWarns' | 'noPermission';
+  | 'notInServer' | 'notBanned' | 'notMuted' | 'notHidden' | 'alreadyHidden' | 'noWarns' | 'notBlacklisted' | 'noPermission';
 
 const DENIALS: Record<Denial, readonly string[]> = {
   self: ['No puedes hacerte eso a ti mismo, intenta con otra persona.', 'Auto-sanción denegada, ni lo pienses.'],
@@ -181,6 +185,7 @@ const DENIALS: Record<Denial, readonly string[]> = {
   notHidden: ['Ese canal no está oculto para esa persona.'],
   alreadyHidden: ['Ese canal ya está oculto para esa persona.'],
   noWarns: ['No puedo quitar una advertencia: esa persona no tiene ninguna activa.'],
+  notBlacklisted: ['Esa persona no está en la lista negra.'],
   noPermission: ['No tengo los permisos necesarios para hacer eso. Revisa mis permisos o mi rol.'],
 };
 

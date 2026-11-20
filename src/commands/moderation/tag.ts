@@ -1,14 +1,18 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES, PREFIX } from '../../config/constants';
+import { accessDenial } from '../../core/access';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { refreshAttachmentUrls } from '../../lib/discord';
 import { fail, ok } from '../../lib/voice';
 import { deleteTag, getTag, listTags, saveTag, TAG_CONTENT_MAX } from '../../services/tags';
 
-/** `!tag <nombre>`: posts the tag's content in the channel. */
+/** A tag is public, so it never pings anyone: no @everyone, @here, roles or users, whatever the content says. */
+const NO_PINGS = { parse: [] } as const;
+
+/** `!tag <nombre>` and `/tag show`: posts the tag's content in the channel. */
 const showTag = async (ctx: CommandContext, rawArgs: string) => {
-  const name = rawArgs.split(/\s+/)[0].toLowerCase();
+  const name = rawArgs.trim().split(/\s+/)[0].toLowerCase();
   const tag = await getTag(name);
   if (!tag) {
     return ctx.reply(fail(ctx.member, `No existe el tag \`${name}\`. Usa \`${PREFIX}tag list\` para ver los disponibles.`));
@@ -16,13 +20,19 @@ const showTag = async (ctx: CommandContext, rawArgs: string) => {
 
   const files = await refreshAttachmentUrls(ctx.client, tag.media_urls);
   const content = tag.content ?? (files.length === 0 ? 'Este tag está vacío.' : undefined);
-  await ctx.send({ content, files });
+  await ctx.send({ content, files, allowedMentions: NO_PINGS });
 };
 
 export default defineCommand({
   data: new SlashCommandBuilder()
     .setName('tag')
     .setDescription('Sistema de Tags')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('show')
+        .setDescription('Muestra un tag.')
+        .addStringOption(option => option.setName('nombre').setDescription('Nombre del tag').setRequired(true)),
+    )
     .addSubcommand(subcommand =>
       subcommand
         .setName('add')
@@ -44,15 +54,28 @@ export default defineCommand({
     ),
   meta: {
     category: CATEGORIES.moderation,
-    description: `Sistema para guardar mensajes rápidos (tags). Se muestran escribiendo \`${PREFIX}tag <nombre>\`.`,
+    description:
+      `Sistema para guardar mensajes rápidos (tags). Cualquiera puede mostrarlos con \`${PREFIX}tag <nombre>\` y ver la lista; solo el Staff puede crearlos y eliminarlos. `
+      + 'Un tag nunca menciona a nadie (ni @everyone, @here, roles ni usuarios).',
     aliases: ['t'],
-    access: 'staff',
+    access: 'everyone',
   },
   prefix: {
     fallback: { usage: '<nombre>', run: showTag },
   },
   async run(ctx) {
     const subcommand = ctx.options.getSubcommand();
+
+    if (subcommand === 'show') {
+      await ctx.defer();
+      return showTag(ctx, ctx.options.getString('nombre', true));
+    }
+
+    // Creating and deleting tags stays with the Staff
+    if (subcommand !== 'list') {
+      const denial = accessDenial('staff', ctx.member);
+      if (denial) return ctx.reply({ content: denial, ephemeral: true });
+    }
 
     // Acknowledge before calling the API: list is public, add and delete are ephemeral
     await ctx.defer({ ephemeral: subcommand !== 'list' });

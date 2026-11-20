@@ -2,6 +2,7 @@ import type { Message } from 'discord.js';
 import { PREFIX } from '../config/constants';
 import { accessDenial } from '../core/access';
 import { createPrefixContext } from '../core/context';
+import { blacklistDenial } from '../features/moderation/blacklist';
 import { conversations } from '../features/ask/conversations';
 import { askFromMention, askFromReply } from '../features/ask/mention';
 import { SLASH_ONLY_ERROR, userMessageFor } from '../core/errors';
@@ -43,6 +44,9 @@ export const createMessageHandler =
 
   const denial = accessDenial(command.meta.access, member);
   if (denial) return reply(denial);
+
+  const barred = await blacklistDenial(member);
+  if (barred) return reply(barred);
 
   const schema = registry.schemaOf(command);
   const fallback = command.prefix?.fallback;
