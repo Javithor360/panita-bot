@@ -36,8 +36,8 @@ const client = new Client({
     GatewayIntentBits.GuildModeration,
     // Keeps the emoji cache right when someone changes emojis by hand, for `emoji` and `server --emojis`
     GatewayIntentBits.GuildEmojisAndStickers,
-    // Online status for `user` and `server`; privileged, so only when PRESENCE_INTENT is on
-    ...(env.PRESENCE_INTENT ? [GatewayIntentBits.GuildPresences] : []),
+    // Online status for `user` and `server`. Privileged: "Presence Intent" must be on for the bot in the Developer Portal
+    GatewayIntentBits.GuildPresences,
   ],
   // DM channels reach the bot as partials, and so do reactions on messages from before it started
   partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.User],

@@ -2,8 +2,8 @@ import { COLORS } from '../../config/constants';
 import { EMOJIS } from '../../config/emojis';
 
 /**
- * Online status, as Noa showed it. It needs Discord's Presence intent (`PRESENCE_INTENT`): without it the bot has no
- * presences and every function here is given `null`, so the commands leave status out instead of guessing.
+ * Online status, as Noa showed it. It comes from Discord's Presence intent. A member with no presence (offline, or one the
+ * bot has not been told about) is given `null`, and the commands then leave the status out instead of guessing.
  */
 
 export type Status = 'online' | 'idle' | 'dnd' | 'offline';

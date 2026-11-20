@@ -26,7 +26,7 @@ All in `src/commands/utility/`, open to everyone.
 
 ## 5. Status needs the Presence intent
 
-Online status is Discord's privileged Presence intent. Asking for it without the switch in the Developer Portal makes the login fail, so it is opt-in with `PRESENCE_INTENT=true`. With it off, the status parts are left out.
+Online status is Discord's privileged Presence intent, which the bot always asks for; it must be switched on for the bot in the Developer Portal or the login fails. A member with no presence (offline) gets no status section and a color from the highest role.
 
 ## 6. `emoji add`
 

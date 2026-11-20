@@ -1,5 +1,4 @@
 import { ChannelType, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
-import { env } from '../../config/env';
 import { createTtlCache } from '../../lib/ttlCache';
 import { countPresences } from './presence';
 import { presenceOf } from './replies';
@@ -82,7 +81,7 @@ export const collectServerData = async (guild: Guild, viewer: GuildMember): Prom
     memberCount: guild.memberCount,
     humans: counted ? members.length - bots : null,
     bots: counted ? bots : null,
-    presence: env.PRESENCE_INTENT ? countPresences(members.map(member => presenceOf(member)), guild.memberCount) : null,
+    presence: countPresences(members.map(member => presenceOf(member)), guild.memberCount),
     channelCounts: {
       total: kinds.length,
       categories: categories.length,
