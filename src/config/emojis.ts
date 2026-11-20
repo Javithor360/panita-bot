@@ -27,6 +27,7 @@ export const EMOJI_DEFS = {
   mobile: { name: 'mobile', id: '1573127956052705280' },
   dev: { name: 'dev', id: '1573127878613401732' },
   stats: { name: 'stats', id: '1573127860388892702' },
+  dnd: { name: 'dnd', id: '1573164536490364979' },
   streaming: { name: 'streaming', id: '1573164234194419823' },
   boost: { name: 'boost', id: '1573127909298938008', animated: true },
 } as const satisfies Record<string, EmojiDef>;

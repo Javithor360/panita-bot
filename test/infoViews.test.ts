@@ -208,7 +208,7 @@ test('dates come with their age, and a snowflake gives the day it was made', () 
 
 test('status: text with circle and phone, colors, and what they are doing', () => {
   assert.equal(statusText({ status: 'idle', mobile: false, activities: [] }), `Ausente ${EMOJIS.idle}`);
-  assert.equal(statusText({ status: 'dnd', mobile: true, activities: [] }), `No molestar 🔴 ${EMOJIS.mobile}`);
+  assert.equal(statusText({ status: 'dnd', mobile: true, activities: [] }), `No molestar ${EMOJIS.dnd} ${EMOJIS.mobile}`);
   assert.equal(statusColor('offline'), null);
   assert.equal(statusColor('online'), COLORS.success);
 
@@ -230,7 +230,7 @@ test('the row of circles counts each status, streaming and phones, and the rest 
   ];
   const counts = countPresences(presences, 10);
   assert.deepEqual(counts, { online: 2, idle: 1, dnd: 1, streaming: 1, offline: 6, mobile: 2 });
-  assert.equal(presenceRow(counts), `${EMOJIS.online} 2 · ${EMOJIS.idle} 1 · 🔴 1 · ${EMOJIS.streaming} 1 · ${EMOJIS.offline} 6 · ${EMOJIS.mobile} 2`);
+  assert.equal(presenceRow(counts), `${EMOJIS.online} 2 · ${EMOJIS.idle} 1 · ${EMOJIS.dnd} 1 · ${EMOJIS.streaming} 1 · ${EMOJIS.offline} 6 · ${EMOJIS.mobile} 2`);
 });
 
 test('server limits follow the boost tier and never go out of the table', () => {

@@ -22,10 +22,7 @@ export interface ActivityInfo {
   state: string | null;
 }
 
-/** There is no `dnd` emoji in the emoji server yet, so do not disturb is a unicode circle. */
-const DND = '🔴';
-
-const STATUS_EMOJI: Record<Status, string> = { online: EMOJIS.online, idle: EMOJIS.idle, dnd: DND, offline: EMOJIS.offline };
+const STATUS_EMOJI: Record<Status, string> = { online: EMOJIS.online, idle: EMOJIS.idle, dnd: EMOJIS.dnd, offline: EMOJIS.offline };
 const STATUS_LABEL: Record<Status, string> = { online: 'Online', idle: 'Ausente', dnd: 'No molestar', offline: 'Desconectado' };
 
 export const statusEmoji = (status: Status): string => STATUS_EMOJI[status];
@@ -73,12 +70,12 @@ export const countPresences = (presences: ReadonlyArray<PresenceInfo | null>, to
   return counts;
 };
 
-/** `🟢 12 · 🟡 0 · 🔴 2 · 🟣 0 · ⚪ 9 · 📱 3`, Noa's row. */
+/** Noa's row of circles: online, idle, do not disturb, streaming, offline and on a phone. */
 export const presenceRow = (counts: PresenceCounts): string =>
   [
     `${EMOJIS.online} ${counts.online}`,
     `${EMOJIS.idle} ${counts.idle}`,
-    `${DND} ${counts.dnd}`,
+    `${EMOJIS.dnd} ${counts.dnd}`,
     `${EMOJIS.streaming} ${counts.streaming}`,
     `${EMOJIS.offline} ${counts.offline}`,
     `${EMOJIS.mobile} ${counts.mobile}`,

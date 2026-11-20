@@ -73,7 +73,7 @@ test('the column of members drops what it does not know, and shows the status ci
 
   const counts = countPresences([{ status: 'online', mobile: true, activities: [] }], 23);
   const withPresence = fieldValue(embedOf(message('info', data({ presence: counts }))), 'Miembros');
-  assert.match(withPresence, new RegExp(`${EMOJIS.online} 1 · ${EMOJIS.idle} 0 · 🔴 0 · ${EMOJIS.streaming} 0 · ${EMOJIS.offline} 22 · ${EMOJIS.mobile} 1`));
+  assert.match(withPresence, new RegExp(`${EMOJIS.online} 1 · ${EMOJIS.idle} 0 · ${EMOJIS.dnd} 0 · ${EMOJIS.streaming} 0 · ${EMOJIS.offline} 22 · ${EMOJIS.mobile} 1`));
 });
 
 test('the extras show the AFK channel, the roles and emojis, and the boosts with the animated emoji', () => {
