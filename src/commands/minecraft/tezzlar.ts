@@ -1,22 +1,27 @@
-import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
-import { ASSETS, CATEGORIES, EMOJIS, URLS } from '../../config/constants';
+import { SlashCommandBuilder } from 'discord.js';
+import { CATEGORIES } from '../../config/constants';
 import { defineCommand } from '../../core/command';
-import { tezzlarDays } from '../../data/tezzlar';
-import { tezzlarAuthor } from '../../lib/embeds';
-import { discordTimestamp } from '../../lib/format';
-import { isDeveloper } from '../../lib/discord';
+import type { CommandContext } from '../../core/context';
+import { UserError } from '../../core/errors';
+import * as commands from '../../features/tezzlar/commands';
+import * as day from '../../features/tezzlar/day';
+import * as food from '../../features/tezzlar/food';
+import * as ip from '../../features/tezzlar/ip';
+import * as minievent from '../../features/tezzlar/minievent';
+import * as recipes from '../../features/tezzlar/recipes';
+import * as resources from '../../features/tezzlar/resources';
+import * as trailer from '../../features/tezzlar/trailer';
 
-const TOTAL_DAYS = 32;
-
-/** Day N unlocks on July N 2026 at 14:00 UTC-6 (20:00 UTC). */
-const unlockTimeOf = (day: number) => Date.UTC(2026, 6, day, 20, 0, 0, 0);
-
-/** 1-10 light blue, 11-21 pastel yellow, 22-31 red, final day gold. */
-const colorOf = (day: number) => {
-  if (day === TOTAL_DAYS) return 0xffd700;
-  if (day >= 22) return 0xe74c3c;
-  if (day >= 11) return 0xfdfd96;
-  return 0xadd8e6;
+/** What each subcommand does; the code of each is in `features/tezzlar/`. */
+const HANDLERS: Record<string, (ctx: CommandContext) => Promise<void>> = {
+  day: day.run,
+  commands: commands.run,
+  food: food.run,
+  ip: ip.run,
+  minievent: minievent.run,
+  recipes: recipes.run,
+  resources: resources.run,
+  trailer: trailer.run,
 };
 
 export default defineCommand({
@@ -29,51 +34,89 @@ export default defineCommand({
         .setDescription('Muestra la información de un día específico de Tezzlar III.')
         .addIntegerOption(option =>
           option.setName('numero')
-            .setDescription(`Número de día (1-${TOTAL_DAYS})`)
+            .setDescription(`Número de día (1-${day.TOTAL_DAYS})`)
             .setRequired(true)
             .setMinValue(1)
-            .setMaxValue(TOTAL_DAYS),
+            .setMaxValue(day.TOTAL_DAYS),
         )
         .addBooleanOption(option =>
           option.setName('force')
             .setDescription('Forzar bypass de fecha (Solo Dev)')
             .setRequired(false),
         ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand.setName('commands').setDescription('Muestra la lista de comandos útiles en el servidor de Minecraft'),
+    )
+    .addSubcommand(subcommand =>
+      subcommand.setName('food').setDescription('Muestra la información del rebalanceo de comidas en Tezzlar III.'),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('ip')
+        .setDescription('Muestra la dirección IP del servidor de Minecraft.')
+        .addBooleanOption(option =>
+          option.setName('numeric')
+            .setDescription('Muestra la IP numérica en lugar del dominio')
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('minievent')
+        .setDescription('Información sobre los minieventos de Tezzlar')
+        .addStringOption(option =>
+          option.setName('id')
+            .setDescription('ID del minievento o "list" para ver todos')
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('recipes')
+        .setDescription('Muestra los crafteos y recetas especiales de Tezzlar')
+        .addStringOption(option =>
+          option.setName('id')
+            .setDescription('ID de la receta o "list" para ver todas')
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand(subcommand =>
+      subcommand.setName('resources').setDescription('Muestra el enlace para descargar los mods y texturas del servidor.'),
+    )
+    .addSubcommand(subcommand =>
+      subcommand.setName('trailer').setDescription('Muestra el enlace del tráiler de Tezzlar 3.'),
     ),
   meta: {
     category: CATEGORIES.minecraft,
-    description: 'Proporciona información diaria sobre el evento Tezzlar III.',
+    description:
+      'Todo sobre el evento Tezzlar III. Subcomandos: `day <número>` (la información de un día), `commands` (comandos útiles del servidor), `food` (el rebalanceo de comidas), '
+      + '`ip [--numeric]` (la IP del servidor), `minievent <id|list>`, `recipes <id|list>`, `resources` (mods y texturas) y `trailer` (el tráiler).',
     aliases: ['tez', 'tz'],
   },
-  prefix: { defaultSubcommand: 'day' },
+  // Spanish and short names of the old top-level commands, now words of this one (`!tz jugar`, `!tz comida`)
+  prefix: {
+    subcommandAliases: {
+      comandos: 'commands',
+      cmds: 'commands',
+      comida: 'food',
+      comidas: 'food',
+      foods: 'food',
+      jugar: 'ip',
+      minecraft: 'ip',
+      minieventos: 'minievent',
+      minievents: 'minievent',
+      me: 'minievent',
+      recetas: 'recipes',
+      crafteos: 'recipes',
+      crafts: 'recipes',
+      recursos: 'resources',
+      assets: 'resources',
+    },
+  },
   async run(ctx) {
-    const day = ctx.options.getInteger('numero', true);
-    const bypass = !!ctx.options.getBoolean('force') && isDeveloper(ctx.user.id);
-    const unlockTime = unlockTimeOf(day);
-
-    if (Date.now() < unlockTime && !bypass) {
-      return ctx.reply({
-        content: `${EMOJIS.noAutorizo} ¡Alto ahí, viajero del tiempo! La información del **Día ${day}** se desbloqueará ${discordTimestamp(unlockTime, 'R')}.`,
-        ephemeral: true,
-      });
-    }
-
-    const dayData = tezzlarDays[day];
-    const fields = dayData?.fields ?? [];
-    if (fields.length === 0 && !dayData?.image) {
-      return ctx.reply({ content: `Aún no hay información configurada para el **Día ${day}**.`, ephemeral: true });
-    }
-
-    const embed = new EmbedBuilder()
-      .setAuthor(tezzlarAuthor(`Tezzlar III ~ Día ${day}`, URLS.tezzlar3))
-      .setTitle('Menú del Día en Tezzlar')
-      .setDescription(`Para el día número **${day}**, los supervivientes tienen que afrontar nuevas adversidades y peligros letales que pondrán a prueba su instinto en este mundo implacable.`)
-      .setThumbnail(ASSETS.tezzlarHearts)
-      .setColor(colorOf(day))
-      .addFields(fields);
-
-    if (dayData?.image) embed.setImage(dayData.image);
-
-    await ctx.reply({ embeds: [embed] });
+    const handler = HANDLERS[ctx.options.getSubcommand() ?? ''];
+    if (!handler) throw new UserError('subcomando inválido.');
+    await handler(ctx);
   },
 });

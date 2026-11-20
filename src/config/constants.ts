@@ -21,7 +21,10 @@ export const URLS = {
   cloudinaryApi: (cloudName: string, action: 'upload' | 'destroy') => `https://api.cloudinary.com/v1_1/${cloudName}/image/${action}`,
   paypal: 'https://www.paypal.me/Javithor360',
   discordInvite: 'https://discord.gg/m9zFH8yqUu',
+  /** The trailer of Tezzlar 3 (`tezzlar trailer`). */
   trailer: 'https://youtu.be/DgSIYtxt_jEZ',
+  /** The trailer of Enriquecraft 666 (`trailer`). */
+  enriquecraftTrailer: 'https://www.youtube.com/watch?v=4nAiLdzxo9M',
   resourcesDownload: 'https://drive.google.com/file/d/1JPClbxD9urlw_sNY2xtu-5OD8S0YIlE5/view',
   fabricInstaller: 'https://fabricmc.net/use/installer/',
   ticketHelpChannel: 'https://discord.com/channels/707103390852710491/1406385534712156301/1521266058206511146',

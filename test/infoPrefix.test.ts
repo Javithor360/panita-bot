@@ -88,10 +88,8 @@ test('server and info own their names, and the old ip alias moved', () => {
   assert.equal(registry.resolve('info')?.data.name, 'info');
   for (const alias of ['botinfo', 'about']) assert.equal(registry.resolve(alias)?.data.name, 'info', alias);
 
-  // `!ip` keeps answering to its other names, and `!server` is no longer one of them
-  assert.equal(registry.resolve('ip')?.data.name, 'ip');
-  assert.equal(registry.resolve('jugar')?.data.name, 'ip');
-  assert.equal(registry.resolve('minecraft')?.data.name, 'ip');
+  // `ip` and its names moved inside `tezzlar` (see tezzlarCommands.test.ts), so none of them is a top-level command now
+  for (const gone of ['ip', 'jugar', 'minecraft']) assert.equal(registry.resolve(gone), undefined, gone);
 });
 
 test('the page buttons of server are components of the server command', () => {
