@@ -35,7 +35,7 @@ The image comes from an attachment, another emoji or a link of `cdn.discordapp.c
 ## 7. Later additions (same branch)
 
 - `user`: the footer with the join place and roles count, a "Voz" section, `--cosmetics` and `--permissions`. `server`: `--activity`, `--community`, `--stickers`, `--events`, `--sounds`, and the boosters list in `--boost`. `avatar`: `--banner` and `--decoration`. `info`: a separate API field from the health route. A `sticker` command like `emoji`.
-- The channel list uses a plain bullet because a line starting with `# ` is a markdown title; the emoji sections are `##` titles.
+- The channel list uses a plain bullet because a line starting with `# ` is a markdown title; the emoji lines start with `# `, so Discord shows the emojis big.
 - Not possible, so not done: the profile bio (bots cannot read it) and a server region (it no longer exists). Ignored on purpose: the Minecraft server status and Panita web data.
 
 ## 8. Open points

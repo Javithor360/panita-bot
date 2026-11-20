@@ -184,8 +184,9 @@ const emojisPage = (data: ServerData, requested: number, random?: () => number):
   const stillHere = pages[page].filter(e => !e.animated);
   const animatedHere = pages[page].filter(e => e.animated);
   const sections = [
-    ...(stillHere.length > 0 ? [`## Emojis (${still}/${limit})\n${stillHere.map(e => e.markup).join(' ')}`] : []),
-    ...(animatedHere.length > 0 ? [`## Animados (${animated}/${limit})\n${animatedHere.map(e => e.markup).join(' ')}`] : []),
+    // A line that starts with `# ` is a markdown title, and the emojis in a title are shown big
+    ...(stillHere.length > 0 ? [`**Emojis** (${still}/${limit})\n# ${stillHere.map(e => e.markup).join(' ')}`] : []),
+    ...(animatedHere.length > 0 ? [`**Animados** (${animated}/${limit})\n# ${animatedHere.map(e => e.markup).join(' ')}`] : []),
   ];
   const embed = header(data, random)
     .setDescription(sections.length > 0 ? sections.join('\n\n') : 'Este servidor no tiene emojis.')

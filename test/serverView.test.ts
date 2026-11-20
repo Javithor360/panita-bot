@@ -136,8 +136,8 @@ test('emojis are shown as still and animated with how many of the limit are used
   ];
   const json = embedOf(message('emojis', data({ emojis })));
 
-  assert.ok(json.description.includes('## Emojis (2/100)\n<:a:1> <:b:2>'));
-  assert.ok(json.description.includes('## Animados (1/100)\n<a:c:3>'));
+  assert.ok(json.description.includes('**Emojis** (2/100)\n# <:a:1> <:b:2>'));
+  assert.ok(json.description.includes('**Animados** (1/100)\n# <a:c:3>'));
   assert.equal(json.footer.text, 'Stickers: 2/15');
   assert.match(embedOf(message('emojis', data())).description, /no tiene emojis/);
 });
@@ -302,9 +302,11 @@ test('no line of the channel list can be read by Discord as a title or a list', 
   }
 });
 
-test('the emoji sections are markdown titles', () => {
+test('the emoji lines are markdown titles, so Discord shows the emojis big, and the section names stay plain', () => {
   const emojis = [{ markup: '<:a:1>', animated: false }, { markup: '<a:c:3>', animated: true }];
   const lines = (embedOf(message('emojis', data({ emojis }))).description as string).split('\n');
-  assert.ok(lines.includes('## Emojis (1/100)'));
-  assert.ok(lines.includes('## Animados (1/100)'));
+  assert.ok(lines.includes('**Emojis** (1/100)'));
+  assert.ok(lines.includes('# <:a:1>'));
+  assert.ok(lines.includes('**Animados** (1/100)'));
+  assert.ok(lines.includes('# <a:c:3>'));
 });
