@@ -12,6 +12,15 @@ export const VERIFICATION: Record<number, string> = {
 /** `GuildPremiumTier`, by number. */
 export const BOOST_TIER: Record<number, string> = { 0: 'Ninguno', 1: 'Nivel 1', 2: 'Nivel 2', 3: 'Nivel 3' };
 
+/** Boosts a server needs for each tier (1, 2 and 3). */
+const BOOSTS_FOR_TIER = [2, 7, 14] as const;
+
+/** How many more boosts reach the next tier, or `null` at the highest tier. */
+export const boostsToNextTier = (tier: number, boosts: number): number | null => {
+  const needed = BOOSTS_FOR_TIER[tier];
+  return needed === undefined ? null : Math.max(0, needed - boosts);
+};
+
 /** How many emojis of each kind (still and animated count apart) and stickers a server has room for, by boost tier. */
 const EMOJI_SLOTS = [50, 100, 150, 250] as const;
 const STICKER_SLOTS = [5, 15, 30, 60] as const;
