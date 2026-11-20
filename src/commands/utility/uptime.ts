@@ -1,5 +1,6 @@
 import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
+import { BOT_VERSION } from '../../config/version';
 import { defineCommand } from '../../core/command';
 import { discordTimestamp, formatDuration } from '../../lib/format';
 
@@ -21,6 +22,7 @@ export default defineCommand({
       .addFields(
         { name: 'Tiempo continuo', value: `\`${formatDuration(uptimeMs)}\``, inline: true },
         { name: 'Iniciado desde', value: discordTimestamp(Date.now() - uptimeMs, 'R'), inline: true },
+        { name: 'Versión', value: `\`v${BOT_VERSION}\``, inline: true },
       )
       .setTimestamp();
 
