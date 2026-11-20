@@ -137,7 +137,11 @@ export const userEmbed = (input: UserViewInput): EmbedBuilder => {
 
   if (member) {
     const roles = member.roles.length > 0
-      ? [bullet('Rol destacado', `<@&${member.roles[0].id}>`), bullet('Listado de roles', roleList(member.roles))]
+      ? [
+        bullet('Rol destacado', `<@&${member.roles[0].id}>`),
+        // The highlighted role is not repeated in the list
+        ...(member.roles.length > 1 ? [bullet('Otros roles', roleList(member.roles.slice(1)))] : []),
+      ]
       : ['• Sin roles'];
     sections.push(section('Roles', roles));
 

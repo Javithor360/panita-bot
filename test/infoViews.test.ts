@@ -55,7 +55,8 @@ test('a member gets the bold headings and bullets of Noa: identity, account, rol
   const text = description();
   assert.match(text, /^\*\*Identificación\*\*\n• Usuario: raycoleck\n• ID: `481512865795145730`\n• Apodo: Apodo/);
   assert.match(text, /\*\*Cuenta\*\*\n• Creada el: <t:\d+:D> \(<t:\d+:R>\)\n• Ingresó al servidor: <t:\d+:D> \(<t:\d+:R>\)/);
-  assert.match(text, /\*\*Roles\*\*\n• Rol destacado: <@&r2>\n• Listado de roles: <@&r2> \| <@&r1>/);
+  assert.match(text, /\*\*Roles\*\*\n• Rol destacado: <@&r2>\n• Otros roles: <@&r1>\n\n\*\*Permisos/);
+  assert.equal(text.match(/<@&r2>/g)?.length, 1, 'the highlighted role is not repeated');
   assert.match(text, /\*\*Permisos clave\*\*\nGestionar mensajes$/);
 });
 
@@ -90,8 +91,11 @@ test('a long list of roles falls back to how many there are, as Noa did', () => 
   assert.ok(roleList(roles.slice(0, 3)).includes(' | '));
   assert.equal(roleList(roles), '100 roles');
   assert.ok(ROLE_LIST_MAX >= 1000);
-  assert.match(description({ member: member({ roles }) }), /• Listado de roles: 100 roles/);
+  assert.match(description({ member: member({ roles }) }), /• Otros roles: 99 roles/);
   assert.match(description({ member: member({ roles: [] }) }), /• Sin roles/);
+  const alone = description({ member: member({ roles: [{ id: 'r1', color: 0 }] }) });
+  assert.match(alone, /• Rol destacado: <@&r1>/);
+  assert.equal(alone.includes('Otros roles'), false);
 });
 
 test('administrators are shown as such, and ordinary members show only their key permissions', () => {
