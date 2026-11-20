@@ -174,10 +174,10 @@ test('the activity and community views are single embeds, and say so when the da
 });
 
 test('boost lists the boosters with since when, the first 25 and the rest counted', () => {
-  assert.deepEqual(boosterLines([]), ['**Impulsores**', 'Nadie impulsa el servidor todavía.']);
+  assert.deepEqual(boosterLines([]), ['**Boosters**', 'Nadie impulsa el servidor todavía.']);
 
   const some = boosterLines([{ id: '111111111111111111', since: new Date('2025-01-01T00:00:00Z') }]);
-  assert.equal(some[0], '**Impulsores** (1)');
+  assert.equal(some[0], '**Boosters** (1)');
   assert.match(some[1], /^<@111111111111111111> <t:\d+:R>$/);
 
   const many = Array.from({ length: 30 }, (_, i) => ({ id: String(100_000_000_000_000_000n + BigInt(i)), since: new Date(2025, 0, i + 1) }));
@@ -186,5 +186,5 @@ test('boost lists the boosters with since when, the first 25 and the rest counte
   assert.equal(lines[lines.length - 1], '… y 5 más');
 
   const description = json(show('boost', {}, base({ boosters: many.slice(0, 2) }))).description as string;
-  assert.ok(description.includes('**Impulsores** (2)'));
+  assert.ok(description.includes('**Boosters** (2)'));
 });

@@ -255,10 +255,10 @@ export const tagLines = (tag: ServerTagData | null): string[] => {
 
 /** The members that boost the server, with since when. The first 25 are named and the rest only counted. */
 export const boosterLines = (boosters: ServerData['boosters']): string[] => {
-  if (boosters.length === 0) return ['**Impulsores**', 'Nadie impulsa el servidor todavía.'];
+  if (boosters.length === 0) return ['**Boosters**', 'Nadie impulsa el servidor todavía.'];
   const shown = boosters.slice(0, TAG_LIST_MAX).map(booster => `<@${booster.id}> ${discordTimestamp(booster.since, 'R')}`);
   const rest = boosters.length - shown.length;
-  return [`**Impulsores** (${boosters.length})`, ...shown, ...(rest > 0 ? [`… y ${rest} más`] : [])];
+  return [`**Boosters** (${boosters.length})`, ...shown, ...(rest > 0 ? [`… y ${rest} más`] : [])];
 };
 
 const boostEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
