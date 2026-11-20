@@ -20,6 +20,7 @@ The official Discord bot of the **Panitacraft** community. It keeps Discord and 
   - [Sign-in codes and sessions](#sign-in-codes-and-sessions)
   - [Quick upload to the gallery](#quick-upload-to-the-gallery)
   - [Birthday greeting](#birthday-greeting)
+  - [Moderation and audit log](#moderation-and-audit-log)
   - [AI assistant (`/ask`)](#ai-assistant-ask)
   - [Minecraft bridge](#minecraft-bridge)
   - [Panita Web synchronization](#panita-web-synchronization)
@@ -75,6 +76,7 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `BIRTHDAY_CHANNEL_ID` | — | General channel (`707103391167545422`) where the daily birthday greeting is posted. Without it there is no greeting. |
 | `BIRTHDAY_UTC_OFFSET_HOURS` | — | Offset from UTC of the day the greeting follows, from -12 to 14. Defaults to `-6` (no daylight saving). |
 | `BIRTHDAY_HOUR` | — | Hour (0-23, in that offset) from which the greeting is sent. Defaults to `10`, so 16:00 UTC. |
+| `MODLOG_CHANNEL_ID` | — | Staff channel where every moderation case and the audit log (deleted and edited messages, joins, leaves, kicks, bans, timeouts) are posted. Without it the commands still answer and send the DM, but nothing is logged. See [Moderation and audit log](#moderation-and-audit-log). |
 | `OPENAI_API_KEY` | — | Key of the OpenAI project of the bot (give it **Write** on *Responses* and *Moderations* only). Without it `/ask` answers that it is not available. Never logged. |
 | `OPENAI_MODEL` | `gpt-6-luna` | Model `/ask` uses. It must be allowed in the OpenAI project. |
 | `ASK_COOLDOWN_SECONDS`, `ASK_REPLY_COOLDOWN_SECONDS` | 20, 5 | Seconds a member waits between two new questions to `/ask`, and between two replies in a conversation (0 to 3600). |
@@ -145,12 +147,24 @@ src/
   services/      business logic and every call to the Panita API
   lib/           shared helpers (`lib/api` is the API client)
   data/          static content (Tezzlar days, minievents, recipes…)
-  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload, birthdays)
+  features/      large features split into modules (tickets, minecraft, login, passwordReset, quickUpload, birthdays, moderation, auditLog)
   commands/      one file per command, grouped by category
 test/            unit tests
 ```
 
 The full conventions (how to add a command, where each piece of logic belongs, how the prefix parser reads arguments, the Tezzlar data format) live in [`.agents/AGENTS.md`](.agents/AGENTS.md).
+
+### Versioning
+
+The bot follows [semantic versioning](https://semver.org) and started at **2.0.0**. The only source of truth is `version` in `package.json`; the bot reads it at startup (`src/config/version.ts`) and shows it in the startup log and in `/uptime`.
+
+Every branch pushed to the remote bumps the version first, in its own commit (`chore: bump the version to X.Y.Z`):
+
+| Bump | When |
+|---|---|
+| Patch (`x.y.Z`) | Fixes and small tweaks. |
+| Minor (`x.Y.0`) | New features or a noticeable set of changes. |
+| Major (`X.0.0`) | Breaking changes, such as a new Minecraft bridge protocol or an API contract change. |
 
 ---
 
@@ -182,7 +196,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 |---|---|---|
 | `help [command]` | Lists the available commands, or details one of them. | `ayuda` |
 | `ping` | Bot and gateway latency. | `latencia` |
-| `uptime` | How long the bot has been online. | `tiempo`, `online` |
+| `uptime` | How long the bot has been online, and its version. | `tiempo`, `online` |
 
 </details>
 
@@ -228,6 +242,17 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `bot status <online\|idle\|dnd\|invisible>` | Changes the bot's status. | — |
 | `bot activity <text>` | Changes the bot's custom activity. `clear` removes it. | — |
 | `say <message> [channel]` | Sends a message as the bot, optionally in another channel. With the prefix, the invoking message is deleted. | — |
+| `kick <user> <reason>` | Kicks a member and tells them by DM first. | — |
+| `ban <user> <reason> [days]` | Bans a user, by mention or ID (so someone who already left too), and deletes 0 to 7 days of their messages. With the prefix, a number right before the reason is the days. | `banear` |
+| `unban <user> [reason]` | Lifts a ban, by mention or ID. | — |
+| `mute <user> [time] [reason]` | Times a member out (Discord's own timeout, no role) for `30m`, `2h`, `1d`, `1h30m`… up to 28 days; 1 hour when no time is given. With the prefix, if the first word is not a time, everything is the reason. | `silenciar` |
+| `unmute <user> [reason]` | Lifts a timeout. | — |
+| `clear <amount> [user]` | Deletes 2 to 100 messages of the channel, or only those of one person. Discord does not bulk-delete messages older than 14 days. With the prefix, the command message goes too. | `purge`, `prune` |
+| `hide <user> [channel] [reason]` | Hides a channel from a member (a permission overwrite, they stay in the server). | — |
+| `unhide <user> [channel] [reason]` | Shows the channel to them again. | — |
+| `warn <user> <reason>` | Records a warning in the API and tells the member by DM. The 3rd active warning times them out for 1 hour and the 5th kicks them. | `w` |
+| `unwarn <user> [number] [reason]` | Revokes the newest active warning, or the one with that number in `warns` (it stays in the history). With the prefix, a number right before the reason is the warning number. | — |
+| `warns <user>` | Shows a member's warnings: the active ones numbered, the revoked ones struck through. Only you see it. | — |
 | `tag add <name> [text] [attachment]` | Creates or replaces a tag. Attachments are optional. | `t` |
 | `tag delete <name>` / `tag list` | Deletes a tag / lists every tag. | `t` |
 | `!tag <name>` | **Prefix only.** Posts a tag. Stored Discord images are refreshed first, so they never expire. | `!t <name>` |
@@ -320,6 +345,36 @@ Members set their birthday in the website's settings (there is no Discord comman
 - The bot needs **View Channel**, **Send Messages**, **Read Message History** and **Mention Users** in the channel.
 
 The logic is in `src/features/birthdays/` (`time` has the local day and the due rule, `greeting` the text) and `src/services/birthdayScheduler.ts`; the API call is in `src/services/birthdays.ts`.
+
+### Moderation and audit log
+
+The staff commands (`kick`, `ban`, `unban`, `mute`, `unmute`, `clear`, `hide`, `unhide`, `warn`, `unwarn`, `warns`) keep the spirit of the old Noa bot: short Spanish replies, a case embed headed `[KICK] name` with the member's picture and the fields Usuario, Moderador and Razón, and a DM to the member. Their emojis (`check`, `cross`, `online`, `idle`, `offline`, `stats`) come from the dictionary in `src/config/emojis.ts`, the only place an emoji id is written.
+
+- **Who can be sanctioned.** Never yourself, the bot or the owner; never another staff member (only the developer and the owner can); and never someone whose highest role is equal or above yours, or above the bot's. A refusal says which of those it was.
+- **Mute is Discord's timeout**, not a role: nothing to configure, it survives restarts and expires by itself. It needs the *Moderate Members* permission and cannot be applied to administrators.
+- **Warnings live in the API** (`/v1/discord/warnings`, keyed by Discord id, so they survive a member leaving or never having an account). `unwarn` revokes, it never deletes: the history keeps who gave and who revoked each warning. The API hands out each active count once, so the sanction that goes with it is applied once: the **3rd** active warning times the member out for 1 hour and the **5th** kicks them (`MODERATION` in `src/config/constants.ts`). If the bot cannot apply it (the member is above it), the reply says so.
+- **The DM goes first** on kick, ban, mute and warn, because once the member is gone it cannot be delivered. Closed DMs are not an error. Lifting a sanction, `hide` and `clear` send nothing.
+- **Nobody is ever mentioned**: every message and log entry uses empty `allowedMentions`, and user text is escaped.
+
+**Audit log.** With `MODLOG_CHANNEL_ID` set, the channel receives a copy of every case (with the channel where the command ran) and also what happens without the bot's help:
+
+| Event | What is logged |
+|---|---|
+| Message deleted | Author, channel, text and attachment names. A message from before the bot started has no text, and the entry says so. |
+| Message edited | Before and after, with a link to the message. |
+| Bulk delete | Channel and count (a `clear` writes its own entry). |
+| Member joins | The account and how old it is. |
+| Member leaves | Their roles and when they joined. A kick done by hand shows as a **kick** with who did it. |
+| Ban, unban | Who did it and why, from Discord's audit log. |
+| Timeout set or lifted | Until when, and who did it. |
+
+- **Not duplicated.** What the bot does itself (a `ban`, a `mute`, a `clear`...) is remembered for 30 seconds (`src/features/moderation/recent.ts`), so the same ban is not logged again when Discord reports it. Bots, webhooks (the Minecraft bridge), the log channel itself and `!commands` are never logged.
+- **Best effort.** Who did a kick, ban or timeout comes from Discord's audit log, which can lag by a second or two; the bot waits a moment, and if it cannot read it the entry says "No se pudo saber". Nickname and role changes are not logged on purpose: the website and Minecraft syncs change them constantly.
+- **Needs** the *Kick Members*, *Ban Members*, *Moderate Members*, *Manage Messages*, *Manage Channels* (for `hide`) and *View Audit Log* permissions, the *Server Moderation* intent (already requested in code) and *Send Messages* and *Embed Links* in the log channel. A leave is only logged for members the bot has cached.
+- **Prefix quirks.** The prefix parser fills text in order, so a bare number before the reason is read as the `ban` days or the `unwarn` number, and `mute` takes the first word as the time only when it looks like one (`30m`, `2h`, `1d`).
+- Remember to run `npm run deploy` after updating so Discord learns the new slash commands. The warning commands need the matching version of panita-api (the `warnings` endpoints and the `discord.warnings` table).
+
+The logic is in `src/features/moderation/` (`messages` has the voice and the embeds, `checks` the hierarchy rules, `duration`, `autoSanction`, `recent`, `modlog`, `actions` the shared Discord calls) and `src/features/auditLog/` (`embeds`, `handlers`), wired by `src/events/auditLog.ts`; the API calls are in `src/services/moderation.ts`.
 
 ### AI assistant (`/ask`)
 

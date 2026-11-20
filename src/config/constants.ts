@@ -1,4 +1,5 @@
 import type { PermissionsString } from 'discord.js';
+import { EMOJIS, emojiUrl } from './emojis';
 
 /** Prefix for classic text commands. */
 export const PREFIX = '!';
@@ -34,14 +35,37 @@ export const SERVER = {
 export const ASSETS = {
   picel: 'https://media.discordapp.net/attachments/1032440236564824105/1513754769322414080/Picel.gif?ex=6a43e83d&is=6a4296bd&hm=2400706674437e00e7d3c1568db74b36023a1d2f0848416115937b2bf6a84f16&=',
   tezzlarHearts: 'https://media.discordapp.net/attachments/1032440236564824105/1519191750948819025/corazonestezzlar.png?ex=6a43e952&is=6a4297d2&hm=aa4cabc21f3ea3d19283a2e0dadb950a762861b92f6bf42879d75a75640225c7&=&format=webp&quality=lossless&width=960&height=960',
-  llamushroomIcon: 'https://cdn.discordapp.com/emojis/1513402349920714852.webp?size=96',
+  llamushroomIcon: emojiUrl('llamushroom'),
 } as const;
 
-export const EMOJIS = {
-  llamushroom: '<:llamushroom:1513402349920714852>',
-  jaimePog: '<:jaimePog:723406415917613056>',
-  noAutorizo: '<:noautorizo:1116806520265506866>',
-  tezzlar3: '<a:tezzlar3:1513802514884067409>',
+/** Custom emojis live in `config/emojis.ts`; this keeps `import { EMOJIS } from 'config/constants'` working. */
+export { EMOJIS };
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Rules of the moderation commands and of the automatic sanctions that warnings trigger. */
+export const MODERATION = {
+  /** Active warnings that earn a timeout, and how long it lasts. */
+  warnMuteAt: 3,
+  warnMuteMs: HOUR_MS,
+  /** Active warnings that earn a kick. */
+  warnKickAt: 5,
+  /** Discord does not allow a timeout longer than 28 days. */
+  maxTimeoutMs: 28 * DAY_MS,
+  /** The timeout of `/mute` when no time is given. */
+  defaultMuteMs: HOUR_MS,
+  /** `/clear` deletes between these many messages at once (Discord's bulk delete takes 2 to 100). */
+  clearMin: 2,
+  clearMax: 100,
+  /** Days of messages `/ban` can delete (Discord allows 0 to 7). */
+  banDeleteDaysMax: 7,
+  /** Longest reason kept in a case, in the audit log of Discord and in the API (which refuses more than 512). */
+  reasonMax: 512,
+  /** How long the audit log remembers that the bot itself did something, so it does not log it twice. */
+  botActionMs: 30_000,
+  /** How long the confirmation of `/clear` stays in the channel. */
+  clearConfirmationMs: 5000,
 } as const;
 
 /** Colors shared by more than one command. One-off colors stay next to their embed. */
