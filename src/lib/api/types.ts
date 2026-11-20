@@ -228,3 +228,31 @@ export interface PendingReset {
 
 /** What the bot reports in `POST /v1/discord/password-resets/{id}/delivery`. */
 export type ReportedDelivery = 'delivered' | 'dms_closed' | 'failed';
+
+/** A moderation warning (`/v1/discord/warnings`). A revoked one stays in the history. */
+export interface Warning {
+  id: string;
+  /** Discord id of the warned member; it has no relation to a website account. */
+  user_id: string;
+  moderator_id: string;
+  reason: string;
+  created_at: string;
+  /** `null` while the warning is active. */
+  revoked_at: string | null;
+  revoked_by: string | null;
+  revoke_reason: string | null;
+}
+
+/** `POST /v1/discord/warnings` */
+export interface WarningResult {
+  warning: Warning;
+  /** The member's warnings that are not revoked, including the one just given. */
+  active_count: number;
+}
+
+/** `meta` of `GET /v1/discord/users/{discordId}/warnings`: `total` counts what the filter keeps, not the page. */
+export interface WarningsMeta extends ListMeta {
+  total: number;
+  limit: number;
+  offset: number;
+}

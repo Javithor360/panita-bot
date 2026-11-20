@@ -151,6 +151,8 @@ export const env = {
   BIRTHDAY_UTC_OFFSET_HOURS: integerInRange('BIRTHDAY_UTC_OFFSET_HOURS', -6, -12, 14),
   /** Hour (0-23, in that offset) from which the greeting is due. */
   BIRTHDAY_HOUR: integerInRange('BIRTHDAY_HOUR', 10, 0, 23),
+  /** Staff channel where every moderation case and the audit log (deleted and edited messages, joins, leaves, bans, timeouts) are posted. Without it nothing is logged there. */
+  MODLOG_CHANNEL_ID: optionalId('MODLOG_CHANNEL_ID'),
   /** Key of the OpenAI project of the bot. Without it `/ask` answers that it is not available. Never logged. */
   OPENAI_API_KEY: optional('OPENAI_API_KEY'),
   OPENAI_MODEL: optional('OPENAI_MODEL') ?? 'gpt-6-luna',

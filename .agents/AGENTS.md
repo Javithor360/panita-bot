@@ -8,6 +8,7 @@
 
 ## Flujo de trabajo
 - **Gestor de paquetes: `pnpm`** (no `npm` ni `yarn`) para instalar dependencias y ejecutar scripts.
+- **Versionado:** la versión del bot es `version` en `package.json` (empezó en `2.0.0`) y es su única fuente: `config/version.ts` la lee y se muestra al arrancar y en `/uptime`; nunca escribirla a mano en otro lugar. Cada vez que se sube una rama nueva al remoto, **subir primero la versión** según cuánto cambia la rama: parche (`x.y.Z`) para correcciones y ajustes pequeños, menor (`x.Y.0`) para funciones nuevas o un conjunto notable de cambios, mayor (`X.0.0`) solo para cambios que rompen algo (por ejemplo, un cambio de protocolo con el mod de Minecraft o de contrato con la API). El commit del cambio es `chore: bump the version to X.Y.Z` y va en esa misma rama. Si el mismo `package.json` ya se subió en la rama, no se vuelve a subir.
 - Al terminar el trabajo y **una vez que el usuario autorizó el commit**, no se pregunta si crear el PR: se entrega el **título y la descripción del PR** propuestos para que el usuario los use.
 
 ## Datos
@@ -19,7 +20,9 @@ src/
   index.ts             arranque: cliente, registro de comandos, handlers, eventos, login
   server.ts            endpoint HTTP de keep-alive
   config/env.ts        variables de entorno validadas (única lectura de process.env)
-  config/constants.ts  prefijo, URLs, IP, colores, emojis, assets, categorías, permisos de tickets
+  config/constants.ts  prefijo, URLs, IP, colores, assets, categorías, permisos de tickets, reglas de moderación
+  config/emojis.ts     diccionario de emojis personalizados: la única vez que se escribe una ID de emoji
+  config/version.ts    versión del bot, leída de package.json
   core/                framework de comandos
     command.ts         defineCommand, tipos Command/meta/prefix, helpers button/select/modal
     context.ts         CommandContext: una sola API para slash y prefijo
@@ -38,6 +41,8 @@ src/
   features/ask/        asistente `/ask`: prompt (reglas), guard (limpieza de pregunta y respuesta y marcador de foto), limits, conversations (memoria de las últimas respuestas para seguir la charla), chatContext (mensajes recientes del canal como contexto), pick (sorteo de una persona para "tu favorito"), emojis (emojis del servidor), names (menciones como nombres), knowledge (lee `config/panitacraft-knowledge.md` y `config/panitacraft-data.md`), tezzlarKnowledge (arma el detalle de Tezzlar III desde `data/`), mention (`@bot ask`); la llamada a OpenAI está en `services/openai.ts` y el flujo en `services/ask.ts`
   features/tickets/    sistema de tickets dividido: permissions, embeds, panel, components, context
   features/minecraft/  puente con el servidor de Minecraft: protocol, link, server (WebSocket), inbound, outbound, webhook, messageConfig (lee `config/minecraft-messages.yml`), template, render, announcer, crashWatch, roles, sync, directory, queries, embeds, discord (los únicos adaptadores de discord.js)
+  features/moderation/ comandos de moderación: messages (voz y embeds), checks (jerarquía), duration, autoSanction, recent (qué hizo el bot), modlog (canal de registro), channels, actions (llamadas compartidas a Discord)
+  features/auditLog/   registro de auditoría: embeds y handlers (dependencias inyectadas); los listeners están en `events/auditLog.ts`
   commands/<cat>/      un archivo por comando (`export default defineCommand({...})`)
   scripts/             deploy-commands.ts (registro de comandos slash)
 test/                  tests unitarios (node:test) del parser y del customId
@@ -102,6 +107,17 @@ El texto después de `!comando` se interpreta con el mismo esquema del slash:
 - `services/birthdayScheduler` (dependencias inyectadas, se inicia en `ClientReady`) hace un tick por minuto. El saludo toca **desde** la hora (`>=`), no **a** la hora. El día se cierra **solo después de publicar** o con la lista vacía; si falla la API o Discord se reintenta en el siguiente tick y el fallo se registra una sola vez por racha.
 - **El bot no guarda estado**: tras un reinicio lee los últimos 100 mensajes del canal y no repite si encuentra su propio saludo de ese día (`features/birthdays/greeting`: `isGreetingOf`). Si no puede leer el canal, no publica (podría duplicar) y reintenta.
 - El mensaje es uno por día, menciona a todos y solo a ellos (`allowedMentions`). Helpers puros en `features/birthdays/` (`time`, `greeting`), probados con reloj falso.
+
+### Moderación y registro de auditoría
+- Comandos de staff en `commands/moderation/` (`kick`, `ban`, `unban`, `mute`, `unmute`, `clear`, `hide`, `unhide`, `warn`, `unwarn`, `warns`), con la voz de Noa (el bot viejo): respuestas cortas en español, embed `[KICK] nombre` con Usuario / Moderador / Razón y un mensaje directo al miembro. Los textos, los embeds y las frases están **solo** en `features/moderation/messages.ts`; los comandos no escriben texto suelto.
+- **Todo comando de sanción sigue el mismo orden**: leer opciones → `memberOf` → `guardTarget` (reglas de `features/moderation/checks.ts`: no a uno mismo, al bot, al dueño, a otro staff salvo el developer o el dueño, ni a un rol igual o superior al propio ni al del bot) → aviso por DM **antes** de actuar (`notifyMember`) → `botActions.mark(...)` → la llamada de Discord dentro de `discordAction` (convierte "no tengo permiso" en una respuesta legible) → `announce` (responde y deja una copia del caso en el canal de registro). Nunca saltarse `guardTarget`.
+- **El silencio es el *timeout* de Discord** (`member.timeout`), nunca un rol ni un `setTimeout`: sobrevive a los reinicios y no hay nada que configurar. Máximo 28 días; sin tiempo, 1 hora.
+- **Las advertencias viven en la API** (`services/moderation`: `createWarning`, `listWarnings`, `revokeWarning`; `/v1/discord/warnings`), con la ID de Discord, no con la cuenta de la web. `unwarn` revoca, nunca borra. `POST` devuelve `active_count` y la sanción automática se decide **solo** con ese número (`features/moderation/autoSanction`: 3 → silencio de 1 hora, 5 → expulsión; los umbrales viven en `MODERATION` de `config/constants.ts`).
+- **Nunca mencionar a nadie**: todo envío usa `allowedMentions: { parse: [] }` y el texto de los usuarios se escapa o se corta (`clip`, `escapeMarkdown`, `fenced`).
+- **Registro de auditoría** (`MODLOG_CHANNEL_ID`, opcional): `features/moderation/modlog` es el único que escribe en ese canal, nunca lanza y registra el fallo una sola vez por racha. `features/auditLog/handlers` (dependencias inyectadas, probado con objetos falsos) lo alimenta con mensajes borrados o editados, entradas, salidas, expulsiones, baneos y silencios hechos a mano; `events/auditLog.ts` solo registra los listeners, **separados** de los de `guildMember*` que sincronizan cuentas (un fallo del registro nunca debe frenar la sincronización). Ignora bots, webhooks (el puente de Minecraft), el propio canal de registro y los `!comandos`.
+- **No duplicar entradas**: lo que hace el bot se marca con `botActions.mark(kind, id)` (`features/moderation/recent`, 30 s) y los listeners lo omiten. Un comando nuevo que cause un evento que el registro también escucha **debe marcarlo** antes de actuar. Quién hizo algo sale del registro de auditoría de Discord (`findAction`), que puede tardar: es de mejor esfuerzo y la entrada dice "No se pudo saber" si no lo encuentra.
+- Requiere el intent `GuildModeration` y los permisos *Expulsar*, *Banear*, *Moderar miembros*, *Gestionar mensajes*, *Gestionar canales* y *Ver el registro de auditoría*.
+- Los emojis personalizados están **solo** en `config/emojis.ts` (`EMOJI_DEFS`; `EMOJIS` para texto, `emojiOf` para botones y reacciones, `emojiUrl` para imágenes). Nunca escribir `<:nombre:id>` ni una ID de emoji en otro archivo.
 
 ### Agregar un comando
 ```ts
