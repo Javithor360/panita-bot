@@ -78,7 +78,7 @@ export const CHANNEL_LINES_PER_PAGE = 30;
 
 const CHANNEL_SYMBOL: Record<ChannelKind, string> = { text: '#', announcement: '📢', voice: '🔊', stage: '🎙️', forum: '💬', other: '•' };
 
-const field = (name: string, lines: string[]) => ({ name, value: lines.join('\n'), inline: true });
+const field = (name: string, lines: string[], inline = true) => ({ name, value: lines.join('\n'), inline });
 
 const header = (data: ServerData, random?: () => number) =>
   new EmbedBuilder()
@@ -87,37 +87,39 @@ const header = (data: ServerData, random?: () => number) =>
 
 const infoEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
   const { channelCounts: c } = data;
-  const people = data.humans !== null && data.bots !== null ? `Humanos: **${data.humans}** - Bots: **${data.bots}**` : null;
+  const known = data.humans !== null && data.bots !== null;
 
+  // Short lines in three even columns: long ones (an ID, "Humanos - Bots", a row of circles) wrap and look ragged
   const embed = header(data, random)
     .setDescription(`Creado el ${dateWithAge(data.createdAt)}`)
     .addFields(
       field('Miembros', [
         `Usuarios: **${data.memberCount}**`,
-        ...(people ? [people] : []),
-        ...(data.presence ? [presenceRow(data.presence)] : []),
+        ...(known ? [`Humanos: **${data.humans}**`, `Bots: **${data.bots}**`] : []),
       ]),
       field('Canales', [
         `Total: **${c.total}**`,
-        `Categorías: **${c.categories}** - Texto: **${c.text}** - Voz: **${c.voice}**`,
-        ...(c.announcements + c.forums + c.stages > 0
-          ? [`Anuncios: **${c.announcements}** - Foros: **${c.forums}** - Escenarios: **${c.stages}**`]
-          : []),
+        `Categorías: **${c.categories}**`,
+        `Texto: **${c.text}**`,
+        `Voz: **${c.voice}**`,
+        ...(c.announcements > 0 ? [`Anuncios: **${c.announcements}**`] : []),
+        ...(c.forums > 0 ? [`Foros: **${c.forums}**`] : []),
+        ...(c.stages > 0 ? [`Escenarios: **${c.stages}**`] : []),
       ]),
       field('Información', [
         `Propietario: <@${data.ownerId}>`,
-        `Nivel de verificación: **${VERIFICATION[data.verificationLevel] ?? 'Desconocido'}**`,
-        `ID: **${data.id}**`,
+        `Verificación: **${VERIFICATION[data.verificationLevel] ?? 'Desconocida'}**`,
       ]),
       field('Extras', [
-        `Canal AFK: ${data.afkChannelId ? `<#${data.afkChannelId}>` : '**Ninguno**'}`,
-        `Tiempo de espera: **${formatDuration(data.afkTimeoutSeconds * 1000)}**`,
-        `Roles: **${data.roles.length}**`,
-        `Emotes: **${data.emojis.length}** - Stickers: **${data.stickers}**`,
-        `Boosts: ${EMOJIS.boost} **${BOOST_TIER[data.boostTier] ?? BOOST_TIER[0]}** (**${data.boosts}**)`,
+        `AFK: ${data.afkChannelId ? `<#${data.afkChannelId}>` : '**Ninguno**'}`,
+        `Espera: **${formatDuration(data.afkTimeoutSeconds * 1000)}**`,
       ]),
-      field('Parámetros', SERVER_FLAGS.map(({ flag, help }) => `• \`--${flag}\`: ${help}`)),
-    );
+      field('Contenido', [`Roles: **${data.roles.length}**`, `Emotes: **${data.emojis.length}**`, `Stickers: **${data.stickers}**`]),
+      field('Mejoras', [`Nivel: **${BOOST_TIER[data.boostTier] ?? BOOST_TIER[0]}**`, `Boosts: ${EMOJIS.boost} **${data.boosts}**`]),
+      ...(data.presence ? [field('Estado', [presenceRow(data.presence)], false)] : []),
+      field('Parámetros', SERVER_FLAGS.map(({ flag, help }) => `• \`--${flag}\`: ${help}`), false),
+    )
+    .setFooter({ text: `ID: ${data.id}` });
   if (data.iconUrl) embed.setThumbnail(data.iconUrl);
   return embed;
 };

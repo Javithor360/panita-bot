@@ -48,45 +48,58 @@ const embedOf = (m: ReturnType<typeof message>) => (m.embeds![0] as any).toJSON(
 const fieldValue = (json: any, name: string): string => json.fields.find((f: any) => f.name === name).value;
 const rowOf = (m: ReturnType<typeof message>) => (m.components![0] as any).toJSON().components;
 
-test('the default embed is Noa\'s: the ⚡ header, the creation date and five inline columns', () => {
+test('the default embed is Noa\'s: the ⚡ header, the creation date, even columns and the flags below', () => {
   const json = embedOf(message('info', data()));
 
   assert.equal(json.author.name, '⚡ ~ Panitacraft');
   assert.equal(json.author.icon_url, 'https://cdn.example/icon.png');
   assert.equal(json.thumbnail.url, 'https://cdn.example/icon.png');
   assert.match(json.description, /^Creado el <t:\d+:D> \(<t:\d+:R>\)$/);
-  assert.deepEqual(json.fields.map((f: any) => f.name), ['Miembros', 'Canales', 'Información', 'Extras', 'Parámetros']);
-  assert.ok(json.fields.every((f: any) => f.inline));
+  assert.deepEqual(json.fields.map((f: any) => f.name), ['Miembros', 'Canales', 'Información', 'Extras', 'Contenido', 'Mejoras', 'Parámetros']);
+  // Two rows of three columns, then the flags across the whole width
+  assert.deepEqual(json.fields.map((f: any) => f.inline), [true, true, true, true, true, true, false]);
+  assert.equal(json.footer.text, 'ID: 707103390852710491');
 });
 
-test('members, channels and information read like Noa\'s columns', () => {
+test('every line of a column is short, so none wraps in a third of the width', () => {
+  const json = embedOf(message('info', data()));
+  for (const f of json.fields.filter((field: any) => field.inline)) {
+    for (const line of f.value.split('\n')) assert.ok(line.replace(/<[^>]+>/g, 'x'.repeat(8)).length <= 32, line);
+  }
+});
+
+test('members, channels and information are one short line each', () => {
   const json = embedOf(message('info', data()));
 
-  assert.equal(fieldValue(json, 'Miembros'), 'Usuarios: **23**\nHumanos: **14** - Bots: **9**');
-  assert.equal(fieldValue(json, 'Canales'), 'Total: **25**\nCategorías: **4** - Texto: **13** - Voz: **12**');
-  assert.equal(fieldValue(json, 'Información'), 'Propietario: <@111111111111111111>\nNivel de verificación: **Bajo**\nID: **707103390852710491**');
+  assert.equal(fieldValue(json, 'Miembros'), 'Usuarios: **23**\nHumanos: **14**\nBots: **9**');
+  assert.equal(fieldValue(json, 'Canales'), 'Total: **25**\nCategorías: **4**\nTexto: **13**\nVoz: **12**');
+  assert.equal(fieldValue(json, 'Información'), 'Propietario: <@111111111111111111>\nVerificación: **Bajo**');
+
+  const more = fieldValue(embedOf(message('info', data({ channelCounts: { total: 30, categories: 4, text: 13, voice: 12, announcements: 1, forums: 2, stages: 0 } }))), 'Canales');
+  assert.ok(more.endsWith('Anuncios: **1**\nForos: **2**'));
+  assert.equal(more.includes('Escenarios'), false);
 });
 
-test('the column of members drops what it does not know, and shows the status circles only with presences', () => {
-  const unknown = fieldValue(embedOf(message('info', data({ humans: null, bots: null }))), 'Miembros');
-  assert.equal(unknown, 'Usuarios: **23**');
+test('the members column drops what it does not know, and the status circles get a row of their own, only with presences', () => {
+  const unknown = embedOf(message('info', data({ humans: null, bots: null })));
+  assert.equal(fieldValue(unknown, 'Miembros'), 'Usuarios: **23**');
+  assert.equal(unknown.fields.some((f: any) => f.name === 'Estado'), false);
 
   const counts = countPresences([{ status: 'online', mobile: true, activities: [] }], 23);
-  const withPresence = fieldValue(embedOf(message('info', data({ presence: counts }))), 'Miembros');
-  assert.match(withPresence, new RegExp(`${EMOJIS.online} 1 · ${EMOJIS.idle} 0 · ${EMOJIS.dnd} 0 · ${EMOJIS.streaming} 0 · ${EMOJIS.offline} 22 · ${EMOJIS.mobile} 1`));
+  const json = embedOf(message('info', data({ presence: counts })));
+  assert.match(fieldValue(json, 'Estado'), new RegExp(`${EMOJIS.online} 1 · ${EMOJIS.idle} 0 · ${EMOJIS.dnd} 0 · ${EMOJIS.streaming} 0 · ${EMOJIS.offline} 22 · ${EMOJIS.mobile} 1`));
+  assert.equal(json.fields.find((f: any) => f.name === 'Estado').inline, false);
 });
 
-test('the extras show the AFK channel, the roles and emojis, and the boosts with the animated emoji', () => {
-  const extras = fieldValue(embedOf(message('info', data({ roles: [{ id: '1', members: 0 }], emojis: [{ markup: 'x', animated: false }] }))), 'Extras');
-  assert.match(extras, /Canal AFK: <#222222222222222222>/);
-  assert.match(extras, /Tiempo de espera: \*\*5m 0s\*\*/);
-  assert.match(extras, /Roles: \*\*1\*\*/);
-  assert.match(extras, /Emotes: \*\*1\*\* - Stickers: \*\*2\*\*/);
-  assert.ok(extras.includes(`Boosts: ${EMOJIS.boost} **Nivel 1** (**3**)`));
-  assert.match(fieldValue(embedOf(message('info', data({ afkChannelId: null }))), 'Extras'), /Canal AFK: \*\*Ninguno\*\*/);
+test('extras, content and boosts have a column each', () => {
+  const json = embedOf(message('info', data({ roles: [{ id: '1', members: 0 }], emojis: [{ markup: 'x', animated: false }] })));
+  assert.equal(fieldValue(json, 'Extras'), 'AFK: <#222222222222222222>\nEspera: **5m 0s**');
+  assert.equal(fieldValue(json, 'Contenido'), 'Roles: **1**\nEmotes: **1**\nStickers: **2**');
+  assert.equal(fieldValue(json, 'Mejoras'), `Nivel: **Nivel 1**\nBoosts: ${EMOJIS.boost} **3**`);
+  assert.match(fieldValue(embedOf(message('info', data({ afkChannelId: null }))), 'Extras'), /^AFK: \*\*Ninguno\*\*/);
 });
 
-test('the column of parameters lists every flag', () => {
+test('the parameters list every flag', () => {
   const params = fieldValue(embedOf(message('info', data())), 'Parámetros');
   for (const { flag } of SERVER_FLAGS) assert.ok(params.includes(`\`--${flag}\``), flag);
   assert.deepEqual(SERVER_FLAGS.map(f => f.flag), ['roles', 'emojis', 'channels', 'boost', 'icon', 'banner']);
