@@ -8,6 +8,7 @@ import { boostsToNextTier } from '../src/features/info/labels';
 import { countPresences } from '../src/features/info/presence';
 import {
   channelPages,
+  emojiPages,
   serverMessage,
   SERVER_FLAGS,
   type CategoryNode,
@@ -128,18 +129,48 @@ test('a short list has no buttons, and no roles says so', () => {
   assert.match(embedOf(message('roles', data())).description, /no tiene roles/);
 });
 
-test('emojis are shown as still and animated with how many of the limit are used', () => {
+test('still and animated emojis have pages of their own, each titled with its own count of the limit', () => {
   const emojis = [
     { markup: '<:a:1>', animated: false },
     { markup: '<:b:2>', animated: false },
     { markup: '<a:c:3>', animated: true },
   ];
-  const json = embedOf(message('emojis', data({ emojis })));
+  const still = embedOf(message('emojis', data({ emojis })));
+  assert.equal(still.description, '**Emojis** (2/100)\n# <:a:1> <:b:2>');
+  assert.equal(still.footer.text, 'Stickers: 2/15');
 
-  assert.ok(json.description.includes('**Emojis** (2/100)\n# <:a:1> <:b:2>'));
-  assert.ok(json.description.includes('**Animados** (1/100)\n# <a:c:3>'));
-  assert.equal(json.footer.text, 'Stickers: 2/15');
+  const animated = embedOf(message('emojis', data({ emojis }), 1));
+  assert.equal(animated.description, '**Animados** (1/100)\n# <a:c:3>');
+
   assert.match(embedOf(message('emojis', data())).description, /no tiene emojis/);
+});
+
+test('a page never mixes the two kinds, even when the still ones leave room', () => {
+  const emojis = [
+    ...Array.from({ length: 38 }, (_, i) => ({ markup: `<:s${i}:${i}>`, animated: false })),
+    ...Array.from({ length: 9 }, (_, i) => ({ markup: `<a:m${i}:${i}>`, animated: true })),
+  ];
+  const pages = emojiPages(emojis);
+  assert.equal(pages.length, 2);
+  assert.deepEqual(pages.map(p => [p.animated, p.items.length]), [[false, 38], [true, 9]]);
+
+  const first = embedOf(message('emojis', data({ emojis })));
+  assert.ok(first.description.startsWith('**Emojis** (38/100)'));
+  assert.equal(first.description.includes('<a:'), false);
+  assert.equal(((message('emojis', data({ emojis })).components![0] as any).toJSON().components as any[])[1].label, '1/2');
+
+  const second = embedOf(message('emojis', data({ emojis }), 1));
+  assert.ok(second.description.startsWith('**Animados** (9/100)'));
+  assert.equal(second.description.includes('<:s'), false);
+});
+
+test('a kind with more emojis than a page continues on the next pages before the other kind starts', () => {
+  const still = Array.from({ length: 45 }, (_, i) => ({ markup: `<:s${i}:${i}>`, animated: false }));
+  const animated = [{ markup: '<a:m:1>', animated: true }];
+  const pages = emojiPages([...animated, ...still], 40);
+  assert.deepEqual(pages.map(p => [p.animated, p.items.length]), [[false, 40], [false, 5], [true, 1]]);
+  assert.deepEqual(emojiPages([], 40), []);
+  assert.deepEqual(emojiPages(animated, 40).map(p => p.animated), [true]);
 });
 
 const tree = (): CategoryNode[] => [
@@ -304,9 +335,8 @@ test('no line of the channel list can be read by Discord as a title or a list', 
 
 test('the emoji lines are markdown titles, so Discord shows the emojis big, and the section names stay plain', () => {
   const emojis = [{ markup: '<:a:1>', animated: false }, { markup: '<a:c:3>', animated: true }];
-  const lines = (embedOf(message('emojis', data({ emojis }))).description as string).split('\n');
-  assert.ok(lines.includes('**Emojis** (1/100)'));
-  assert.ok(lines.includes('# <:a:1>'));
-  assert.ok(lines.includes('**Animados** (1/100)'));
-  assert.ok(lines.includes('# <a:c:3>'));
+  for (const [page, title, line] of [[0, '**Emojis** (1/100)', '# <:a:1>'], [1, '**Animados** (1/100)', '# <a:c:3>']] as const) {
+    const lines = (embedOf(message('emojis', data({ emojis }), page)).description as string).split('\n');
+    assert.deepEqual(lines, [title, line]);
+  }
 });

@@ -173,25 +173,35 @@ const rolesPage = (data: ServerData, requested: number, random?: () => number): 
   return { embed, total: pages.length, page };
 };
 
+/**
+ * The pages of `--emojis`: the still emojis first and the animated ones after, **never mixed in a page**, so the title of a page
+ * always matches what is on it.
+ */
+export const emojiPages = (emojis: ServerData['emojis'], perPage = EMOJIS_PER_PAGE): Array<{ animated: boolean; items: string[] }> => {
+  const still = emojis.filter(emoji => !emoji.animated).map(emoji => emoji.markup);
+  const animated = emojis.filter(emoji => emoji.animated).map(emoji => emoji.markup);
+  return [
+    ...(still.length > 0 ? paginate(still, perPage).map(items => ({ animated: false, items })) : []),
+    ...(animated.length > 0 ? paginate(animated, perPage).map(items => ({ animated: true, items })) : []),
+  ];
+};
+
 const emojisPage = (data: ServerData, requested: number, random?: () => number): Paged => {
-  const items = [...data.emojis.filter(e => !e.animated), ...data.emojis.filter(e => e.animated)];
-  const pages = paginate(items, EMOJIS_PER_PAGE);
-  const page = clampPage(requested, pages.length);
+  const pages = emojiPages(data.emojis);
+  const page = clampPage(requested, Math.max(1, pages.length));
   const limit = emojiLimit(data.boostTier);
-  const still = data.emojis.filter(e => !e.animated).length;
+  const still = data.emojis.filter(emoji => !emoji.animated).length;
   const animated = data.emojis.length - still;
 
-  const stillHere = pages[page].filter(e => !e.animated);
-  const animatedHere = pages[page].filter(e => e.animated);
-  const sections = [
-    // A line that starts with `# ` is a markdown title, and the emojis in a title are shown big
-    ...(stillHere.length > 0 ? [`**Emojis** (${still}/${limit})\n# ${stillHere.map(e => e.markup).join(' ')}`] : []),
-    ...(animatedHere.length > 0 ? [`**Animados** (${animated}/${limit})\n# ${animatedHere.map(e => e.markup).join(' ')}`] : []),
-  ];
+  const current = pages[page];
+  // A line that starts with `# ` is a markdown title, and the emojis in a title are shown big
+  const description = current
+    ? `**${current.animated ? 'Animados' : 'Emojis'}** (${current.animated ? animated : still}/${limit})\n# ${current.items.join(' ')}`
+    : 'Este servidor no tiene emojis.';
   const embed = header(data, random)
-    .setDescription(sections.length > 0 ? sections.join('\n\n') : 'Este servidor no tiene emojis.')
+    .setDescription(description)
     .setFooter({ text: `Stickers: ${data.stickers}/${stickerLimit(data.boostTier)}` });
-  return { embed, total: pages.length, page };
+  return { embed, total: Math.max(1, pages.length), page };
 };
 
 /** The tree of categories and channels, packed into pages of at most `limit` lines; a category stays with its channels. */
