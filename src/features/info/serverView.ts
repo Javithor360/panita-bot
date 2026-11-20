@@ -69,12 +69,26 @@ export interface ServerData {
   stickers: number;
   features: string[];
   vanityCode: string | null;
+  /** The server tag: `null` when the server has none. */
+  serverTag: ServerTagData | null;
   tree: CategoryNode[];
+}
+
+export interface ServerTagData {
+  /** The tag itself, such as `PANA`, when someone wears it. */
+  text: string | null;
+  /** How many members wear it. */
+  count: number;
+  userIds: string[];
+  /** Whether the member list was incomplete, so the count may be short. */
+  approximate: boolean;
 }
 
 export const ROLES_PER_PAGE = 20;
 export const EMOJIS_PER_PAGE = 40;
 export const CHANNEL_LINES_PER_PAGE = 30;
+/** How many of the members that wear the server tag are named. */
+export const TAG_LIST_MAX = 25;
 
 const CHANNEL_SYMBOL: Record<ChannelKind, string> = { text: '#', announcement: '📢', voice: '🔊', stage: '🎙️', forum: '💬', other: '•' };
 
@@ -198,6 +212,17 @@ const channelsPage = (data: ServerData, requested: number, random?: () => number
   return { embed, total: pages.length, page };
 };
 
+/** The block of the boost view about the server tag. */
+export const tagLines = (tag: ServerTagData | null): string[] => {
+  if (!tag) return ['**Etiqueta del servidor**', 'Este servidor no tiene etiqueta.'];
+  const title = tag.text ? `**Etiqueta del servidor** \`${tag.text}\`` : '**Etiqueta del servidor**';
+  const count = `Miembros que la usan: **${tag.count}**${tag.approximate ? ' (aprox.)' : ''}`;
+  if (tag.userIds.length === 0) return [title, count];
+  const shown = tag.userIds.slice(0, TAG_LIST_MAX).map(id => `<@${id}>`).join(' ');
+  const rest = tag.count - Math.min(tag.userIds.length, TAG_LIST_MAX);
+  return [title, count, shown + (rest > 0 ? ` y ${rest} más` : '')];
+};
+
 const boostEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
   const next = boostsToNextTier(data.boostTier, data.boosts);
   const perks = featureLabels(data.features);
@@ -212,6 +237,8 @@ const boostEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
         '',
         '**Ventajas del servidor**',
         perks.length > 0 ? perks.map(perk => `\`${perk}\``).join(', ') : 'Ninguna',
+        '',
+        ...tagLines(data.serverTag),
       ].join('\n'),
     );
   const thumbnail = data.splashUrl ?? data.iconUrl;

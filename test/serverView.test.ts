@@ -38,6 +38,7 @@ const data = (extra: Partial<ServerData> = {}): ServerData => ({
   stickers: 2,
   features: [],
   vanityCode: null,
+  serverTag: null,
   tree: [],
   ...extra,
 });
@@ -262,4 +263,31 @@ test('the bot info is Noa\'s botinfo: statistics and technology in code blocks, 
 
 test('the bot info leaves out the API latency until the gateway has answered', () => {
   assert.equal(infoEmbed(info({ programming: { ...info().programming, apiMs: null } })).toJSON().description!.includes('Latencia API'), false);
+});
+
+const boostDescription = (extra: Partial<ServerData>) => embedOf(message('boost', data(extra))).description as string;
+
+test('boost says when the server has no tag', () => {
+  assert.ok(boostDescription({ serverTag: null }).endsWith('**Etiqueta del servidor**\nEste servidor no tiene etiqueta.'));
+});
+
+test('boost tells the tag, how many members wear it and who', () => {
+  const text = boostDescription({
+    serverTag: { text: 'PANA', count: 2, userIds: ['111111111111111111', '222222222222222222'], approximate: false },
+  });
+  assert.ok(text.endsWith('**Etiqueta del servidor** `PANA`\nMiembros que la usan: **2**\n<@111111111111111111> <@222222222222222222>'));
+});
+
+test('a long list of members names the first 25 and counts the rest, and an incomplete list says it is approximate', () => {
+  const ids = Array.from({ length: 30 }, (_, i) => String(100_000_000_000_000_000n + BigInt(i)));
+  const text = boostDescription({ serverTag: { text: 'PANA', count: 30, userIds: ids, approximate: true } });
+
+  assert.ok(text.includes('Miembros que la usan: **30** (aprox.)'));
+  assert.equal(text.match(/<@\d+>/g)?.length, 25);
+  assert.ok(text.endsWith(' y 5 más'));
+});
+
+test('a tag nobody wears yet shows a zero and no list, and a tag without a known text has no code span', () => {
+  const none = boostDescription({ serverTag: { text: null, count: 0, userIds: [], approximate: false } });
+  assert.ok(none.endsWith('**Etiqueta del servidor**\nMiembros que la usan: **0**'));
 });

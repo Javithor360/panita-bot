@@ -199,7 +199,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `ping` | Bot and gateway latency. | `latencia` |
 | `uptime` | How long the bot has been online, and its version. | `tiempo`, `online` |
 | `info` | About the bot: its version, statistics, what it is made with and its links. | `botinfo`, `about` |
-| `server [--roles\|--emojis\|--channels\|--boost\|--icon\|--banner]` | Information about the server. Each flag shows something else, one at a time: the roles, the emojis, the channels **you** can see, the boosts, the icon or the banner. | `serverinfo`, `sinfo`, `guild` |
+| `server [--roles\|--emojis\|--channels\|--boost\|--icon\|--banner]` | Information about the server. Each flag shows something else, one at a time: the roles, the emojis, the channels **you** can see, the boosts (with the server tag and who wears it), the icon or the banner. | `serverinfo`, `sinfo`, `guild` |
 | `user [user] [--badges]` | A person's account, when they joined, roles, key permissions and (with the Presence intent) status. `--badges` shows their Discord badges. Works with a mention, an ID (even of someone who left) or a name. | `userinfo`, `whois`, `u` |
 | `avatar [user] [--global]` | A person's picture big, with download links and a Google search. Shows their server avatar when they have one; `--global` shows the account's. Same ways to name a person. | `av`, `pfp`, `picture` |
 | `emoji <emoji> [--info]` | Shows an emoji big (a custom one from any server, a unicode one, an ID, or the name of one of this server). `--info` adds its name, ID, date and server. | `emote`, `e` |

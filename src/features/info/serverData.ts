@@ -1,4 +1,4 @@
-import { ChannelType, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
+import { ChannelType, GuildFeature, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
 import { createTtlCache } from '../../lib/ttlCache';
 import { countPresences } from './presence';
 import { presenceOf } from './replies';
@@ -36,6 +36,18 @@ const KIND: Partial<Record<ChannelType, ChannelKind>> = {
 const voiceLike = (kind: ChannelKind) => (kind === 'voice' || kind === 'stage' ? 1 : 0);
 
 const position = (channel: GuildBasedChannel) => ('rawPosition' in channel ? channel.rawPosition : 0);
+
+/** The members that wear this server's tag (their profile shows it and it is turned on). `null` for a server without tags. */
+const serverTagOf = (guild: Guild, members: GuildMember[], complete: boolean): ServerData['serverTag'] => {
+  if (!guild.features.includes(GuildFeature.GuildTags)) return null;
+  const wearing = members.filter(member => member.user.primaryGuild?.identityEnabled && member.user.primaryGuild.identityGuildId === guild.id);
+  return {
+    text: wearing.find(member => member.user.primaryGuild?.tag)?.user.primaryGuild?.tag ?? null,
+    count: wearing.length,
+    userIds: wearing.map(member => member.id),
+    approximate: !complete,
+  };
+};
 
 export const collectServerData = async (guild: Guild, viewer: GuildMember): Promise<ServerData> => {
   await ensureMembers(guild);
@@ -101,6 +113,7 @@ export const collectServerData = async (guild: Guild, viewer: GuildMember): Prom
     stickers: guild.stickers.cache.size,
     features: guild.features,
     vanityCode: guild.vanityURLCode,
+    serverTag: serverTagOf(guild, members, counted),
     tree,
   };
 };
