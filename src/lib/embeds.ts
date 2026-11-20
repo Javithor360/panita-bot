@@ -8,6 +8,6 @@ export const tezzlarAuthor = (name: string, url?: string): EmbedAuthorOptions =>
   ...(url ? { url } : {}),
 });
 
-/** `➔ Name / - ID: id` list used by catalog commands (`!recipes list`, `!minievent list`). */
+/** `➔ Name / - ID: id` list used by catalog commands (`!tz recipes list`, `!tz minievent list`). */
 export const renderCatalogList = (entries: Array<{ label: string; id: string }>) =>
   entries.map(e => `**➔ ${e.label}**\n⠀\\- \`ID:\` ${e.id}`).join('\n\n');

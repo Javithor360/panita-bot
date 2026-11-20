@@ -263,7 +263,7 @@ export const tezzlarDays: Record<number, TezzlarDayData> = {
       },
       {
         name: "CAMBIOS DE DIFICULTAD 🎯",
-        value: ">>> **➔ Momentos Pana**\nDe manera aleatoria puede activarse un mini evento que cambia las mecánicas del juego durante un tiempo indefinido *(usa el comando `!minieventos` para más información)*.\n\n**➔ Rechazo a vehículos**\nLos mobs se desmontan solos del barco o minecart luego de 5 segundos.\n\n**➔ Adaptación lumínica**\nLos mobs ahora spawnean incluso en zonas con luz.\n\n**➔ Castigo de infantes**\nMatar un mob bebé te reduce a una altura de 0.5 bloques durante 3 minutos."
+        value: ">>> **➔ Momentos Pana**\nDe manera aleatoria puede activarse un mini evento que cambia las mecánicas del juego durante un tiempo indefinido *(usa el comando `!tz minievent list` para más información)*.\n\n**➔ Rechazo a vehículos**\nLos mobs se desmontan solos del barco o minecart luego de 5 segundos.\n\n**➔ Adaptación lumínica**\nLos mobs ahora spawnean incluso en zonas con luz.\n\n**➔ Castigo de infantes**\nMatar un mob bebé te reduce a una altura de 0.5 bloques durante 3 minutos."
       }
     ]
   },

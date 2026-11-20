@@ -2,7 +2,7 @@
 
 The official Discord bot of the **Panitacraft** community. It keeps Discord and [Panita Web](https://www.panitacraft.com) in sync (accounts, roles and editions), and gives members a Minecraft server toolkit, a ticket system, quick-reply tags and more.
 
-- **One command, two styles.** Every command works as a Slash Command (`/ip`) and with the classic prefix (`!ip`). Prefix commands also accept aliases (`!jugar`, `!minecraft`).
+- **One command, two styles.** Every command works as a Slash Command (`/server`) and with the classic prefix (`!server`). Prefix commands also accept aliases (`!sinfo`, `!guild`).
 - **Spanish-first.** The bot talks to the community in Spanish. This document and the code are in English.
 
 ## Table of contents
@@ -227,19 +227,20 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 
 | Command | Description | Aliases |
 |---|---|---|
-| `commands` | Useful commands inside the Minecraft server. | `comandos`, `cmds` |
 | `enchantments` | Maximum enchantment and potion levels in Tezzlar III. | `enchantment`, `encantamientos`, `enchants` |
-| `food` | Rebalanced food values and special dishes in Tezzlar III. | `comida`, `foods`, `comidas` |
-| `ip [--numeric]` | Server address (domain or numeric IP). | `jugar`, `minecraft` |
-| `minievent <id\|list>` | Details of a Tezzlar minievent, or the full list. | `minieventos`, `minievents`, `me` |
 | `playerlist` | Who is online on the Minecraft server, in an embed with a picture drawn like the game's tab list: head, rank, name and latency of each player. Asks the server live. Category *Servidor de Minecraft*. In a channel joined to the server it also answers to the bare word `playerlist` (no prefix), which is not passed on to the game chat. | `jugadores`, `conectados` |
 | `playerinfo <jugador>` | A player's card: their head, rank and name as the game shows them, whether they are online and their time played. Asks the server live. Category *Servidor de Minecraft*. | `jugador`, `infojugador` |
-| `recipes <id\|list>` | Custom crafting recipes with guide images, or the full list. | `recetas`, `crafteos`, `crafts` |
-| `resources` | Download link for the mods and textures, plus installation steps. | `recursos`, `assets` |
 | `skin <player>` | A player's skin with a menu to switch views (3D, bust, head…). Only the member who ran it can switch views. | `skins` |
-| `tezzlar day <number> [--force]` | Information for a Tezzlar III day. Each day unlocks on its date; `--force` bypasses that for the developer. `!tz <number>` also works. | `tez`, `tz` |
+| `tezzlar day <number> [--force]` | Information for a Tezzlar III day. Each day unlocks on its date; `--force` bypasses that for the developer. | `tez`, `tz` |
+| `tezzlar commands` | Useful commands inside the Minecraft server. | `!tz comandos`, `!tz cmds` |
+| `tezzlar food` | Rebalanced food values and special dishes in Tezzlar III. | `!tz comida`, `!tz foods`, `!tz comidas` |
+| `tezzlar ip [--numeric]` | Server address (domain or numeric IP). | `!tz jugar`, `!tz minecraft` |
+| `tezzlar minievent <id\|list>` | Details of a Tezzlar minievent, or the full list. | `!tz minieventos`, `!tz minievents`, `!tz me` |
+| `tezzlar recipes <id\|list>` | Custom crafting recipes with guide images, or the full list. | `!tz recetas`, `!tz crafteos`, `!tz crafts` |
+| `tezzlar resources` | Download link for the mods and textures, plus installation steps. | `!tz recursos`, `!tz assets` |
+| `tezzlar trailer` | Link to the Tezzlar 3 trailer. | — |
 | `tps` | Ticks per second of the Minecraft server and the average time of a tick. Asks the server live. | `rendimiento` |
-| `trailer` | Link to the Tezzlar 3 trailer. | — |
+| `trailer` | Link to the Enriquecraft 666 trailer. (The Tezzlar 3 one is `tezzlar trailer`.) | — |
 
 </details>
 
@@ -397,7 +398,7 @@ The logic is in `src/features/moderation/` (`messages` has the voice and the emb
 - **Voice and the intents.** `user` shows who is in a voice channel and what they are doing, and `server --activity` counts them, which needs Discord's *Voice States* intent (not privileged, already requested in code). The status needs the privileged *Presence* intent, as above.
 - **What Discord does not give a bot.** A person's "About me" bio cannot be read by bots, so `user` does not show it. Servers have no region any more, so `server` shows the language instead (in `--community`). A nameplate has no image address, so `--cosmetics` shows its name and palette.
 - **The Panita API in `info`.** The field calls the public `GET /v1/health` with a 3-second limit and no retries; a slow or down API only shows "Sin conexión" and never delays the answer.
-- `server` took the `!server` alias that `ip` used to have; `!ip` answers to `!jugar` and `!minecraft` now.
+- `server` took the `!server` alias that `ip` used to have, and `ip` (like `food`, `recipes` and the rest of the Tezzlar commands) now lives inside `tezzlar`: `!tz ip`, `!tz jugar`. The old top-level names (`!ip`, `!food`...) no longer answer.
 
 The logic is in `src/features/info/` (the views, `emojiParse`, `emojiMedia`, `serverData`), `src/features/lookup/` (the name search and its menu) and `src/lib/voice.ts`; the commands are in `src/commands/utility/`.
 
