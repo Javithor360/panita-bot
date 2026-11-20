@@ -134,8 +134,8 @@ test('emojis are shown as still and animated with how many of the limit are used
   ];
   const json = embedOf(message('emojis', data({ emojis })));
 
-  assert.ok(json.description.includes('**Emojis** (2/100)\n<:a:1> <:b:2>'));
-  assert.ok(json.description.includes('**Animados** (1/100)\n<a:c:3>'));
+  assert.ok(json.description.includes('## Emojis (2/100)\n<:a:1> <:b:2>'));
+  assert.ok(json.description.includes('## Animados (1/100)\n<a:c:3>'));
   assert.equal(json.footer.text, 'Stickers: 2/15');
   assert.match(embedOf(message('emojis', data())).description, /no tiene emojis/);
 });
@@ -166,9 +166,9 @@ test('the channel tree never names a channel the person cannot see, it only coun
   const json = embedOf(m);
 
   assert.ok(json.description.includes('**General**'));
-  assert.ok(json.description.includes('# <#400000000000000002>'));
-  assert.ok(json.description.includes('📢 <#400000000000000003>'));
-  assert.ok(json.description.includes('🔊 <#400000000000000004>'));
+  assert.ok(json.description.includes('• <#400000000000000002>'));
+  assert.ok(json.description.includes('• <#400000000000000003>'));
+  assert.ok(json.description.includes('• <#400000000000000004>'));
   assert.equal(json.description.includes('999000000000000001'), false);
   assert.equal(json.description.includes('Staff'), false);
   assert.equal(json.footer.text, 'y 2 canales más que no puedes ver');
@@ -198,7 +198,7 @@ test('channel pages keep a category with its channels and split a huge one', () 
 
   const huge = channelPages([{ id: '1', name: 'Big', channels: many(60, 1000) }], 25);
   assert.ok(huge.every(page => page.length <= 25));
-  assert.equal(huge.flat().filter(line => line.startsWith('#')).length, 60);
+  assert.equal(huge.flat().filter(line => line.startsWith('•')).length, 60);
 });
 
 test('boost tells the tier, how many are missing, the perks and the images', () => {
@@ -290,4 +290,18 @@ test('a long list of members names the first 25 and counts the rest, and an inco
 test('a tag nobody wears yet shows a zero and no list, and a tag without a known text has no code span', () => {
   const none = boostDescription({ serverTag: { text: null, count: 0, userIds: [], approximate: false } });
   assert.ok(none.endsWith('**Etiqueta del servidor**\nMiembros que la usan: **0**'));
+});
+
+test('no line of the channel list can be read by Discord as a title or a list', () => {
+  const json = embedOf(message('channels', data({ tree: tree() })));
+  for (const line of (json.description as string).split('\n')) {
+    assert.equal(/^(#{1,3} |[-*+] |\d+[.)] |> )/.test(line), false, line);
+  }
+});
+
+test('the emoji sections are markdown titles', () => {
+  const emojis = [{ markup: '<:a:1>', animated: false }, { markup: '<a:c:3>', animated: true }];
+  const lines = (embedOf(message('emojis', data({ emojis }))).description as string).split('\n');
+  assert.ok(lines.includes('## Emojis (1/100)'));
+  assert.ok(lines.includes('## Animados (1/100)'));
 });

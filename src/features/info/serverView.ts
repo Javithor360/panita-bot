@@ -90,7 +90,6 @@ export const CHANNEL_LINES_PER_PAGE = 30;
 /** How many of the members that wear the server tag are named. */
 export const TAG_LIST_MAX = 25;
 
-const CHANNEL_SYMBOL: Record<ChannelKind, string> = { text: '#', announcement: '📢', voice: '🔊', stage: '🎙️', forum: '💬', other: '•' };
 
 const field = (name: string, lines: string[], inline = true) => ({ name, value: lines.join('\n'), inline });
 
@@ -165,8 +164,8 @@ const emojisPage = (data: ServerData, requested: number, random?: () => number):
   const stillHere = pages[page].filter(e => !e.animated);
   const animatedHere = pages[page].filter(e => e.animated);
   const sections = [
-    ...(stillHere.length > 0 ? [`**Emojis** (${still}/${limit})\n${stillHere.map(e => e.markup).join(' ')}`] : []),
-    ...(animatedHere.length > 0 ? [`**Animados** (${animated}/${limit})\n${animatedHere.map(e => e.markup).join(' ')}`] : []),
+    ...(stillHere.length > 0 ? [`## Emojis (${still}/${limit})\n${stillHere.map(e => e.markup).join(' ')}`] : []),
+    ...(animatedHere.length > 0 ? [`## Animados (${animated}/${limit})\n${animatedHere.map(e => e.markup).join(' ')}`] : []),
   ];
   const embed = header(data, random)
     .setDescription(sections.length > 0 ? sections.join('\n\n') : 'Este servidor no tiene emojis.')
@@ -181,7 +180,7 @@ export const channelPages = (tree: readonly CategoryNode[], limit = CHANNEL_LINE
       const visible = category.channels.filter(channel => channel.visible);
       return visible.length === 0
         ? []
-        : [`**${clip(category.name, 80)}**`, ...visible.map(channel => `${CHANNEL_SYMBOL[channel.kind]} <#${channel.id}>`)];
+        : [`**${clip(category.name, 80)}**`, ...visible.map(channel => `• <#${channel.id}>`)];
     })
     .filter(block => block.length > 0);
 
