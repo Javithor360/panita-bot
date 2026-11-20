@@ -2,6 +2,7 @@ import { EmbedBuilder, SlashCommandBuilder, type Client, type GuildMember } from
 import { CATEGORIES, CATEGORY_ORDER, COLORS, EMOJIS, PREFIX } from '../../config/constants';
 import { canAccess } from '../../core/access';
 import { defineCommand, type Access } from '../../core/command';
+import { categoryTitle, groupByCategory } from '../../features/help/overview';
 import { bridge } from '../../features/minecraft';
 import { getRegistry, type CommandInfo } from '../../core/registry';
 import { fail } from '../../lib/voice';
@@ -43,12 +44,8 @@ const ACCESS_LABELS: Record<Access, string> = {
 
 const buildOverviewEmbed = (member: GuildMember, client: Client<true>) => {
   // Only list what this member can actually run
-  const categories: Record<string, string[]> = {};
-  for (const command of getRegistry().info()) {
-    if (!canAccess(command.access, member)) continue;
-    if (command.category === CATEGORIES.minecraftServer && !bridge?.connected) continue;
-    (categories[command.category] ??= []).push(`\`${command.name}\``);
-  }
+  const visible = getRegistry().info().filter(command =>
+    canAccess(command.access, member) && !(command.category === CATEGORIES.minecraftServer && !bridge?.connected));
 
   const embed = new EmbedBuilder()
     .setColor(COLORS.blurple)
@@ -57,13 +54,8 @@ const buildOverviewEmbed = (member: GuildMember, client: Client<true>) => {
     .setThumbnail(client.user.displayAvatarURL())
     .setFooter({ text: 'Para más detalles, utiliza /help [comando] | Sintaxis: <obligatorio> - [opcional]' });
 
-  // Known categories first (in order), then any other category
-  const ordered = [
-    ...CATEGORY_ORDER.filter(c => categories[c]),
-    ...Object.keys(categories).filter(c => !(CATEGORY_ORDER as readonly string[]).includes(c)),
-  ];
-  for (const category of ordered) {
-    embed.addFields({ name: `📁 ${category}`, value: categories[category].join(', ') });
+  for (const entry of groupByCategory(visible, CATEGORY_ORDER)) {
+    embed.addFields({ name: categoryTitle(entry), value: entry.names.map(name => `\`${name}\``).join(', ') });
   }
 
   return embed;

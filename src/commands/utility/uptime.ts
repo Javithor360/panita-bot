@@ -22,8 +22,8 @@ export default defineCommand({
       .addFields(
         { name: 'Tiempo continuo', value: `\`${formatDuration(uptimeMs)}\``, inline: true },
         { name: 'Iniciado desde', value: discordTimestamp(Date.now() - uptimeMs, 'R'), inline: true },
-        { name: 'Versión', value: `\`v${BOT_VERSION}\``, inline: true },
       )
+      .setFooter({ text: `Versión: v${BOT_VERSION}` })
       .setTimestamp();
 
     await ctx.reply({ embeds: [embed] });
