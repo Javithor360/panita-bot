@@ -255,3 +255,11 @@ test('the announcer posts nothing without a main channel, or when the message is
   assert.deepEqual(none.notified, []);
   assert.deepEqual(off.notified, []);
 });
+
+test('an afk and a back show the player with their head, in gray', () => {
+  const afk = data(render('afk', { player: JAVI }));
+  assert.equal(afk.author?.name, 'Javithor360 está AFK');
+  assert.equal(afk.author?.icon_url, 'https://heads.test/Javithor360');
+  assert.equal(afk.color, 0x808080);
+  assert.equal(data(render('back', { player: JAVI })).author?.name, 'Javithor360 ya no está AFK');
+});

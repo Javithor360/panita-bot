@@ -70,7 +70,7 @@ const connect = async (url: string, headers: Record<string, string> = { Authoriz
 const connected = async (url: string) => {
   const client = await connect(url);
   client.socket.send(JSON.stringify(hello));
-  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global'], features: ['media'] });
+  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global'], features: ['media', 'afk'] });
   return client;
 };
 
@@ -98,7 +98,7 @@ test('welcomes a mod that says hello with the chat channels the bot bridges', as
 
   client.socket.send(JSON.stringify(hello));
 
-  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global', 'staff'], features: ['media'] });
+  assert.deepEqual(await client.next(), { type: 'welcome', protocol: 1, channels: ['global', 'staff'], features: ['media', 'afk'] });
   assert.equal(bridge.connected, true);
   assert.equal(bridge.status().hello?.modVersion, '0.0.1');
 });

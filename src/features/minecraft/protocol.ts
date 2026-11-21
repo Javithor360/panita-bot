@@ -15,8 +15,10 @@ export const FEATURE_MEDIA = 'media';
 /** The mod shows what a Discord reply answers; the bot sends a chat frame's `reply` only to a mod that announced it. */
 export const FEATURE_REPLY = 'reply';
 export const FEATURE_MEDIA_UPLOAD = 'media_upload';
+/** The bot handles the `afk` and `back` events; the mod sends them only when the welcome lists this. */
+export const FEATURE_AFK = 'afk';
 /** What the bot offers in its `welcome`. `media_upload` is added with the upload endpoint. */
-export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA];
+export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA, FEATURE_AFK];
 
 /** WebSocket close codes of the bridge. */
 export const CLOSE = { replaced: 4000, protocol: 4002, frame: 4003 } as const;
@@ -32,7 +34,7 @@ export interface BridgePlayer {
   skin: string | null;
 }
 
-export const EVENT_KINDS = ['join', 'first_join', 'leave', 'death', 'advancement', 'broadcast', 'started', 'stopping'] as const;
+export const EVENT_KINDS = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back', 'broadcast', 'started', 'stopping'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 export const QUERY_KINDS = ['playerlist', 'tps', 'status', 'playerinfo'] as const;
@@ -318,7 +320,7 @@ export const readPlayer = (value: unknown): BridgePlayer | null => {
   };
 };
 
-const PLAYER_EVENTS: readonly EventKind[] = ['join', 'first_join', 'leave', 'death', 'advancement'];
+const PLAYER_EVENTS: readonly EventKind[] = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back'];
 
 /** Reads a frame from the mod. A frame of the wrong shape is rejected; one of an unknown type is skipped. */
 export const parseModFrame = (raw: string): Parsed => {

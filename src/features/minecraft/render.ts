@@ -48,7 +48,7 @@ export const displayNameOf = (player: BridgePlayer) => player.nickname ?? player
 export const emoteNameOf = (config: MessageConfig, player: BridgePlayer): string =>
   fill(config.chat.emoteName, { text: { displayname: displayNameOf(player), username: player.name } }, false);
 
-const PLAYER_EVENTS: readonly EventName[] = ['join', 'first_join', 'leave', 'death', 'advancement'];
+const PLAYER_EVENTS: readonly EventName[] = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back'];
 const TEXT_OF: Partial<Record<EventName, string>> = { death: 'deathmessage', advancement: 'achievement', broadcast: 'message' };
 
 /** The placeholders of an event, or null when the event has nothing to say (a death without its text, a player event without a player). */

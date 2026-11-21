@@ -22,7 +22,7 @@
 #
 # PLACEHOLDERS, written {name}
 #   everywhere:                         {botname} {botavatar} {date} (date and time, shown in each reader's timezone)
-#   join, first_join, leave:            {displayname} (nickname, or name) {username} {avatar} (the player's head)
+#   join, first_join, leave, afk, back: {displayname} (nickname, or name) {username} {avatar} (the player's head)
 #   death:                              the above and {deathmessage}
 #   advancement:                        the above and {achievement}
 #   broadcast:                          {message}
@@ -48,6 +48,13 @@ events:
   advancement:
     color: "#ffd700"
     author: "{displayname} completó el logro {achievement}"
+  # A player went AFK or came back. Set either to false to post nothing.
+  afk:
+    color: "#808080"
+    author: "{displayname} está AFK"
+  back:
+    color: "#808080"
+    author: "{displayname} ya no está AFK"
   # A message of the server itself, such as /say.
   broadcast:
     color: "#5865f2"

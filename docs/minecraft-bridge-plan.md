@@ -58,7 +58,7 @@ Mod to bot:
 |---|---|
 | `hello` | `protocol` (1), `modVersion`, `minecraftVersion`, `startedAt` (ISO), `maxPlayers`, optional `icon` (server icon, base64 PNG), optional `features` (strings, see 4.4). Sent first. |
 | `chat` | `channel` (chat channel id, lowercase), `player`, `text` (at most 256 characters, plain), `emote` (boolean). |
-| `event` | `kind` (`join`, `first_join`, `leave`, `death`, `advancement`, `broadcast`, `started`, `stopping`), `player` (not for `broadcast`, `started`, `stopping`), `text` (the game's own English text for `death` and `advancement`, the message for `broadcast`), `key` (the game's translation key, so a later version can translate). |
+| `event` | `kind` (`join`, `first_join`, `leave`, `death`, `advancement`, `afk`, `back`, `broadcast`, `started`, `stopping`), `player` (not for `broadcast`, `started`, `stopping`), `text` (the game's own English text for `death` and `advancement`, the message for `broadcast`), `key` (the game's translation key, so a later version can translate). |
 | `reply` | `id`, `ok`; with `ok: true` a `data` object, otherwise `error` (a code). |
 
 `player` is `{ uuid, name, nickname (or null), premium (boolean), skin (optional) }`. `skin` is the hash (64 lowercase hex characters) of the skin the server shows the player with, which is the one SkinsRestorer gave them when they chose one; the mod sends the hash and never an address. The bot validates it and, when it is missing or not a hash, drops it and still accepts the frame. The head is drawn from the skin when there is one, else `premium` selects the head template.

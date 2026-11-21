@@ -247,3 +247,10 @@ test('takes the first four images of a message, skipping what the game may not s
   assert.equal(entries.length, MAX_MEDIA);
   assert.deepEqual(entries.map(entry => entry.name), ['0.png', '1.png', '2.png', '3.png']);
 });
+
+test('reads an afk and a back event, which need a player and carry no text', () => {
+  for (const kind of ['afk', 'back']) {
+    assert.deepEqual(parse({ type: 'event', kind, player }), { ok: true, frame: { type: 'event', kind, player } });
+    assert.deepEqual(parse({ type: 'event', kind }), { ok: false, reason: 'bad event' });
+  }
+});

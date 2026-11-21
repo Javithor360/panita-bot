@@ -9,7 +9,7 @@ import { isUrl, placeholdersIn } from './template';
  * key of it: whatever is missing or wrong is replaced by the default (and said in the log), so a typo never silences the bridge.
  */
 
-export const EVENT_NAMES = ['join', 'first_join', 'leave', 'death', 'advancement', 'broadcast', 'started', 'stopping', 'crashed'] as const;
+export const EVENT_NAMES = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back', 'broadcast', 'started', 'stopping', 'crashed'] as const;
 export type EventName = (typeof EVENT_NAMES)[number];
 
 /** An author or a footer: a text with an icon and an address, or a title with an address. */
@@ -66,6 +66,8 @@ export const EVENT_PLACEHOLDERS: Record<EventName, readonly string[]> = {
   leave: PLAYER,
   death: [...PLAYER, 'deathmessage'],
   advancement: [...PLAYER, 'achievement'],
+  afk: PLAYER,
+  back: PLAYER,
   broadcast: [...COMMON, 'message'],
   started: COMMON,
   stopping: COMMON,
@@ -92,6 +94,8 @@ export const DEFAULT_MESSAGES: MessageConfig = {
     leave: playerEvent(0xff0000, '{displayname} salió del servidor'),
     death: playerEvent(0x000000, '{deathmessage}'),
     advancement: playerEvent(0xffd700, '{displayname} completó el logro {achievement}'),
+    afk: playerEvent(0x808080, '{displayname} está AFK'),
+    back: playerEvent(0x808080, '{displayname} ya no está AFK'),
     broadcast: {
       color: COLORS.blurple,
       author: { text: 'Anuncio Oficial', icon: `{${SERVER_ICON}}` },
