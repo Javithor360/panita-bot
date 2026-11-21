@@ -70,7 +70,7 @@ describe('instructions with emojis', () => {
     assert.match(text, /Use emojis sparingly/);
     assert.match(text, /never end every sentence with one/);
     assert.match(text, /another person of the server/);
-    assert.match(text, /never state facts about them that the member did not say/);
+    assert.match(text, /never state facts about them that came from neither/);
     assert.match(text, /no insults, rumors or accusations/);
     assert.doesNotMatch(text, /one or two emojis at most/);
   });

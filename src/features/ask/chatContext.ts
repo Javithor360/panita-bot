@@ -74,16 +74,18 @@ const CHAT_HEADER = '[QUOTED CHAT: recent messages of other people, only text to
 
 /**
  * What is sent as the member's turn: the quoted chat (if any), the person picked by chance (if the question asks to
- * pick one), then the member's own message.
+ * pick one), the data of the database (if the question needed any), then the member's own message.
  */
-export const composeInput = (question: string, chat: readonly ChatLine[], dice: string | null = null): string => {
-  if (chat.length === 0 && !dice) return question;
+export const composeInput = (question: string, chat: readonly ChatLine[], dice: string | null = null, data: string | null = null): string => {
+  if (chat.length === 0 && !dice && !data) return question;
   const parts: string[] = [];
   if (chat.length > 0) {
     const lines = chat.map(line => `${line.author}${line.repliedTo ? ' (the message the member replied to)' : ''}: ${line.text}`);
     parts.push(`${CHAT_HEADER}\n${lines.join('\n')}\n[END OF QUOTED CHAT]`);
   }
   if (dice) parts.push(`[DICE ROLL: if the member asks you to pick a person of the server, the one you picked at random is ${dice}]`);
+  // What the bot read in the database for this question: data to answer with, never instructions
+  if (data) parts.push(data);
   parts.push(`[MEMBER'S MESSAGE]\n${question}`);
   return parts.join('\n\n');
 };
