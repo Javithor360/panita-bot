@@ -9,7 +9,7 @@ import {
   communityLines,
   eventLine,
   soundLine,
-  stickerLine,
+  stickerLines,
   type ActivityData,
   type CommunityData,
   type ServerExtra,
@@ -146,8 +146,11 @@ test('events show the name, the date, where and whether they are on now', () => 
 test('sounds and stickers are one line each', () => {
   assert.equal(soundLine({ name: 'Aplausos', emoji: '👏', volume: 0.5, uploader: 'ana', available: true }), '👏 **Aplausos** · volumen 50% · de ana');
   assert.equal(soundLine({ name: 'x', emoji: null, volume: 1, uploader: null, available: false }), '**x** · volumen 100% · no disponible');
-  assert.equal(stickerLine({ name: 'Pepe', tags: 'rana, meme', format: 'APNG', available: true }), '**Pepe** · APNG · rana, meme');
-  assert.equal(stickerLine({ name: 'Baile', tags: null, format: 'Lottie', available: false }), '**Baile** · Lottie · no disponible');
+  const pepe = { id: '1', name: 'Pepe', description: 'una rana', imageUrl: 'https://x/1.png', tags: 'rana, meme', format: 'APNG', available: true };
+  assert.deepEqual(stickerLines(pepe, 2, 5), ['**Pepe** (2/5)', 'una rana', 'Formato: **APNG** · ID: `1`', 'Etiquetas: rana, meme']);
+  const baile = stickerLines({ ...pepe, description: null, tags: null, imageUrl: null, available: false }, 1, 1);
+  assert.match(baile.join('\n'), /Lottie/);
+  assert.equal(baile.at(-1), 'No disponible');
 });
 
 test('the events, sounds and stickers views are lists that page and say when there is nothing', () => {
@@ -160,8 +163,11 @@ test('the events, sounds and stickers views are lists that page and say when the
   assert.match(json(show('sounds', { sounds: [] })).description, /no tiene sonidos/);
   assert.match(json(show('stickers', { stickers: [] })).description, /no tiene stickers/);
 
-  const stickers = Array.from({ length: 21 }, (_, i) => ({ name: `S${i}`, tags: null, format: 'PNG', available: true }));
-  assert.equal(((show('stickers', { stickers }).components![0] as any).toJSON().components as any[])[1].label, '1/2');
+  const stickers = Array.from({ length: 3 }, (_, i) => ({ id: `${i}`, name: `S${i}`, description: null, imageUrl: `https://x/${i}.png`, tags: null, format: 'PNG', available: true }));
+  const firstSticker = show('stickers', { stickers });
+  assert.equal(((firstSticker.components![0] as any).toJSON().components as any[])[1].label, '1/3');
+  assert.equal(json(firstSticker).image.url, 'https://x/0.png');
+  assert.match(json(firstSticker).description, /^\*\*S0\*\* \(1\/3\)/);
 });
 
 test('the activity and community views are single embeds, and say so when the data could not be read', () => {

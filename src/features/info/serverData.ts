@@ -1,5 +1,6 @@
 import { ChannelType, GuildFeature, GuildScheduledEventStatus, PermissionFlagsBits, type Guild, type GuildBasedChannel, type GuildMember } from 'discord.js';
 import { stickerFormatName } from './labels';
+import { hasPicture } from './stickerParse';
 import { ensureMembers, isMemberListComplete, joinExtremes } from './members';
 import { countPresences } from './presence';
 import { presenceOf } from './replies';
@@ -173,7 +174,10 @@ const soundsOf = async (guild: Guild): Promise<SoundRow[]> => {
 
 const stickersOf = (guild: Guild): StickerRow[] =>
   [...guild.stickers.cache.values()].map(sticker => ({
+    id: sticker.id,
     name: sticker.name,
+    description: sticker.description,
+    imageUrl: hasPicture(sticker.format) ? sticker.url : null,
     tags: sticker.tags,
     format: stickerFormatName(sticker.format),
     available: sticker.available !== false,

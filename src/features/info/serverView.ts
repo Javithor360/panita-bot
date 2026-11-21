@@ -15,9 +15,9 @@ import {
   EVENTS_PER_PAGE,
   soundLine,
   SOUNDS_PER_PAGE,
-  stickerLine,
-  STICKERS_PER_PAGE,
+  stickerLines,
   type ServerExtra,
+  type StickerRow,
 } from './serverExtras';
 
 /**
@@ -307,7 +307,18 @@ const listPage = (data: ServerData, title: string, lines: string[], perPage: num
   return { embed, total: pages.length, page };
 };
 
-const activityEmbed = (data: ServerData, extra: ServerExtra, random?: () => number): EmbedBuilder =>
+/** `--stickers`: one sticker per page, with its picture. */
+const stickersPage = (data: ServerData, stickers: StickerRow[], requested: number, random?: () => number): Paged => {
+  const page = clampPage(requested, stickers.length);
+  const embed = header(data, random);
+  const current = stickers[page];
+  if (!current) return { embed: embed.setDescription('Este servidor no tiene stickers.'), total: 1, page: 0 };
+  embed.setDescription(stickerLines(current, page + 1, stickers.length).join('\n'));
+  if (current.imageUrl) embed.setImage(current.imageUrl);
+  return { embed, total: stickers.length, page };
+};
+
+const activityEmbed =(data: ServerData, extra: ServerExtra, random?: () => number): EmbedBuilder =>
   header(data, random).setDescription(
     extra.activity ? activityLines(extra.activity, data.presence, data.membersComplete).join('\n') : 'No pude leer la actividad del servidor.',
   );
@@ -335,7 +346,7 @@ export const serverMessage = (
     : view === 'channels' ? channelsPage(data, page, random)
     : view === 'events' ? listPage(data, 'Eventos', (extra.events ?? []).map(eventLine), EVENTS_PER_PAGE, 'No hay eventos programados.', page, random)
     : view === 'sounds' ? listPage(data, 'Sonidos', (extra.sounds ?? []).map(soundLine), SOUNDS_PER_PAGE, 'Este servidor no tiene sonidos en el tablero.', page, random)
-    : view === 'stickers' ? listPage(data, 'Stickers', (extra.stickers ?? []).map(stickerLine), STICKERS_PER_PAGE, 'Este servidor no tiene stickers.', page, random)
+    : view === 'stickers' ? stickersPage(data, extra.stickers ?? [], page, random)
     : null;
 
   if (paged) {
