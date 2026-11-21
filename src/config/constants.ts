@@ -13,6 +13,9 @@ export const URLS = {
   openai: 'https://api.openai.com/v1',
   tezzlar3: `${WEB_BASE}/tezzlar3`,
   gallery: (photoId: string) => `${WEB_BASE}/gallery?photo=${photoId}`,
+  /** The photo a member has under their own number, as the shareable link of the website. */
+  galleryPhotoOf: (ign: string, number: number) => `${WEB_BASE}/gallery/${encodeURIComponent(ign)}/${number}`,
+  form: (slug: string) => `${WEB_BASE}/forms/${encodeURIComponent(slug)}`,
   /** Reverse image search of Google, for the "Búscalo en Google" line of `avatar`. */
   googleLens: (imageUrl: string) => `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(imageUrl)}`,
   /** A unicode emoji as an image, for `emoji` (a Twemoji file is named by its code points). */

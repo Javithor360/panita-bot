@@ -218,7 +218,7 @@ describe('/ask service', () => {
   it('validates the question before spending anything', async () => {
     const { service, requests } = make();
     assert.equal(await userError(service.ask('1', '   ')), ASK_MESSAGES.empty);
-    assert.equal(await userError(service.ask('1', 'a'.repeat(501))), ASK_MESSAGES.tooLong);
+    assert.equal(await userError(service.ask('1', 'a'.repeat(1001))), ASK_MESSAGES.tooLong);
     assert.equal(requests.length, 0);
   });
 

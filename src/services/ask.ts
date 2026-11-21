@@ -7,9 +7,14 @@ import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emoj
 import { cleanChat, composeInput, type ChatLine } from '../features/ask/chatContext';
 import type { Turn } from '../features/ask/conversations';
 import { rollPerson } from '../features/ask/pick';
+import { buildDataBlock, type LookupResult } from '../features/ask/data';
+import { needsLookup } from '../features/ask/gate';
 import { findBlockedTerm, loadKnowledge } from '../features/ask/knowledge';
 import { createAskLimits, type AskLimits } from '../features/ask/limits';
 import { buildInstructions } from '../features/ask/prompt';
+import { routeQuestion } from '../features/ask/router';
+import { runLookups } from '../features/ask/run';
+import { createCallBudget, getKnowledge, type Knowledge } from './knowledge';
 import { createOpenAiClient, OpenAiError, type OpenAiClient } from './openai';
 
 export const ASK_MESSAGES = {
@@ -40,6 +45,10 @@ export interface AskDeps {
   safetyIdOf(userId: string): string;
   /** A number in [0, 1) for the dice; `Math.random` when not given. */
   random?: () => number;
+  /** What the assistant may read of Panitacraft (players, editions, forms...). Without it no question is looked up. */
+  data?: Knowledge;
+  /** The clock of the durations written in the data. */
+  now?: () => Date;
 }
 
 export interface AskAnswer {
@@ -47,6 +56,8 @@ export interface AskAnswer {
   text: string;
   /** The member asked for a random photo of the gallery, the only thing the assistant can ask the bot to do. */
   photo: boolean;
+  /** When the photo must be one of a member (the ign), as the data said; null for any photo of the gallery. */
+  photoOf: string | null;
   /** This exchange as it is remembered for the next reply: the question and the text as the model wrote it (no emojis). */
   turn: Turn;
 }
@@ -101,6 +112,30 @@ export const createAskService =(deps: AskDeps): AskService => {
     return built.instructions;
   };
 
+  /**
+   * What the question needs from the database: nothing (no keyword, no router call and no API call, exactly as before), or
+   * a `[DATOS]` block. A router or API failure is told to the model as a failed lookup, never hidden and never invented.
+   */
+  const lookupFor = async (userId: string, question: string): Promise<{ block: string | null; photoOf: string | null }> => {
+    const knowledge = deps.data;
+    if (!knowledge) return { block: null, photoOf: null };
+    // Until the lists of editions and forms are read the gate only has its keywords; a failed read is tried again next time
+    if (knowledge.known().editions.length === 0) void knowledge.warm();
+    if (!needsLookup(question, knowledge.known())) return { block: null, photoOf: null };
+
+    let results: LookupResult[];
+    let photoOf: string | null = null;
+    try {
+      const requested = await routeQuestion(deps.client, question, deps.safetyIdOf(userId));
+      if (requested.length === 0) return { block: null, photoOf: null };
+      ({ results, photoOf } = await runLookups(requested, { knowledge, now: deps.now }, createCallBudget()));
+    } catch (error) {
+      console.warn(error instanceof OpenAiError ? error.message : '[Ask] The lookup of the question failed');
+      results = [{ kind: 'failed', reason: 'unavailable' }];
+    }
+    return { block: buildDataBlock(results, deps.blockedTerms, deps.now?.()), photoOf };
+  };
+
   return {
     async ask(userId, rawQuestion, emojis = [], history = [], chat = [], people = []) {
       if (!deps.client.configured) throw new UserError(ASK_MESSAGES.unavailable);
@@ -120,7 +155,7 @@ export const createAskService =(deps: AskDeps): AskService => {
         // Answered without the model, so nothing about it can leak
         // The question is not kept either: a later reply would send it to the model
         if (findBlockedTerm(question, deps.blockedTerms)) {
-          return { text: ASK_MESSAGES.unannounced, photo: false, turn: { question: ASK_MESSAGES.unannouncedQuestion, answer: ASK_MESSAGES.unannounced } };
+          return { text: ASK_MESSAGES.unannounced, photo: false, photoOf: null, turn: { question: ASK_MESSAGES.unannouncedQuestion, answer: ASK_MESSAGES.unannounced } };
         }
 
         // A question is never answered unchecked: when the moderation cannot run, the member is told so
@@ -134,9 +169,17 @@ export const createAskService =(deps: AskDeps): AskService => {
           throw providerFailure(error);
         }
 
+        // The router and the reads count under the same cooldown, daily limit and in-flight slot as the question itself
+        const data = await lookupFor(userId, question);
+
         let answer: string;
         try {
-          answer = await deps.client.answer({ instructions: instructionsFor(emojiNames(emojis)), input: composeInput(question, quoted, dice), history, safetyId: deps.safetyIdOf(userId) });
+          answer = await deps.client.answer({
+            instructions: instructionsFor(emojiNames(emojis)),
+            input: composeInput(question, quoted, dice, data.block),
+            history,
+            safetyId: deps.safetyIdOf(userId),
+          });
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);
@@ -145,13 +188,15 @@ export const createAskService =(deps: AskDeps): AskService => {
 
         // The marker is read before the clean-up and never reaches the channel; a blocked term cancels the photo too
         const { text, photo } = extractActions(answer);
-        const cleaned = cleanAnswer(text, { knowledge: deps.knowledge, blockedTerms: deps.blockedTerms });
+        // The links of the data (a form, a photo) are the bot's own, so they are allowed like the ones of the knowledge
+        const cleaned = cleanAnswer(text, { knowledge: data.block ? `${deps.knowledge}\n${data.block}` : deps.knowledge, blockedTerms: deps.blockedTerms });
+        const photoOf = photo ? data.photoOf : null;
         if (cleaned === null) {
           const refused = findBlockedTerm(text, deps.blockedTerms) !== null;
-          const shown = photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo } : { text: ASK_MESSAGES.noAnswer, photo: false };
+          const shown = photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo, photoOf } : { text: ASK_MESSAGES.noAnswer, photo: false, photoOf: null };
           return { ...shown, turn: { question, answer: shown.text } };
         }
-        return { text: expandEmojis(cleaned, emojis), photo, turn: { question, answer: cleaned } };
+        return { text: expandEmojis(cleaned, emojis), photo, photoOf, turn: { question, answer: cleaned } };
       } finally {
         deps.limits.release();
       }
@@ -168,7 +213,13 @@ let service: AskService | null = null;
 export const getAskService = (): AskService => {
   if (service) return service;
 
-  const client = createOpenAiClient({ apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL, baseUrl: URLS.openai });
+  const client = createOpenAiClient({
+    apiKey: env.OPENAI_API_KEY,
+    model: env.OPENAI_MODEL,
+    baseUrl: URLS.openai,
+    routerModel: env.ASK_ROUTER_MODEL,
+    routerMaxOutputTokens: env.ASK_ROUTER_MAX_TOKENS,
+  });
   let knowledge = '';
   let usable = client.configured;
   if (usable) {
@@ -193,6 +244,7 @@ export const getAskService = (): AskService => {
       maxInFlight: 5,
     }),
     safetyIdOf: userId => createHmac('sha256', hmacKey).update(userId).digest('hex').slice(0, 32),
+    data: getKnowledge(),
   });
   return service;
 };

@@ -15,6 +15,7 @@ import { api, verifyApiAccess } from './lib/api';
 import { startWebSync } from './services/webSync';
 import { startPasswordResetSync } from './services/passwordResetSync';
 import { startBirthdayScheduler } from './services/birthdayScheduler';
+import { getKnowledge } from './services/knowledge';
 import { reconcileLeftMembers } from './services/leftMembers';
 import { keepAlive } from './server';
 import { bareMinecraftCommand, startBridge } from './features/minecraft';
@@ -54,6 +55,8 @@ client.once(Events.ClientReady, c => {
   startWebSync(client);
   startPasswordResetSync(client);
   startBirthdayScheduler(client);
+  // The names of the editions and forms, so /ask knows which questions are about them; it never blocks or breaks the start
+  void getKnowledge().warm();
   const web = keepAlive();
   startBridge(web.server, web.app, c);
 

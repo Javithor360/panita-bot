@@ -12,7 +12,7 @@ import { mentionedIds, nameMentions } from '../../features/ask/names';
 import { buildGalleryMessage } from '../../features/gallery/message';
 import { PRE_ACK_REQUEST } from '../../lib/api';
 import { getAskService } from '../../services/ask';
-import { getRandomPhoto } from '../../services/gallery';
+import { getAuthorRandomPhoto, getRandomPhoto } from '../../services/gallery';
 import { findTicketByChannel } from '../../services/tickets';
 
 /**
@@ -33,10 +33,13 @@ const isTicketChannel = async (ctx: CommandContext): Promise<boolean> => {
   }
 };
 
-/** The gallery message with a random photo, or null when there is none or the API fails (the text is sent alone then). */
-const randomPhotoMessage = async (userId: string) => {
+/**
+ * The gallery message with a random photo (of one member when `ign` is given), or null when there is none or the API
+ * fails (the text is sent alone then). The member was already checked for a hidden profile when the data was read.
+ */
+const randomPhotoMessage = async (userId: string, ign: string | null) => {
   try {
-    const message = await buildGalleryMessage(await getRandomPhoto(), userId);
+    const message = await buildGalleryMessage(ign ? await getAuthorRandomPhoto(ign) : await getRandomPhoto(), userId);
     return message.embeds.length > 0 ? message : null;
   } catch (error) {
     console.error('[Ask] Could not get a gallery photo:', error);
@@ -170,8 +173,8 @@ export default defineCommand({
     await Promise.race([answering.catch(() => {}), waitFor(DEFER_AFTER_MS)]);
     if (!settled) await ctx.defer();
 
-    const { text, photo, turn } = await answering;
-    const gallery = photo ? await randomPhotoMessage(ctx.user.id) : null;
+    const { text, photo, photoOf, turn } = await answering;
+    const gallery = photo ? await randomPhotoMessage(ctx.user.id, photoOf) : null;
 
     if (gallery) {
       // The text and the photo go in one message, with the gallery's own buttons (🎲 and 🔗)

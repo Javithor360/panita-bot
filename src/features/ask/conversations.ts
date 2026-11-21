@@ -8,9 +8,9 @@ export interface Turn {
 
 /** How long a conversation can be continued after the last answer, and how many exchanges are remembered. */
 export const CONVERSATION_TTL_MS = 10 * 60_000;
-export const MAX_TURNS = 4;
+export const MAX_TURNS = 6;
 /** An old answer is kept only up to this long, so a long chat never makes a long request. */
-const MAX_REMEMBERED_ANSWER_CHARS = 600;
+const MAX_REMEMBERED_ANSWER_CHARS = 1200;
 
 export interface Conversations {
   /** Remembers the exchanges that lead to the answer with this message id (the last `MAX_TURNS` of them). */

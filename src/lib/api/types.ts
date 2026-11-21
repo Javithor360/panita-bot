@@ -293,3 +293,107 @@ export interface BlacklistMeta extends ListMeta {
   limit: number;
   offset: number;
 }
+
+/** What a hidden profile answers (`GET /v1/bot/players/{ign}` and `.../top-photo`): the name and nothing else. */
+export interface BotPlayerPrivate {
+  status: 'private';
+  ign: string;
+}
+
+export type BotEmblemCategory = 'emblem' | 'title' | 'local_emblem' | 'system';
+
+/** `GET /v1/bot/players/{ign}` for a member who shows their profile. A hidden nationality or orientation is `null`. */
+export interface BotPlayerVisible {
+  status: 'visible';
+  ign: string;
+  joined_at: string;
+  roles: string[];
+  emblem_count: number;
+  title_count: number;
+  /** The first 50 only. */
+  emblems: { name: string; category: BotEmblemCategory; edition: string | null }[];
+  emblems_truncated: boolean;
+  editions: { id: string; name: string }[];
+  photo_counts: { images: number; videos: number };
+  nationality: string | null;
+  orientation: string | null;
+  /** Month and day, never the year. */
+  birthday: { month: number; day: number } | null;
+}
+
+export type BotPlayer = BotPlayerVisible | BotPlayerPrivate;
+
+export interface BotTopPhotoVisible {
+  status: 'visible';
+  ign: string;
+  photo: {
+    id: string;
+    title: string | null;
+    url: string;
+    media_type: string;
+    like_count: number;
+    author_number: number | null;
+    created_at: string;
+    edition: string | null;
+  } | null;
+}
+
+export type BotTopPhoto = BotTopPhotoVisible | BotPlayerPrivate;
+
+/** `GET /v1/bot/editions`: public editions only, newest first. The dates are UTC ISO strings. */
+export interface BotEditionItem {
+  id: string;
+  name: string;
+  started_at: string | null;
+  ended_at: string | null;
+  is_canon: boolean;
+}
+
+/** `GET /v1/bot/editions/{id}`. `404` for a private edition and an unknown one alike. */
+export interface BotEdition extends BotEditionItem {
+  synopsis: string | null;
+  participant_count: number;
+  /** Participants with a hidden profile: counted, never named. */
+  hidden_count: number;
+  /** Up to 200 names. */
+  participants: string[];
+  participants_truncated: boolean;
+  emblem_count: number;
+  emblems: { name: string; category: BotEmblemCategory; holders: number }[];
+}
+
+/** `GET /v1/bot/forms`. Never an answer. */
+export interface BotForm {
+  slug: string;
+  title: string;
+  description: string | null;
+  is_open: boolean;
+  require_login: boolean;
+  question_count: number;
+}
+
+/** `GET /v1/bot/community/panita-picks`: `month` is `yyyy-mm`, `ign` is null when hidden or the account is gone. */
+export interface BotPanitaPick {
+  month: string;
+  ign: string | null;
+  private: boolean;
+}
+
+/** `GET /v1/bot/community/donors` */
+export interface BotDonors {
+  current: { ign: string; role: string }[];
+  /** The top 20 by number of editions with the `Donador` title. */
+  by_edition: { ign: string; editions: number; edition_names: string[] }[];
+  hidden_count: number;
+}
+
+/** What `/ask` reads of an instance of `GET /v1/instances` (the public catalog). */
+export interface InstanceItem {
+  slug: string;
+  name: string;
+  description: string | null;
+  source_type: string;
+  minecraft_version: string | null;
+  loader: string | null;
+  enabled: boolean;
+}

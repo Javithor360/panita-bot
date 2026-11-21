@@ -7,15 +7,35 @@ export type GalleryPhoto = Omit<RandomPhoto, 'date_taken' | 'created_at'> & {
   created_at: Date;
 };
 
+const toGalleryPhoto = (photo: RandomPhoto): GalleryPhoto => ({
+  ...photo,
+  date_taken: photo.date_taken ? new Date(photo.date_taken) : null,
+  created_at: new Date(photo.created_at),
+});
+
 /** A random enabled image from the gallery, or `null` when there are none. */
 export const getRandomPhoto = async (): Promise<GalleryPhoto | null> => {
   try {
-    const photo = await api.get<RandomPhoto>('/v1/photos/random');
-    return {
-      ...photo,
-      date_taken: photo.date_taken ? new Date(photo.date_taken) : null,
-      created_at: new Date(photo.created_at),
-    };
+    return toGalleryPhoto(await api.get<RandomPhoto>('/v1/photos/random'));
+  } catch (error) {
+    if (isApiError(error, 404)) return null;
+    throw error;
+  }
+};
+
+/**
+ * A random photo of one author (the only selector the bot may ask for), or `null` when the name is unknown or the author
+ * has none. It is different on every call, so it is never cached. It knows nothing about hidden profiles: the caller
+ * checks those first.
+ */
+export const getAuthorRandomPhoto = async (ign: string): Promise<GalleryPhoto | null> => {
+  try {
+    const photo = await api.get<RandomPhoto>('/v1/photos/by-author/{ign}/{selector}', {
+      params: { ign, selector: 'random' },
+      timeoutMs: 5_000,
+      idempotent: false,
+    });
+    return toGalleryPhoto(photo);
   } catch (error) {
     if (isApiError(error, 404)) return null;
     throw error;
