@@ -145,7 +145,7 @@ export const stickerLines = (sticker: StickerRow, position: number, total: numbe
   `**${clip(sticker.name, 80)}** (${position}/${total})`,
   ...(sticker.description ? [clip(sticker.description, 200)] : []),
   `Formato: **${sticker.format}** · ID: \`${sticker.id}\``,
-  ...(sticker.tags ? [`Etiquetas: ${clip(sticker.tags, 100)}`] : []),
+  ...(sticker.tags ? [`Emoji: ${clip(sticker.tags, 100)}`] : []),
   ...(sticker.imageUrl ? [] : ['Es un sticker Lottie (una animación en JSON): Discord no da una imagen que mostrar.']),
   ...(sticker.available ? [] : ['No disponible']),
 ];

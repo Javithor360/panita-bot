@@ -52,10 +52,10 @@ const embedOf = (m: ReturnType<typeof message>) => (m.embeds![0] as any).toJSON(
 const fieldValue = (json: any, name: string): string => json.fields.find((f: any) => f.name === name).value;
 const rowOf = (m: ReturnType<typeof message>) => (m.components![0] as any).toJSON().components;
 
-test('the default embed is Noa\'s: the ⚡ header, the creation date, even columns and the flags below', () => {
+test('the default embed is Noa\'s: the creation date, even columns and the flags below', () => {
   const json = embedOf(message('info', data()));
 
-  assert.equal(json.author.name, '⚡ ~ Panitacraft');
+  assert.equal(json.author.name, 'Panitacraft');
   assert.equal(json.author.icon_url, 'https://cdn.example/icon.png');
   assert.equal(json.thumbnail.url, 'https://cdn.example/icon.png');
   assert.match(json.description, /^Creado el <t:\d+:D> \(<t:\d+:R>\)$/);

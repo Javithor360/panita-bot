@@ -184,7 +184,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `ask <prompt>` | Asks the assistant about Panitacraft, or just chats with it. Also by mentioning the bot: `@Panita Bot <prompt>`. See [AI assistant](#ai-assistant-ask). | `pregunta`, `preguntar` |
 | `confirm <code>` | Confirms a sign-in on the website or the launcher with the code the app shows: 4 digits on the website, `XXXX-YYYY-ZZZZ` in the launcher. The reply is private. Slash only. | — |
 | `donate [--simple]` | How to support the server through PayPal. `--simple` sends just the link. | `donar`, `donacion`, `donaciones`, `fund` |
-| `invite` | Invite link to the Discord server. | `invitacion`, `discord` |
+| `invite` | Invite link to the Discord server. | `invitacion`, `invitar`, `discord` |
 | `register [--with_password]` | Activates the member's account: they say whether they play with a premium Minecraft account, then give their IGN in a private form. No password is needed; `with_password` adds or changes an optional one. A member who already has an account is only asked for what is missing (the status), and one who left and came back confirms the IGN they already had. Only the member who ran it can use the buttons. Alt accounts are rejected. | `registrar`, `activar` |
 | `sessions` | Lists the member's open sessions (web and launcher) and closes one or all of them. The reply is private. Slash only. | — |
 | `web` | Link to Panita Web. | `pagina`, `panel` |

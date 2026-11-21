@@ -21,7 +21,7 @@ import {
 } from './serverExtras';
 
 /**
- * Noa's `server` embed (the `⚡ ~ name` header, "Creado el ... (Hace N días)" and the columns written `Label: **value**`),
+ * Noa's `server` embed (the `name` header, "Creado el ... (Hace N días)" and the columns written `Label: **value**`),
  * and the views behind its flags. Built from plain data so it can be tested without Discord.
  */
 
@@ -116,7 +116,7 @@ const field = (name: string, lines: string[], inline = true) => ({ name, value: 
 const header = (data: ServerData, random?: () => number) =>
   new EmbedBuilder()
     .setColor(pastel(random))
-    .setAuthor({ name: clip(`⚡ ~ ${data.name}`, 256), ...(data.iconUrl ? { iconURL: data.iconUrl } : {}) });
+    .setAuthor({ name: clip(data.name, 256), ...(data.iconUrl ? { iconURL: data.iconUrl } : {}) });
 
 const infoEmbed = (data: ServerData, random?: () => number): EmbedBuilder => {
   const { channelCounts: c } = data;

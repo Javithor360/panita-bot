@@ -147,7 +147,7 @@ test('sounds and stickers are one line each', () => {
   assert.equal(soundLine({ name: 'Aplausos', emoji: '👏', volume: 0.5, uploader: 'ana', available: true }), '👏 **Aplausos** · volumen 50% · de ana');
   assert.equal(soundLine({ name: 'x', emoji: null, volume: 1, uploader: null, available: false }), '**x** · volumen 100% · no disponible');
   const pepe = { id: '1', name: 'Pepe', description: 'una rana', imageUrl: 'https://x/1.png', tags: 'rana, meme', format: 'APNG', available: true };
-  assert.deepEqual(stickerLines(pepe, 2, 5), ['**Pepe** (2/5)', 'una rana', 'Formato: **APNG** · ID: `1`', 'Etiquetas: rana, meme']);
+  assert.deepEqual(stickerLines(pepe, 2, 5), ['**Pepe** (2/5)', 'una rana', 'Formato: **APNG** · ID: `1`', 'Emoji: rana, meme']);
   const baile = stickerLines({ ...pepe, description: null, tags: null, imageUrl: null, available: false }, 1, 1);
   assert.match(baile.join('\n'), /Lottie/);
   assert.equal(baile.at(-1), 'No disponible');
