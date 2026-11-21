@@ -27,6 +27,9 @@ describe('lookup gate', () => {
     '¿Cuándo es el cumpleaños de Pepe?',
     '¿Qué instancias hay?',
     '¿Qué sabes de la encuesta?',
+    '¿Qué proyecto viene después?',
+    '¿Hay algún servidor abierto?',
+    '¿Ya anunciaron algo nuevo?',
   ]) {
     it(`lets through: ${question}`, () => assert.equal(needsLookup(question, NONE), true));
   }

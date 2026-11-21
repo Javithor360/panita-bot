@@ -60,7 +60,7 @@ export interface OpenAiClient {
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 1_200;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2_000;
 const DEFAULT_ROUTER_MAX_OUTPUT_TOKENS = 500;
 const MODERATION_MODEL = 'omni-moderation-latest';
 

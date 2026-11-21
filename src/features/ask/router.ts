@@ -14,7 +14,7 @@ Kinds, and the fields each one uses (set every unused field to null):
 - player_top_photo: ign. The most liked photo of a player.
 - player_random_photo: ign. A random photo of one player.
 - edition: name, as the member wrote it. Who took part in an edition, how long it lasted, its dates, description, emblems or how many players it had.
-- editions_list: no field. Which editions exist, the latest one, or a comparison between several editions.
+- editions_list: no field. Which editions exist, the latest, current or next one, whether a project or server is announced, or a comparison between several editions.
 - form: name, as the member wrote it. What a form is about and its link.
 - forms_list: no field. Which forms exist.
 - panita_picks: year (a number; null for the current year). Who was Panita del Mes.

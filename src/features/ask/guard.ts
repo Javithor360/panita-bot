@@ -1,6 +1,6 @@
 import { findBlockedTerm } from './knowledge';
 
-export const MAX_QUESTION_CHARS = 500;
+export const MAX_QUESTION_CHARS = 1000;
 /** Discord rejects messages above 2000 characters. */
 export const MAX_ANSWER_CHARS = 1900;
 
