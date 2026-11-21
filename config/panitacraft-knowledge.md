@@ -15,7 +15,7 @@ Se lee al iniciar el bot; reinícialo después de editarlo.
 - Ahora mismo **no hay ningún servidor de Minecraft activo**.
 - El último proyecto fue **Tezzlar III**, que se jugó en julio de 2026 y ya terminó hace unos meses. Toda su información ya es pública: se puede resumir o explicar con el detalle de Tezzlar III que aparece más abajo.
 - Los comandos `/tezzlar ip` y `/tezzlar resources` siguen mostrando la IP y los mods de Tezzlar III, pero ya no se usan porque el servidor está cerrado.
-- No se sabe nada más sobre servidores futuros. Si alguien pregunta, no hay nada anunciado.
+- Las ediciones o proyectos anunciados (por ejemplo una edición que aún no empieza) salen de los datos en vivo ([DATOS]) y son públicos. De cualquier otro servidor futuro no se sabe nada: si los datos no muestran nada, no hay nada anunciado.
 
 ## Tezzlar III (resumen)
 

@@ -2,9 +2,9 @@
 
 Contexto para el asistente de Panita Bot (`/ask`). Complementa a `panita-bot/config/panitacraft-knowledge.md` (qué es Panitacraft, estado actual, Tezzlar III, reglas, donaciones, comandos): aquí está cómo funcionan las cuentas, las ediciones, la galería, los emblemas, las notificaciones, los formularios, la comunidad y los tickets.
 
-Solo describe **reglas y funciones públicas**. No contiene datos de ningún miembro: el bot no puede consultar perfiles, fotos concretas, rangos ni actividad de nadie. Para eso se usa la web.
+Solo describe **reglas y funciones públicas**. No contiene datos de ningún miembro ni las listas de ediciones, formularios, donadores o Panita del Mes: eso el bot lo consulta en vivo en la base de datos y llega aparte, en un bloque [DATOS], solo cuando la pregunta lo necesita. Lo que no esté en ese bloque, el bot no lo sabe.
 
-Fecha de esta versión: 16 de noviembre de 2026. Si algo cambió después, el staff tiene la información al día.
+Fecha de esta versión: 20 de noviembre de 2026. Si algo cambió después, el staff tiene la información al día.
 
 ## Cuentas: cómo se crean y cómo se entra
 
@@ -29,11 +29,11 @@ Fecha de esta versión: 16 de noviembre de 2026. Si algo cambió después, el st
 ## Ediciones
 
 - Una **edición** es un proyecto o temporada de Panitacraft. Cada foto pertenece a una edición y cada jugador tiene su trayectoria: las ediciones en las que participó, con un texto de historia opcional.
-- Las ediciones públicas, en orden cronológico, son: Survival Comunitario, Panitaskyblock, Tezzlar I, Panitacraft I, Tezzlar II, Panitacraft II, Panitacraft 2.5, AllThePanitas, Panitacraft 2.75, Panitamon y Tezzlar III. También existe la edición Panita Games, sin fechas registradas. Su historia está en la sección “Historia de las ediciones”. De cualquier otra edición o proyecto no hay nada anunciado.
+- Qué ediciones públicas existen, sus fechas, cuánto duró cada una, quién participó, sus emblemas y si hay alguna anunciada que aún no empieza, sale de los datos en vivo ([DATOS]). La historia de las ediciones pasadas está en la sección “Historia de las ediciones”. De una edición que ni esos datos ni este archivo mencionan, no hay información pública.
 - Cada edición tiene nombre, fechas de inicio y fin, sinopsis y un color. El staff las administra.
 - Ser parte de una edición puede venir de tener su rol de Discord: al recibirlo se te agrega a la trayectoria y te llega una notificación (“¡Ya eres parte de …!”).
 - Algunas ediciones son **privadas**: solo las ven las personas autorizadas (lista blanca). Para todos los demás no existen: sus fotos, perfiles y artículos no aparecen. Ni siquiera el staff las ve si no está en la lista. Cuando te dan acceso, te llega una notificación.
-- Ediciones **canon**: las marca el staff y cuentan para los emblemas de veterano (ver Emblemas). Solo cuentan cuando la edición ya terminó. Las diez canon son: Panitaskyblock, Tezzlar I, Panitacraft I, Tezzlar II, Panitacraft II, Panitacraft 2.5, AllThePanitas, Panitacraft 2.75, Panitamon y Tezzlar III. Survival Comunitario no es canon porque tenía una administración externa.
+- Ediciones **canon**: las marca el staff y cuentan para los emblemas de veterano (ver Emblemas). Solo cuentan cuando la edición ya terminó. Cuáles son canon lo dicen los datos en vivo. Survival Comunitario no es canon porque tenía una administración externa.
 
 ## Galería de fotos
 
@@ -129,7 +129,7 @@ Las notificaciones leídas se esconden a las 24 horas y las no leídas se borran
 
 - Nunca se muestran: contraseñas, códigos de inicio de sesión, el nombre ni el id de Discord de nadie en las tarjetas, el año de nacimiento, ni la identidad u orientación mientras esté oculta.
 - Se muestran públicamente: ign, avatar, rangos, emblemas visibles, ediciones públicas, fotos y comentarios.
-- Si alguien pregunta por los datos de una persona, el bot no los tiene: debe remitir a /explore o al staff.
+- Los datos de una persona (perfil, emblemas, fotos, cumpleaños) solo se dicen cuando llegan en [DATOS]; si no llegan, el bot remite a /explore o al staff. De quien oculta su perfil, el bot dice solo que sus opciones de privacidad lo ocultan. Nunca se dice ni se calcula una edad.
 
 ## Historia de las ediciones
 
@@ -151,14 +151,8 @@ Quién lideraba cada edición no está registrado en la web: se pregunta al staf
 
 ## Calendario
 
-Todas las fechas son del servidor, en la zona UTC-6.
+Las fechas de las ediciones (cuándo empezó y terminó cada una, y cuál viene) salen de los datos en vivo ([DATOS]); aquí solo van los avisos que se repiten.
 
-- 2020: Survival Comunitario (abr-may), Panitaskyblock (jun), Tezzlar I (jun-jul), Panitacraft I (jul-ago), Tezzlar II (ago-nov).
-- 2021 a 2022: Panitacraft II (oct 2021 a ene 2022).
-- 2023: Panitacraft 2.5 (jun-nov).
-- 2024 a 2025: AllThePanitas (dic 2024 a feb 2025), Panitacraft 2.75 (ago-nov 2025).
-- 2026: Panitamon (ene-mar), Tezzlar III (jul-ago).
-- No hay servidor activo ni nada anunciado para después.
 - **Cada día 1 de mes**: se elige la Panita del Mes y llega el aviso.
 - **El día de tu cumpleaños** (si lo registraste): el bot te felicita a las 10:00 en el canal general.
 - No hay un aniversario oficial registrado.
@@ -187,7 +181,7 @@ Todas las fechas son del servidor, en la zona UTC-6.
 - **¿Cómo entro a la web?** Activa tu cuenta con `/register`, ve a /login, escribe tu ign y envía el código de 4 dígitos al bot con `/confirm`.
 - **No me llega el código o no puedo entrar.** Comprueba que tu cuenta esté activa con `/register`, que el código tenga menos de 3 minutos y que sea tuyo. Si sigue igual, abre un ticket en el panel de Sitio Web.
 - **Olvidé mi contraseña.** No la necesitas para entrar: usa el código. Si quieres recuperarla, hazlo en Ajustes con “No recuerdo mi contraseña”.
-- **¿Hay servidor de Minecraft abierto?** Ahora no. El último fue Tezzlar III y ya terminó. No hay nada anunciado.
+- **¿Hay servidor de Minecraft abierto?** Ahora no hay un servidor activo; el último fue Tezzlar III y ya terminó. Si hay una edición anunciada que aún no empieza, sale en los datos en vivo.
 - **¿Cómo cambio mi ign?** Si eres autor de confianza, desde la web. Si no, pídelo al staff con un ticket.
 - **¿Por qué no veo una edición?** Puede ser privada: solo la ve quien tenga acceso. Pregunta al staff.
 - **¿Cómo consigo emblemas?** Los de veterano se dan solos por participar en ediciones canon, los de fotos por tener fotos con 10 me gusta, y la nacionalidad y la identidad las eliges tú. El resto los da el staff al terminar proyectos o eventos.
