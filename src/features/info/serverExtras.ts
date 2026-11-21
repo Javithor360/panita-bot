@@ -58,7 +58,11 @@ export interface SoundRow {
 }
 
 export interface StickerRow {
+  id: string;
   name: string;
+  description: string | null;
+  /** The picture, or `null` for a Lottie sticker (its file is a JSON animation). */
+  imageUrl: string | null;
   tags: string | null;
   /** `PNG`, `APNG`, `Lottie` or `GIF`. */
   format: string;
@@ -76,7 +80,6 @@ export interface ServerExtra {
 
 export const EVENTS_PER_PAGE = 8;
 export const SOUNDS_PER_PAGE = 20;
-export const STICKERS_PER_PAGE = 20;
 /** The voice channels, newest and oldest members named in `--activity`. */
 export const ACTIVITY_VOICE_MAX = 10;
 export const ACTIVITY_MEMBERS = 5;
@@ -137,7 +140,12 @@ export const soundLine = (sound: SoundRow): string => {
   return `${emoji}**${clip(sound.name, 40)}** · volumen ${Math.round(sound.volume * 100)}%${owner}${sound.available ? '' : ' · no disponible'}`;
 };
 
-export const stickerLine = (sticker: StickerRow): string => {
-  const tags = sticker.tags ? ` · ${clip(sticker.tags, 40)}` : '';
-  return `**${clip(sticker.name, 40)}** · ${sticker.format}${tags}${sticker.available ? '' : ' · no disponible'}`;
-};
+/** The text under a sticker's picture, one sticker per page. */
+export const stickerLines = (sticker: StickerRow, position: number, total: number): string[] => [
+  `**${clip(sticker.name, 80)}** (${position}/${total})`,
+  ...(sticker.description ? [clip(sticker.description, 200)] : []),
+  `Formato: **${sticker.format}** · ID: \`${sticker.id}\``,
+  ...(sticker.tags ? [`Etiquetas: ${clip(sticker.tags, 100)}`] : []),
+  ...(sticker.imageUrl ? [] : ['Es un sticker Lottie (una animación en JSON): Discord no da una imagen que mostrar.']),
+  ...(sticker.available ? [] : ['No disponible']),
+];
