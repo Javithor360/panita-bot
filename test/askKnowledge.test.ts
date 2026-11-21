@@ -114,9 +114,17 @@ describe('knowledge reads', () => {
     assert.equal(k.known().forms[0].slug, 'survey');
   });
 
-  it('warm never throws when the API is down', async () => {
-    stubFetch(apiError(500, 'internal_error'));
-    await knowledge().warm();
+  it('warm never throws when the API is down, and does not hit it again for a minute', async () => {
+    const calls = stubFetch(apiError(500, 'internal_error'));
+    const k = knowledge();
+    await k.warm();
+    const first = calls.length;
+    await k.warm();
+    await k.warm();
+    assert.equal(calls.length, first);
+    clock += 61_000;
+    await k.warm();
+    assert.ok(calls.length > first);
   });
 });
 

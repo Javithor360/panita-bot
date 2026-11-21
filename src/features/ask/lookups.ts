@@ -14,18 +14,10 @@ const IGN_PATTERN = /^[A-Za-z0-9_.-]{1,32}$/;
 /** What the router may say about a name of an edition or a form: short, and never a path. */
 const MAX_NAME_CHARS = 80;
 
-/** A lookup as the router wrote it, after the shape and the plain values were checked (edition and form names are still free text). */
+/** A lookup as the router wrote it, after the shape and the plain values were checked (edition and form names are still free text: `run.ts` matches them against the lists of the API). */
 export type RequestedLookup =
   | { kind: 'player' | 'player_top_photo' | 'player_random_photo'; ign: string }
   | { kind: 'edition' | 'form'; name: string }
-  | { kind: 'panita_picks'; year: number | null }
-  | { kind: 'editions_list' | 'forms_list' | 'donors' | 'instances' };
-
-/** A lookup that is ready to run: every value was checked, and a name was matched against the lists of the API. */
-export type Lookup =
-  | { kind: 'player' | 'player_top_photo' | 'player_random_photo'; ign: string }
-  | { kind: 'edition'; id: string; name: string }
-  | { kind: 'form'; slug: string }
   | { kind: 'panita_picks'; year: number | null }
   | { kind: 'editions_list' | 'forms_list' | 'donors' | 'instances' };
 

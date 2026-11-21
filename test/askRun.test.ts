@@ -2,7 +2,6 @@ import { apiError, json, silenceApiLogs } from './support';
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import { runLookups } from '../src/features/ask/run';
-import type { Lookup } from '../src/features/ask/lookups';
 import { createCallBudget, createKnowledge } from '../src/services/knowledge';
 
 type Routes = Record<string, () => Response>;
@@ -147,10 +146,5 @@ describe('running the lookups', () => {
     await runLookups(requestedOf({ kind: 'player', ign: 'Ana' }), deps, createCallBudget());
     await runLookups(requestedOf({ kind: 'player', ign: 'ana' }), deps, createCallBudget());
     assert.equal(asked.length, 1);
-  });
-
-  it('is accepted as a Lookup after the names were matched', () => {
-    const lookup: Lookup = { kind: 'edition', id: 'panitamon', name: 'Panitamon' };
-    assert.equal(lookup.kind, 'edition');
   });
 });

@@ -11,6 +11,9 @@ const HOUR_MS = 3_600_000;
 /** A name that does not exist is remembered briefly, so someone who has just joined is found soon. */
 const MISS_MS = 120_000;
 
+/** The names of editions and forms are re-read this often at most when the first read failed or came back empty. */
+const WARM_EVERY_MS = 60_000;
+
 /** How many calls to the API a single question may start. */
 export const MAX_API_CALLS_PER_QUESTION = 3;
 
@@ -55,7 +58,7 @@ export interface Knowledge {
   instances(budget?: CallBudget): Promise<readonly InstanceItem[]>;
   /** The lists read so far (possibly older than an hour), without any call. Empty until the first read. */
   known(): KnownNames;
-  /** Reads the editions and the forms now, so the gate knows their names. Never throws. */
+  /** Reads the editions and the forms so the gate knows their names, at most once a minute (a down API is not hit by every question). Never throws. */
   warm(): Promise<void>;
 }
 
@@ -83,6 +86,7 @@ export const createKnowledge = (now: () => number = Date.now): Knowledge => {
   const donorCache = listCache<BotDonors>(now);
 
   let known: KnownNames = { editions: [], forms: [] };
+  let lastWarm = Number.NEGATIVE_INFINITY;
 
   // A list is a value even when it is empty, so it never takes the "missing" path
   const list = async <V>(cache: MemoCache<readonly V[]>, key: string, path: string, budget?: CallBudget, query?: Record<string, string | number>) =>
@@ -125,6 +129,8 @@ export const createKnowledge = (now: () => number = Date.now): Knowledge => {
     known: () => known,
 
     async warm() {
+      if (now() - lastWarm < WARM_EVERY_MS) return;
+      lastWarm = now();
       await Promise.allSettled([this.editions(), this.forms()]);
     },
   };
