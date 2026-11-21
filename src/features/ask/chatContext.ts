@@ -18,7 +18,7 @@ export const MAX_CHAT_CHARS = 1500;
 export const CHAT_WINDOW_MS = 10 * 60_000;
 
 /** Lowercase without accents, to match the words people use. */
-const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+export const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 const CHAT_REFERENCES: readonly RegExp[] = [
   /\bmensaje\b/,

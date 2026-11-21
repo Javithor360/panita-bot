@@ -156,6 +156,10 @@ export const env = {
   /** Key of the OpenAI project of the bot. Without it `/ask` answers that it is not available. Never logged. */
   OPENAI_API_KEY: optional('OPENAI_API_KEY'),
   OPENAI_MODEL: optional('OPENAI_MODEL') ?? 'gpt-6-luna',
+  /** Model that turns a question of `/ask` into lookups of the API. Without it, the same model as the answers. */
+  ASK_ROUTER_MODEL: optional('ASK_ROUTER_MODEL'),
+  /** Upper bound of the router's answer, hidden reasoning included. */
+  ASK_ROUTER_MAX_TOKENS: integerInRange('ASK_ROUTER_MAX_TOKENS', 500, 50, 4000),
   /** Seconds a member waits between two questions to `/ask`. */
   ASK_COOLDOWN_SECONDS: integerInRange('ASK_COOLDOWN_SECONDS', 20, 0, 3600),
   /** Seconds between two replies in a conversation (a reply to an answer of `/ask`). */

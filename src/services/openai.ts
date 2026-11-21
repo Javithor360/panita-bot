@@ -11,6 +11,10 @@ export interface OpenAiConfig {
   timeoutMs?: number;
   /** Upper bound of the answer, hidden reasoning included. */
   maxOutputTokens?: number;
+  /** The model that turns a question into lookups; the main model when not given. */
+  routerModel?: string;
+  /** Upper bound of the router's answer, hidden reasoning included. */
+  routerMaxOutputTokens?: number;
 }
 
 export type OpenAiFailure = 'not_configured' | 'rate_limited' | 'quota' | 'timeout' | 'unavailable' | 'rejected' | 'empty';
@@ -32,16 +36,32 @@ export interface AnswerRequest {
   safetyId: string;
 }
 
+export interface RouteRequest {
+  instructions: string;
+  /** The text to classify. It always goes in the user role. */
+  input: string;
+  schemaName: string;
+  /** The JSON schema the answer must follow (strict). It describes data: nothing here can be called. */
+  schema: object;
+  safetyId: string;
+}
+
 export interface OpenAiClient {
   /** Whether a key is set at all. */
   readonly configured: boolean;
   answer(request: AnswerRequest): Promise<string>;
+  /**
+   * One call to the router model with a strict JSON schema, and the parsed JSON back (untrusted: the caller checks every
+   * value). It is a plain answer in a fixed shape: no tool, no function and no browsing is enabled.
+   */
+  route(request: RouteRequest): Promise<unknown>;
   /** Whether OpenAI's free moderation flags the text. Throws `OpenAiError` when the check cannot run. */
   flagged(text: string): Promise<boolean>;
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1_200;
+const DEFAULT_ROUTER_MAX_OUTPUT_TOKENS = 500;
 const MODERATION_MODEL = 'omni-moderation-latest';
 
 interface OutputContent {
@@ -133,6 +153,26 @@ export const createOpenAiClient = (config: OpenAiConfig): OpenAiClient => {
       const text = textOf(body);
       if (!text) throw new OpenAiError('empty', body.incomplete_details?.reason ?? body.status);
       return text;
+    },
+
+    async route({ instructions, input, schemaName, schema, safetyId }) {
+      const response = await post('/responses', {
+        model: config.routerModel ?? config.model,
+        instructions,
+        input,
+        text: { format: { type: 'json_schema', name: schemaName, strict: true, schema } },
+        max_output_tokens: config.routerMaxOutputTokens ?? DEFAULT_ROUTER_MAX_OUTPUT_TOKENS,
+        store: false,
+        safety_identifier: safetyId,
+      });
+      const body = (await response.json()) as ResponsesBody;
+      const text = textOf(body);
+      if (!text) throw new OpenAiError('empty', body.incomplete_details?.reason ?? body.status);
+      try {
+        return JSON.parse(text) as unknown;
+      } catch {
+        throw new OpenAiError('empty', 'the router did not answer JSON');
+      }
     },
 
     async flagged(text) {

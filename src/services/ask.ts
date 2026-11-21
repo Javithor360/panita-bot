@@ -168,7 +168,13 @@ let service: AskService | null = null;
 export const getAskService = (): AskService => {
   if (service) return service;
 
-  const client = createOpenAiClient({ apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL, baseUrl: URLS.openai });
+  const client = createOpenAiClient({
+    apiKey: env.OPENAI_API_KEY,
+    model: env.OPENAI_MODEL,
+    baseUrl: URLS.openai,
+    routerModel: env.ASK_ROUTER_MODEL,
+    routerMaxOutputTokens: env.ASK_ROUTER_MAX_TOKENS,
+  });
   let knowledge = '';
   let usable = client.configured;
   if (usable) {
