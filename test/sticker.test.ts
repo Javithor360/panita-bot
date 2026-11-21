@@ -51,13 +51,13 @@ test('a sticker is just the big picture, with a link to open it', () => {
 test('--info adds the ID, format, origin, tags, description and date', () => {
   const embed = json(stickerMessage(input({ info: true })));
   assert.equal(embed.title, 'Pepe');
-  assert.deepEqual(embed.fields.map((f: any) => f.name), ['ID', 'Formato', 'Origen', 'Etiquetas', 'Descripción', 'Creado']);
+  assert.deepEqual(embed.fields.map((f: any) => f.name), ['ID', 'Formato', 'Origen', 'Emoji', 'Descripción', 'Creado']);
   assert.equal(embed.fields.find((f: any) => f.name === 'Origen').value, 'Panitacraft');
   assert.equal(embed.fields.find((f: any) => f.name === 'Formato').value, 'PNG');
 
   const standard = json(stickerMessage(input({ info: true, standard: true, serverName: null, tags: null, description: null })));
   assert.equal(standard.fields.find((f: any) => f.name === 'Origen').value, 'Paquete de Discord');
-  assert.equal(standard.fields.some((f: any) => f.name === 'Etiquetas'), false);
+  assert.equal(standard.fields.some((f: any) => f.name === 'Emoji'), false);
   const other = json(stickerMessage(input({ info: true, serverName: null })));
   assert.equal(other.fields.find((f: any) => f.name === 'Origen').value, 'Otro servidor');
 });

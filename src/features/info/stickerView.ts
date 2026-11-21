@@ -36,7 +36,7 @@ export const stickerMessage = (input: StickerViewInput): BaseMessageOptions => {
       { name: 'ID', value: `\`${input.id}\``, inline: true },
       { name: 'Formato', value: input.format, inline: true },
       { name: 'Origen', value: input.standard ? 'Paquete de Discord' : input.serverName ?? 'Otro servidor', inline: true },
-      ...(input.tags ? [{ name: 'Etiquetas', value: input.tags.slice(0, 256) }] : []),
+      ...(input.tags ? [{ name: 'Emoji', value: input.tags.slice(0, 256) }] : []),
       ...(input.description ? [{ name: 'Descripción', value: input.description.slice(0, 1000) }] : []),
       { name: 'Creado', value: dateWithAge(input.createdAt) },
     );
