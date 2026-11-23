@@ -1,6 +1,6 @@
 {
   "name": "panita-bot",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "Discord bot for Panita Web",
   "license": "MIT",
   "main": "dist/index.js",
