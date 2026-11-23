@@ -96,7 +96,7 @@ export class BridgeServer implements BridgeLink {
   constructor(private readonly options: BridgeServerOptions) {
     this.keyDigest = digest(options.key);
     this.pingMs = options.pingMs ?? 30_000;
-    this.deadAfterMs = options.deadAfterMs ?? 60_000;
+    this.deadAfterMs = options.deadAfterMs ?? 150_000;
     this.helloMs = options.helloMs ?? 10_000;
     this.queryTimeoutMs = options.queryTimeoutMs ?? 5_000;
     this.maxFramesPerSecond = options.maxFramesPerSecond ?? 20;

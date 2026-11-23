@@ -47,7 +47,7 @@ Shared by both sides; the mod plan only points here.
 
 - The mod connects to `wss://<bot host>/bridge` (plain `ws://` only for localhost). Header `Authorization: Bearer <BRIDGE_KEY>`. The bot checks it with a constant-time comparison **before** upgrading and answers `401` otherwise.
 - One mod at a time: a new valid connection closes the old one with code `4000 replaced`.
-- The bot pings every 30 s and drops a connection that does not pong in 60 s. The mod reconnects with backoff (1 s doubling to 60 s, with jitter) and treats 90 s without a ping as dead.
+- The bot pings every 30 s and drops a connection that does not pong in 150 s (a server busy generating terrain can stall for a minute; the mod also sends an unsolicited pong every 30 s). The mod reconnects with backoff (1 s doubling to 60 s, with jitter) and treats 90 s without a ping as dead.
 - Frames are UTF-8 JSON text, at most 16 KiB. Every frame has `type`. Unknown types and unknown fields are ignored (so a later version can add them); a malformed frame closes the connection with `4003`.
 
 ### 4.2 Frames
