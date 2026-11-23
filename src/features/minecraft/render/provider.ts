@@ -1,18 +1,14 @@
-import { loadImage, type Image } from '@napi-rs/canvas';
-import { avatarOf, type AvatarTemplates } from '../inbound';
-import type { ListedPlayer } from '../protocol';
+import type { AvatarTemplates } from '../inbound';
 import { downloadAssets } from './assets';
 import { Cards } from './cards';
 import { Fonts } from './fonts';
+import { createHeadLoader } from './heads';
 import { DirectorySource, ZipSource, type ResourceSource } from './resources';
 
 const FONT_PROBE = 'assets/minecraft/font/default.json';
 const RETRY_DOWNLOAD_MS = 60 * 60 * 1000;
 const PACK_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_PACK_BYTES = 120 * 1024 * 1024;
-const MAX_HEAD_BYTES = 1024 * 1024;
-const HEAD_TTL_MS = 10 * 60 * 1000;
-const NO_UUID = '00000000-0000-0000-0000-000000000000';
 
 export interface CardProviderOptions {
   /** The folder with the game's fonts and ping icons; filled from Mojang when it is empty, or by `npm run assets:minecraft`. */
@@ -47,27 +43,11 @@ export const createCardProvider = (options: CardProviderOptions): (() => Promise
   const now = options.now ?? Date.now;
   const fetchFile = options.fetchFile ?? ((url, max) => downloadFile(url, max));
   const vanilla = new DirectorySource(options.assetsDir);
-  const heads = new Map<string, { at: number; image: Promise<Image | null> }>();
   let failedAt: number | null = null;
   let current: { cards: Cards; at: number } | null = null;
   let building: Promise<Cards | null> | null = null;
 
-  const head = (player: ListedPlayer): Promise<Image | null> => {
-    const url = avatarOf(options.avatars, {
-      uuid: player.uuid ?? NO_UUID,
-      name: player.name,
-      nickname: player.nickname,
-      premium: player.premium ?? false,
-      skin: player.skin ?? null,
-    });
-    const known = heads.get(url);
-    if (known && now() - known.at < HEAD_TTL_MS) return known.image;
-    const image = fetchFile(url, MAX_HEAD_BYTES)
-      .then(data => loadImage(data))
-      .catch(() => null);
-    heads.set(url, { at: now(), image });
-    return image;
-  };
+  const head = createHeadLoader({ avatars: options.avatars, fetchFile, now, logger: options.logger });
 
   const build = async (): Promise<Cards | null> => {
     if (!(await vanilla.read(FONT_PROBE))) {
