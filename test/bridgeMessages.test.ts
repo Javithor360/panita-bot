@@ -263,3 +263,15 @@ test('an afk and a back show the player with their head, in gray', () => {
   assert.equal(afk.color, 0x808080);
   assert.equal(data(render('back', { player: JAVI })).author?.name, 'Javithor360 ya no está AFK');
 });
+
+test('a shared position shows the player with their head and the coordinates', () => {
+  const shared = data(render('coordinates', { player: JAVI, text: 'X: 10 Y: 64 Z: -20 (Overworld)' }));
+  assert.equal(shared.author?.name, 'Javithor360 comparte su ubicación');
+  assert.equal(shared.author?.icon_url, 'https://heads.test/Javithor360');
+  assert.equal(shared.description, 'X: 10 Y: 64 Z: -20 (Overworld)');
+  assert.equal(shared.color, 0x55ffff);
+});
+
+test('posts nothing for a shared position that carries no position', () => {
+  assert.equal(render('coordinates', { player: JAVI }), null);
+});

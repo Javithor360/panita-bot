@@ -58,7 +58,7 @@ Mod to bot:
 |---|---|
 | `hello` | `protocol` (1), `modVersion`, `minecraftVersion`, `startedAt` (ISO), `maxPlayers`, optional `icon` (server icon, base64 PNG), optional `features` (strings, see 4.4). Sent first. |
 | `chat` | `channel` (chat channel id, lowercase), `player`, `text` (at most 256 characters, plain), `emote` (boolean), optional `mentions` (see 4.3). |
-| `event` | `kind` (`join`, `first_join`, `leave`, `death`, `advancement`, `afk`, `back`, `broadcast`, `started`, `stopping`), `player` (not for `broadcast`, `started`, `stopping`), `text` (the game's own English text for `death` and `advancement`, the message for `broadcast`), `key` (the game's translation key, so a later version can translate). |
+| `event` | `kind` (`join`, `first_join`, `leave`, `death`, `advancement`, `afk`, `back`, `coordinates`, `broadcast`, `started`, `stopping`), `player` (not for `broadcast`, `started`, `stopping`), `text` (the game's own English text for `death` and `advancement`, the message for `broadcast`, the position for `coordinates` such as `X: 10 Y: 64 Z: -20 (Overworld)`), `key` (the game's translation key, so a later version can translate). |
 | `reply` | `id`, `ok`; with `ok: true` a `data` object, otherwise `error` (a code). |
 
 `player` is `{ uuid, name, nickname (or null), premium (boolean), skin (optional) }`. `skin` is the hash (64 lowercase hex characters) of the skin the server shows the player with, which is the one SkinsRestorer gave them when they chose one; the mod sends the hash and never an address. The bot validates it and, when it is missing or not a hash, drops it and still accepts the frame. The head is drawn from the skin when there is one, else `premium` selects the head template.
@@ -94,7 +94,7 @@ Close codes: `4000` replaced, `4002` protocol mismatch (the mod then stays disco
 
 Images travel as references, never as bytes, over the same frames; the protocol version stays 1 and every field here is optional and ignored by a side that does not know it. Design and phases: the mod plan `docs/discord-media-plan.md` of the Enriquecraft repository.
 
-**Negotiation.** The mod lists the features it can show in `hello.features` and the bot lists the ones it offers in `welcome.features`. There are two strings. `media`: in `hello` it means the mod can show `media` entries; in `welcome` it means the bot sends them. `media_upload`: only in `welcome`, the bot has the upload endpoint below. The bot sends `media` entries only to a mod that announced `media`; to any other mod it keeps converting attachments to `[adjunto]` in `text`, as in 6.2. The mod offers screenshot sharing only when `welcome.features` has `media_upload`. Unknown strings are ignored on both sides.
+**Negotiation.** The mod lists the features it can show in `hello.features` and the bot lists the ones it offers in `welcome.features`. There are two strings. `media`: in `hello` it means the mod can show `media` entries; in `welcome` it means the bot sends them. `media_upload`: only in `welcome`, the bot has the upload endpoint below. The bot sends `media` entries only to a mod that announced `media`; to any other mod it keeps converting attachments to `[adjunto]` in `text`, as in 6.2. The mod offers screenshot sharing only when `welcome.features` has `media_upload`. `afk` and `coordinates`: only in `welcome`; the bot handles the events of those kinds, and the mod sends them only to a bot that listed them. Unknown strings are ignored on both sides.
 
 **The `media` entry** (bot to mod, in `chat.media`, one to four entries):
 

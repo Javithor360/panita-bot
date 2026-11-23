@@ -254,3 +254,9 @@ test('reads an afk and a back event, which need a player and carry no text', () 
     assert.deepEqual(parse({ type: 'event', kind }), { ok: false, reason: 'bad event' });
   }
 });
+
+test('reads a coordinates event, which needs a player and carries the position as its text', () => {
+  const text = 'X: 10 Y: 64 Z: -20 (Overworld)';
+  assert.deepEqual(parse({ type: 'event', kind: 'coordinates', player, text }), { ok: true, frame: { type: 'event', kind: 'coordinates', player, text } });
+  assert.deepEqual(parse({ type: 'event', kind: 'coordinates', text }), { ok: false, reason: 'bad event' });
+});

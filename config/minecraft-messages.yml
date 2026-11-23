@@ -22,9 +22,10 @@
 #
 # PLACEHOLDERS, written {name}
 #   everywhere:                         {botname} {botavatar} {date} (date and time, shown in each reader's timezone)
-#   join, first_join, leave, afk, back: {displayname} (nickname, or name) {username} {avatar} (the player's head)
+#   join, first_join, leave, afk, back, coordinates: {displayname} (nickname, or name) {username} {avatar} (the player's head)
 #   death:                              the above and {deathmessage}
 #   advancement:                        the above and {achievement}
+#   coordinates:                        the above and {coordinates} (the position, such as X: 10 Y: 64 Z: -20 (Overworld))
 #   broadcast:                          {message}
 #   crashed:                            {guildowner} (mentions the owner of the server; the only mention the bot makes)
 #   {servericon}                        the icon of the Minecraft server; only in icon, thumbnail and image keys
@@ -55,6 +56,11 @@ events:
   back:
     color: "#808080"
     author: "{displayname} ya no está AFK"
+  # A player told everyone where they are with /sharecoordinates. Set it to false to post nothing.
+  coordinates:
+    color: "#55ffff"
+    author: "{displayname} comparte su ubicación"
+    description: "{coordinates}"
   # A message of the server itself, such as /say.
   broadcast:
     color: "#5865f2"

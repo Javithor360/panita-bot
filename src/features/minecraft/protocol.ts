@@ -17,10 +17,12 @@ export const FEATURE_REPLY = 'reply';
 export const FEATURE_MEDIA_UPLOAD = 'media_upload';
 /** The bot handles the `afk` and `back` events; the mod sends them only when the welcome lists this. */
 export const FEATURE_AFK = 'afk';
+/** The bot handles the `coordinates` event (a player told everyone where they are); the mod sends it only when the welcome lists this. */
+export const FEATURE_COORDINATES = 'coordinates';
 /** The mod sends `mentions` with a chat line (the members a player pinged); the bot offers it so the mod knows pings are handled. */
 export const FEATURE_MENTIONS = 'mentions';
 /** What the bot offers in its `welcome`. `media_upload` is added with the upload endpoint. */
-export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA, FEATURE_AFK, FEATURE_MENTIONS];
+export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA, FEATURE_AFK, FEATURE_COORDINATES, FEATURE_MENTIONS];
 
 /** WebSocket close codes of the bridge. */
 export const CLOSE = { replaced: 4000, protocol: 4002, frame: 4003 } as const;
@@ -36,7 +38,7 @@ export interface BridgePlayer {
   skin: string | null;
 }
 
-export const EVENT_KINDS = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back', 'broadcast', 'started', 'stopping'] as const;
+export const EVENT_KINDS = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back', 'coordinates', 'broadcast', 'started', 'stopping'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 export const QUERY_KINDS = ['playerlist', 'tps', 'status', 'playerinfo'] as const;
@@ -78,7 +80,7 @@ export interface EventFrame {
   type: 'event';
   kind: EventKind;
   player?: BridgePlayer;
-  /** The game's own English text for deaths and advancements, the message for a broadcast. */
+  /** The game's own English text for deaths and advancements, the message for a broadcast, the position for coordinates. */
   text?: string;
   /** The game's translation key, so a later version can translate `text`. */
   key?: string;
@@ -353,7 +355,7 @@ const readMentions = (value: unknown): BridgeMention[] => {
   return mentions;
 };
 
-const PLAYER_EVENTS: readonly EventKind[] = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back'];
+const PLAYER_EVENTS: readonly EventKind[] = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back', 'coordinates'];
 
 /** Reads a frame from the mod. A frame of the wrong shape is rejected; one of an unknown type is skipped. */
 export const parseModFrame = (raw: string): Parsed => {
