@@ -17,8 +17,10 @@ export const FEATURE_REPLY = 'reply';
 export const FEATURE_MEDIA_UPLOAD = 'media_upload';
 /** The bot handles the `afk` and `back` events; the mod sends them only when the welcome lists this. */
 export const FEATURE_AFK = 'afk';
+/** The mod sends `mentions` with a chat line (the members a player pinged); the bot offers it so the mod knows pings are handled. */
+export const FEATURE_MENTIONS = 'mentions';
 /** What the bot offers in its `welcome`. `media_upload` is added with the upload endpoint. */
-export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA, FEATURE_AFK];
+export const BOT_FEATURES: readonly string[] = [FEATURE_MEDIA, FEATURE_AFK, FEATURE_MENTIONS];
 
 /** WebSocket close codes of the bridge. */
 export const CLOSE = { replaced: 4000, protocol: 4002, frame: 4003 } as const;
@@ -55,12 +57,21 @@ export interface HelloFrame {
   features: string[];
 }
 
+/** A linked member the player pinged with `@name`: the mod resolves the name from the link list, never from the text. */
+export interface BridgeMention {
+  name: string;
+  /** The Discord id of the member. */
+  discordId: string;
+}
+
 export interface ChatFrame {
   type: 'chat';
   channel: string;
   player: BridgePlayer;
   text: string;
   emote: boolean;
+  /** Only from a mod that was told `FEATURE_MENTIONS` and for a player who may mention; at most `MAX_MENTIONS`. */
+  mentions?: BridgeMention[];
 }
 
 export interface EventFrame {
@@ -320,6 +331,28 @@ export const readPlayer = (value: unknown): BridgePlayer | null => {
   };
 };
 
+/** The most members one line of chat may ping. */
+export const MAX_MENTIONS = 5;
+const SNOWFLAKE = /^[0-9]{17,20}$/;
+
+/**
+ * The members of a chat line's `mentions`, never failing the line: an entry that is not a Minecraft name with a Discord id is left
+ * out (so nobody is pinged for it), as is a repeated one and whatever is past the limit.
+ */
+const readMentions = (value: unknown): BridgeMention[] => {
+  if (!Array.isArray(value)) return [];
+  const mentions: BridgeMention[] = [];
+  for (const entry of value) {
+    if (!isObject(entry) || typeof entry.name !== 'string' || !PLAYER_NAME.test(entry.name)) continue;
+    if (typeof entry.discordId !== 'string' || !SNOWFLAKE.test(entry.discordId)) continue;
+    const { name, discordId } = entry;
+    if (mentions.some(known => known.discordId === discordId || known.name.toLowerCase() === name.toLowerCase())) continue;
+    mentions.push({ name, discordId });
+    if (mentions.length === MAX_MENTIONS) break;
+  }
+  return mentions;
+};
+
 const PLAYER_EVENTS: readonly EventKind[] = ['join', 'first_join', 'leave', 'death', 'advancement', 'afk', 'back'];
 
 /** Reads a frame from the mod. A frame of the wrong shape is rejected; one of an unknown type is skipped. */
@@ -348,7 +381,8 @@ export const parseModFrame = (raw: string): Parsed => {
       if (!player || typeof channel !== 'string' || !CHANNEL.test(channel) || !text(line, MAX_CHAT_LENGTH, 1) || typeof emote !== 'boolean') {
         return { ok: false, reason: 'bad chat' };
       }
-      return { ok: true, frame: { type: 'chat', channel, player, text: line, emote } };
+      const mentions = readMentions(value.mentions);
+      return { ok: true, frame: { type: 'chat', channel, player, text: line, emote, ...(mentions.length > 0 ? { mentions } : {}) } };
     }
     case 'event': {
       const { kind, text: line, key } = value;

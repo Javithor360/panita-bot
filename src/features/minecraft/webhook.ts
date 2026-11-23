@@ -5,7 +5,8 @@ export interface HookMessage {
   content: string;
   username: string;
   avatarURL: string;
-  allowedMentions: { parse: [] };
+  /** Nobody is pinged unless `users` names them. */
+  allowedMentions: { parse: []; users?: string[] };
 }
 
 /** A file posted with a message, kept in memory only. */
@@ -42,6 +43,8 @@ export interface PostedMessage {
   username: string;
   avatarUrl: string;
   content: string;
+  /** The Discord ids the content mentions and that may be notified; nobody else is, whatever the content says. */
+  mentionUsers?: readonly string[];
 }
 
 const MAX_CONTENT = 2000;
@@ -57,10 +60,18 @@ export const safeUsername = (name: string) =>
     )
     .slice(0, 80);
 
+/** What a webhook sends for a message: nobody is mentioned, except the members the message names as `mentionUsers`. */
+const payloadOf = (message: PostedMessage): HookMessage => ({
+  content: message.content.slice(0, MAX_CONTENT),
+  username: safeUsername(message.username),
+  avatarURL: message.avatarUrl,
+  allowedMentions: message.mentionUsers?.length ? { parse: [], users: [...message.mentionUsers] } : { parse: [] },
+});
+
 /**
  * Posts players' messages to a channel with their own name and head, which only a webhook can do. The bot makes its own webhook
  * in each channel the first time it is needed and finds it again afterwards, so nobody has to copy an address around. Nobody
- * is ever mentioned, whatever the text says.
+ * is mentioned, whatever the text says, except the members a message names in `mentionUsers`.
  */
 export class WebhookPoster {
   private readonly hooks = new Map<string, Promise<Hook | null>>();
@@ -72,23 +83,13 @@ export class WebhookPoster {
   ) {}
 
   async post(channelId: string, message: PostedMessage): Promise<void> {
-    const payload: HookMessage = {
-      content: message.content.slice(0, MAX_CONTENT),
-      username: safeUsername(message.username),
-      avatarURL: message.avatarUrl,
-      allowedMentions: { parse: [] },
-    };
+    const payload = payloadOf(message);
     await this.withHook(channelId, hook => hook.send(payload));
   }
 
   /** Posts a message with a file under a player's name and head; null when it could not be posted. */
   async postFile(channelId: string, message: PostedMessage, file: HookFile): Promise<PostedFile | null> {
-    const payload: HookMessage = {
-      content: message.content.slice(0, MAX_CONTENT),
-      username: safeUsername(message.username),
-      avatarURL: message.avatarUrl,
-      allowedMentions: { parse: [] },
-    };
+    const payload = payloadOf(message);
     return this.withHook(channelId, hook => {
       if (!hook.sendFile) throw new Error('this webhook cannot post files');
       return hook.sendFile(payload, file);

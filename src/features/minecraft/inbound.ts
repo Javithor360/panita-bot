@@ -1,5 +1,6 @@
 import { avatarFromTemplate } from '../../lib/minecraft';
 import type { ChannelMap } from './channels';
+import { mentionsIn } from './mentions';
 import type { EventName, MessageConfig } from './messageConfig';
 import type { BridgePlayer, ChatFrame, EventFrame, ModFrame } from './protocol';
 import { displayNameOf, emoteNameOf } from './render';
@@ -44,10 +45,13 @@ export const createInbound = (deps: InboundDeps) => {
   const chat = async (frame: ChatFrame) => {
     const channelId = deps.channels.discordIdOf(frame.channel);
     if (!channelId) return;
+    // The mod lists members only for a player who may mention; their `@name` becomes a mention that notifies exactly them
+    const { text, users } = mentionsIn(frame.text, frame.mentions ?? []);
     await deps.webhooks.post(channelId, {
       username: frame.emote ? emoteNameOf(deps.messages, frame.player) : displayNameOf(frame.player),
       avatarUrl: avatarOf(deps.avatars, frame.player),
-      content: frame.emote ? emoteText(frame.text) : frame.text,
+      content: frame.emote ? emoteText(text) : text,
+      ...(users.length > 0 ? { mentionUsers: users } : {}),
     });
   };
 

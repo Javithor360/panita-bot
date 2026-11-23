@@ -57,7 +57,7 @@ Mod to bot:
 | `type` | Fields |
 |---|---|
 | `hello` | `protocol` (1), `modVersion`, `minecraftVersion`, `startedAt` (ISO), `maxPlayers`, optional `icon` (server icon, base64 PNG), optional `features` (strings, see 4.4). Sent first. |
-| `chat` | `channel` (chat channel id, lowercase), `player`, `text` (at most 256 characters, plain), `emote` (boolean). |
+| `chat` | `channel` (chat channel id, lowercase), `player`, `text` (at most 256 characters, plain), `emote` (boolean), optional `mentions` (see 4.3). |
 | `event` | `kind` (`join`, `first_join`, `leave`, `death`, `advancement`, `afk`, `back`, `broadcast`, `started`, `stopping`), `player` (not for `broadcast`, `started`, `stopping`), `text` (the game's own English text for `death` and `advancement`, the message for `broadcast`), `key` (the game's translation key, so a later version can translate). |
 | `reply` | `id`, `ok`; with `ok: true` a `data` object, otherwise `error` (a code). |
 
@@ -83,8 +83,10 @@ Close codes: `4000` replaced, `4002` protocol mismatch (the mod then stays disco
 ### 4.3 Delivery rules
 
 - Best effort, at most once, no acknowledgements. A game line is not replayed by the bot; the mod keeps at most 100 frames for at most 60 s while it reconnects, then drops them. Discord messages are never buffered: while the mod is away they are not delivered.
-- Mentions are never live in either direction (`allowedMentions: { parse: [] }` on Discord; the mod treats Discord text as plain text).
+- Mentions are never live by default, in either direction (`allowedMentions: { parse: [] }` on Discord; the mod treats Discord text as plain text). The one exception is the optional feature `mentions`, below.
 - Limits: the bot accepts at most 20 frames per second from the mod; Discord to game is limited to 5 messages per 10 s per member.
+
+**Mentions (optional feature `mentions`, added 2026-11-23).** The bot lists `mentions` in `welcome.features`; the mod sends the field below only to a bot that did. A Minecraft player who holds the permission `enriquecraft.discord.mention` can ping a linked member by writing `@<Minecraft name>`. The mod resolves the name from the link list (never a role, `@everyone`, or an account the list does not hold), keeps the text as written and adds `mentions: [{ name, discordId }]` to the `chat` frame, at most 5 entries and each member once; a player without the permission, or a bot that did not offer the feature, gets the plain line. The bot replaces each `@name` of the text with `<@discordId>` (ignoring case; not inside a longer word or name, and not after a `@` or a letter, as in an address), posts the message with `allowedMentions: { parse: [], users: [...] }` naming exactly the ids it replaced, and leaves every other `@` as plain text. An entry that is not a Minecraft name with a Discord id of 17 to 20 digits is dropped, which never fails the line.
 
 **Replies (optional feature `reply`).** The mod lists `reply` in `hello.features` when it shows what a reply answers. For a Discord message that replies to another, the bot then adds `reply: { author }` to the chat frame: the name of whoever wrote the answered message (their nickname in the server, the name of the webhook when it was a player of the game, or the bot's own name; at most 80 characters). What the answered message said is not sent, so a reply to a message that is only an embed or an attachment works too. A message that cannot be fetched adds no `reply`. The mod shows a line before the message saying `(responde a <name>)`; a `reply` that is not that shape is left out and the message is still shown.
 
