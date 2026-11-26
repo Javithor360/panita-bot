@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js';
 import { env } from '../config/env';
-import { buildGreeting, isGreetingOf, type GreetingMessage, type PostedMessage } from '../features/birthdays/greeting';
+import { buildGreeting, searchGreeting, type GreetingMessage } from '../features/birthdays/greeting';
 import { isDue, localDate, type GreetingSchedule } from '../features/birthdays/time';
 import type { BirthdayMember } from '../lib/api/types';
 import { listBirthdays } from './birthdays';
@@ -12,7 +12,8 @@ import { listBirthdays } from './birthdays';
  *
  * The day is closed only after the greeting was posted, or when nobody has a birthday. A failure of the API or of
  * Discord leaves it open, so the next tick tries again. The bot keeps no state of its own: the last greeted day lives in
- * memory, and after a restart the channel's recent messages tell whether today's greeting was already posted.
+ * memory, and after a restart the channel's messages since the start of the day tell whether today's greeting was
+ * already posted.
  */
 
 const TICK_INTERVAL_MS = 60_000;
@@ -109,11 +110,25 @@ export const startBirthdayScheduler = (client: Client) => {
       const botId = client.user?.id;
       if (!botId) throw new Error('The bot user is not ready');
       const channel = await fetchChannel();
-      const recent = await channel.messages.fetch({ limit: 100 });
-      return recent.some(message => {
-        const posted: PostedMessage = { authorId: message.author.id, content: message.content, createdAt: message.createdAt };
-        return isGreetingOf(posted, botId, date, env.BIRTHDAY_UTC_OFFSET_HOURS);
-      });
+      const search = await searchGreeting(
+        async (before, limit) => {
+          const page = await channel.messages.fetch({ limit, ...(before ? { before } : {}) });
+          return [...page.values()].map(message => ({
+            id: message.id,
+            authorId: message.author.id,
+            content: message.content,
+            createdAt: message.createdAt,
+          }));
+        },
+        botId,
+        date,
+        env.BIRTHDAY_UTC_OFFSET_HOURS,
+      );
+      if (!search.complete) {
+        // Too much has been said since the day began to tell; a double greeting is worse than a missing one
+        console.warn(`[Birthdays] Could not read back to the start of ${date}; assuming the greeting was posted.`);
+      }
+      return search.greeted || !search.complete;
     },
     async post(message) {
       await (await fetchChannel()).send(message);

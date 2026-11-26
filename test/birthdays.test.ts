@@ -1,7 +1,7 @@
 import './support';
 import { mock, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGreeting, isGreetingOf } from '../src/features/birthdays/greeting';
+import { buildGreeting, isGreetingOf, searchGreeting, type HistoryMessage } from '../src/features/birthdays/greeting';
 import { isDue, localDate } from '../src/features/birthdays/time';
 import type { BirthdayMember } from '../src/lib/api/types';
 import { listBirthdays } from '../src/services/birthdays';
@@ -73,6 +73,53 @@ test('isGreetingOf: only the bot, only its greeting, only that local day', () =>
   assert.equal(isGreetingOf({ ...posted, authorId: 'someone' }, 'bot', '2026-10-16', -6), false);
   assert.equal(isGreetingOf({ ...posted, content: 'hola' }, 'bot', '2026-10-16', -6), false);
   assert.equal(isGreetingOf({ ...posted, createdAt: at('2026-10-15T16:05:00Z') }, 'bot', '2026-10-16', -6), false);
+});
+
+/** A channel of `total` messages, newest first, one every minute back from 20:00 UTC; the greeting sits at `greetingAt` (0 = newest). */
+const channel = (total: number, greetingAt: number | null, greeting = buildGreeting([member('1')])!.content) => {
+  const newest = at('2026-10-16T20:00:00Z').getTime();
+  const messages: HistoryMessage[] = Array.from({ length: total }, (_, index) => ({
+    id: String(total - index),
+    authorId: index === greetingAt ? 'bot' : 'someone',
+    content: index === greetingAt ? greeting : 'hola',
+    createdAt: new Date(newest - index * 60_000),
+  }));
+  const pages: number[] = [];
+  const fetchPage = async (before: string | undefined, limit: number) => {
+    const start = before === undefined ? 0 : messages.findIndex(message => message.id === before) + 1;
+    pages.push(start);
+    return messages.slice(start, start + limit);
+  };
+  return { fetchPage, pages };
+};
+
+test('searchGreeting: finds a greeting that a busy channel pushed far past the last 100 messages', async () => {
+  const { fetchPage, pages } = channel(350, 240);
+  assert.deepEqual(await searchGreeting(fetchPage, 'bot', '2026-10-16', -6), { greeted: true, complete: true });
+  assert.deepEqual(pages, [0, 100, 200]);
+});
+
+test('searchGreeting: stops once the history is older than the day, so it is certain nobody greeted', async () => {
+  // 1500 minutes of messages reach back to the previous local day
+  const { fetchPage, pages } = channel(1500, null);
+  assert.deepEqual(await searchGreeting(fetchPage, 'bot', '2026-10-16', -6), { greeted: false, complete: true });
+  assert.ok(pages.length < 15, 'it should not read the whole channel');
+});
+
+test('searchGreeting: a short channel is read to its start', async () => {
+  const { fetchPage } = channel(30, null);
+  assert.deepEqual(await searchGreeting(fetchPage, 'bot', '2026-10-16', -6), { greeted: false, complete: true });
+});
+
+test('searchGreeting: gives up honestly when the page limit is reached before the start of the day', async () => {
+  const { fetchPage, pages } = channel(500, null);
+  assert.deepEqual(await searchGreeting(fetchPage, 'bot', '2026-10-16', -6, 3), { greeted: false, complete: false });
+  assert.equal(pages.length, 3);
+});
+
+test('searchGreeting: a greeting of another day does not count', async () => {
+  const { fetchPage } = channel(10, 2);
+  assert.deepEqual(await searchGreeting(fetchPage, 'bot', '2026-10-17', -6), { greeted: false, complete: true });
 });
 
 test('listBirthdays: asks for the day and returns the members the API lists', async () => {
