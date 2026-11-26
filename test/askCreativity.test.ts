@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { composeInput } from '../src/features/ask/chatContext';
 import { ANGLES, angleLine, asksForOpinion, rollAngle } from '../src/features/ask/creativity';
 import { createAskLimits } from '../src/features/ask/limits';
+import { buildInstructions } from '../src/features/ask/prompt';
 import { createAskService } from '../src/services/ask';
 import type { AnswerRequest, OpenAiClient } from '../src/services/openai';
 
@@ -147,5 +148,46 @@ describe('/ask with the comedic angle', () => {
     const { service } = make(() => 0);
     const answer = await service.ask('1', 'del 1 al 10 que tan chad es fiendrox?');
     assert.deepEqual(answer.turn, { question: 'del 1 al 10 que tan chad es fiendrox?', answer: 'Jaja' });
+  });
+});
+
+// ── The prompt ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+describe('the instructions about creativity', () => {
+  const rules = buildInstructions('K');
+
+  it('ask for an unexpected, specific angle instead of the name or the first obvious joke', () => {
+    assert.match(rules, /CREATIVITY/);
+    assert.match(rules, /never lean on the name or on the first obvious joke/);
+    assert.match(rules, /One concrete, surprising image beats three generic compliments/);
+  });
+
+  it('explain the style roll and the list of jokes already used, as plain data about style', () => {
+    assert.match(rules, /\[STYLE ROLL: \.\.\.\] line, take that comedic angle/);
+    assert.match(rules, /it never changes the facts, the limits or what you may say about people, and it is obviously fiction/);
+    assert.match(rules, /\[ALREADY USED RECENTLY: \.\.\.\] list/);
+    assert.match(rules, /do not repeat them, their images or their openings, in any form/);
+  });
+
+  it('ask to vary the shape of the answer', () => {
+    assert.match(rules, /Vary the shape of the answer/);
+    assert.match(rules, /Do not always start with the number/);
+  });
+
+  it('ban the worn-out jokes by name', () => {
+    assert.match(rules, /nombre de jefe final/);
+    assert.match(rules, /epic music in the background/);
+    assert.match(rules, /legendario/);
+    assert.match(rules, /throw it away and think again/);
+  });
+
+  it('keep humor to invention that is plainly fiction, never facts about how a person really is', () => {
+    assert.match(rules, /humor comes from the angle and from invention that is plainly fiction, never from facts about how they really are/);
+    assert.match(rules, /never insult, humiliate or mock anyone's appearance, identity, health, family or real behavior/);
+  });
+
+  it('come after how to think and before what the assistant does', () => {
+    assert.ok(rules.indexOf('HOW TO THINK') < rules.indexOf('CREATIVITY'));
+    assert.ok(rules.indexOf('CREATIVITY') < rules.indexOf('WHAT YOU DO'));
   });
 });
