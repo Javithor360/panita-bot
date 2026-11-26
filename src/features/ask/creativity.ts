@@ -72,3 +72,51 @@ export const angleLine = (angle: string | null): string | null =>
   angle
     ? `[STYLE ROLL: for this answer take this comedic angle: ${angle}. It is only the style, and it is obviously fiction: the facts, the limits and what you may say about people stay exactly the same]`
     : null;
+
+/** The last jokes of the assistant, so the next answer does not repeat them (for every member, not only for one talk). */
+export interface RecentJokes {
+  /** Keeps the opening of an answer. */
+  remember(answer: string): void;
+  /** The openings still remembered, newest first. */
+  list(): string[];
+}
+
+/** How many openings are remembered, how long one lasts, and how long each is. */
+export const RECENT_JOKES = 8;
+export const RECENT_JOKES_TTL_MS = 60 * 60_000;
+export const OPENING_CHARS = 120;
+
+/** The first sentence of an answer: no emoji codes of the server, one line, clipped. */
+export const openingOf = (answer: string): string => {
+  const plain = answer.replace(/:[A-Za-z0-9_]+:/g, '').replace(/\s+/g, ' ').trim();
+  const first = plain.split(/(?<=[.!?…])\s/)[0] ?? '';
+  return first.length > OPENING_CHARS ? `${first.slice(0, OPENING_CHARS - 1).trimEnd()}…` : first;
+};
+
+/** In memory only, like the conversations: a restart forgets it. */
+export const createRecentJokes = (max = RECENT_JOKES, ttlMs = RECENT_JOKES_TTL_MS, now: () => number = Date.now): RecentJokes => {
+  let entries: Array<{ text: string; at: number }> = [];
+  const fresh = () => {
+    const limit = now() - ttlMs;
+    entries = entries.filter(entry => entry.at > limit);
+  };
+
+  return {
+    remember(answer) {
+      const text = openingOf(answer);
+      if (!text) return;
+      fresh();
+      entries = [{ text, at: now() }, ...entries.filter(entry => entry.text !== text)].slice(0, max);
+    },
+    list() {
+      fresh();
+      return entries.map(entry => entry.text);
+    },
+  };
+};
+
+/** What is told to the model about the jokes it already made, or `null` when there are none. */
+export const avoidLine = (openings: readonly string[]): string | null =>
+  openings.length === 0
+    ? null
+    : `[ALREADY USED RECENTLY: do not repeat these jokes, images or openings in any form, and find something different: ${openings.map(opening => `"${opening}"`).join(' | ')}]`;

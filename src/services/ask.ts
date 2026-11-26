@@ -5,7 +5,7 @@ import { UserError } from '../core/errors';
 import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '../features/ask/guard';
 import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emojis';
 import { cleanChat, composeInput, memberLine, todayLine, type ChatLine } from '../features/ask/chatContext';
-import { angleLine, rollAngle } from '../features/ask/creativity';
+import { angleLine, avoidLine, createRecentJokes, rollAngle, type RecentJokes } from '../features/ask/creativity';
 import type { Turn } from '../features/ask/conversations';
 import { rollPerson } from '../features/ask/pick';
 import { buildDataBlock, type LookupResult } from '../features/ask/data';
@@ -51,6 +51,8 @@ export interface AskDeps {
   data?: Knowledge;
   /** The clock of the durations written in the data. */
   now?: () => Date;
+  /** The openings of the latest jokes, to avoid repeating them; one per service when not given. */
+  recentJokes?: RecentJokes;
   /** How strict the moderation of what people write is (see `features/ask/moderation`); `severe` when not given. */
   moderation?: ModerationMode;
 }
@@ -120,6 +122,7 @@ const flaggedEachWithRetry = async (client: OpenAiClient, texts: readonly string
 };
 
 export const createAskService =(deps: AskDeps): AskService => {
+  const recentJokes = deps.recentJokes ?? createRecentJokes();
   // The instructions only change when the server's emojis do, so they are built once for each set of names
   let built = { key: '', instructions: buildInstructions(deps.knowledge) };
   const instructionsFor = (names: readonly string[]): string => {
@@ -208,7 +211,7 @@ export const createAskService =(deps: AskDeps): AskService => {
           answer = await deps.client.answer({
             instructions: instructionsFor(emojiNames(emojis)),
             // The date lets it say whether something already opened; the name lets it talk to the member, not about a stranger
-            input: composeInput(question, quoted, dice, data.block, [todayLine(deps.now?.() ?? new Date(), env.BIRTHDAY_UTC_OFFSET_HOURS), memberLine(asker, deps.blockedTerms)], [angleLine(angle)]),
+            input: composeInput(question, quoted, dice, data.block, [todayLine(deps.now?.() ?? new Date(), env.BIRTHDAY_UTC_OFFSET_HOURS), memberLine(asker, deps.blockedTerms)], [angleLine(angle), angle ? avoidLine(recentJokes.list()) : null]),
             history,
             safetyId: deps.safetyIdOf(userId),
           });
@@ -228,6 +231,8 @@ export const createAskService =(deps: AskDeps): AskService => {
           const shown = photo && !refused ? { text: ASK_MESSAGES.photoOnly, photo, photoOf } : { text: ASK_MESSAGES.noAnswer, photo: false, photoOf: null };
           return { ...shown, turn: { question, answer: shown.text } };
         }
+        // The jokes of an opinion are remembered, so the next one does not repeat them
+        if (angle) recentJokes.remember(cleaned);
         return { text: expandEmojis(cleaned, emojis), photo, photoOf, turn: { question, answer: cleaned } };
       } finally {
         deps.limits.release();
