@@ -39,6 +39,8 @@ src/
   lib/api/             cliente de la API de Panita (client, errors, types, startup)
   data/                contenido estático (Tezzlar, minieventos, recetas, encantamientos, comida, comandos del server)
   features/ask/        asistente `/ask`: prompt (reglas), guard (limpieza de pregunta y respuesta y marcador de foto), limits, conversations (memoria de las últimas respuestas para seguir la charla), chatContext (mensajes recientes del canal como contexto), pick (sorteo de una persona para "tu favorito"), emojis (emojis del servidor), names (menciones como nombres), knowledge (lee `config/panitacraft-knowledge.md` y `config/panitacraft-data.md`), tezzlarKnowledge (arma el detalle de Tezzlar III desde `data/`), mention (`@bot ask`), y los datos en vivo: gate (¿la pregunta puede necesitar datos? sin acierto no hay router ni API), router (una llamada con esquema JSON estricto que devuelve hasta 3 lookups), lookups (tipos, validación de valores y coincidencia de ediciones y formularios con las listas de la API), run (los ejecuta en paralelo, máximo 3 llamadas a la API por pregunta) y data (el bloque `[DATOS]` con duraciones, conteos y meses ya calculados y los textos limpios); la llamada a OpenAI está en `services/openai.ts` (sin tools ni function calling: `route()` solo pide un JSON de forma fija), las lecturas de la API en `services/knowledge.ts` (cachés de una hora en `lib/memoCache.ts`) y el flujo en `services/ask.ts`. **Reglas de privacidad**: `status: "private"` se responde solo como "sus opciones de privacidad ocultan su perfil" (fotos incluidas); una edición que no está en `/v1/bot/editions` o da `404` recibe una sola respuesta neutra, nunca "confidencial"; lo que viene `null` (nacionalidad, orientación, cumpleaños) no se menciona; el cumpleaños es solo mes y día, nunca el año ni una edad; `hidden_count` solo se cuenta; nunca se pide ni se repite un id o nombre de Discord
+  features/enriquecraft/ el comando `/enriquecraft` (`info`, `rules`, `pranks`, `features`, `commands`, `join`): `look` (color, autor, citas y flechas compartidas), un archivo por subcomando con su vista pura (datos → embed) y `run`; el texto está **solo** en `data/enriquecraft.ts`
+  assets/enriquecraft/ imágenes que el bot adjunta (`perfil.png`, `login.gif`, `interchat.png`); se envían como archivos (`attachment://`), nunca como enlaces de Discord, que caducan
   features/tickets/    sistema de tickets dividido: permissions, embeds, panel, components, context
   features/minecraft/  puente con el servidor de Minecraft: protocol, link, server (WebSocket), inbound, outbound, webhook, messageConfig (lee `config/minecraft-messages.yml`), template, render, announcer, crashWatch, roles, sync, directory, queries, embeds, discord (los únicos adaptadores de discord.js)
   features/moderation/ comandos de moderación: messages (voz y embeds), checks (jerarquía), duration, autoSanction, recent (qué hizo el bot), modlog (canal de registro), channels, actions (llamadas compartidas a Discord)
@@ -160,6 +162,15 @@ export default defineCommand({
   },
 });
 ```
+
+## Formato de `/enriquecraft` (`src/data/enriquecraft.ts` y `src/features/enriquecraft/`)
+Sigue el mismo estilo que Tezzlar para que los embeds se vean iguales:
+1. **El texto vive solo en `data/enriquecraft.ts`** (reglas, niveles de pranks, características, comandos, pasos para entrar); cambiar una regla es cambiar texto, no código. La IP, la versión y los enlaces salen de `SERVER` y `URLS` en `config/constants.ts`.
+2. **Títulos de campo en mayúscula con su emoji** (al final en las secciones: `PROPÓSITO 🎯`; al inicio, la viñeta `▫️` en cada regla, `🫟` en cada nivel de prank y `⚠️` en cada aclaración). Los emojis son Unicode estándar (`⚖️ 📜 🤡 📌 ▫️ 🫟 ⚠️`), no emojis personalizados.
+3. **Citas y flechas:** el valor de un campo empieza con `>>> ` (`quote`) y cada ítem lleva su título en negrita con flecha (`**➔ Título**`, `arrow`). Los enlaces dentro de un embed van como `[texto](url)`, sin `<>`.
+4. **Una sola palabra para los niveles:** "nivel" (Mimo es el nivel cero y no permite ninguna broma ni tiene indicador Extremo); "indicador" solo para Extremo.
+5. **Cada vista cabe en los límites de Discord** (descripción 4096, campo 1024, embed 6000): lo comprueba `test/enriquecraft.test.ts`. Una imagen se adjunta con `imageOf` y se muestra con `attachment://nombre`.
+6. Las opciones `regla`, `nivel` y `caracteristica` son listas de opciones sacadas de los mismos datos; al añadir una regla o una característica no hay que tocar el comando.
 
 ## Formato de Tezzlar Days (`src/data/tezzlar.ts`)
 Al momento de agregar información para los días de Tezzlar en el archivo `tezzlar.ts`, se DEBEN seguir estrictamente las siguientes reglas de formato para mantener una estética consistente en los Embeds de Discord:
