@@ -5,6 +5,7 @@ import { pastel } from './palette';
 import { activityText, statusColor, statusText, type PresenceInfo } from './presence';
 import { discordTimestamp } from '../../lib/format';
 import { clip } from '../moderation/messages';
+import { viewMenu, type ViewOption } from './viewMenu';
 import { cosmeticsLines, permissionLines, profileFooter, voiceLines, type CosmeticsInput, type PermissionsInput, type VoiceInfo } from './userExtras';
 
 /**
@@ -48,6 +49,17 @@ export interface UserViewMember {
 
 /** What `user` shows: the profile, or one of its flags. */
 export type UserView = 'profile' | 'badges' | 'cosmetics' | 'permissions';
+
+/** The options of the menu of `user`: the profile, then every flag. */
+export const USER_VIEW_OPTIONS: ReadonlyArray<ViewOption<UserView>> = [
+  { value: 'profile', label: 'Perfil', description: 'La cuenta, cuándo entró, sus roles y su estado' },
+  { value: 'badges', label: 'Insignias', description: 'Las insignias de Discord' },
+  { value: 'cosmetics', label: 'Cosméticos', description: 'La decoración, la placa de nombre y la etiqueta de servidor' },
+  { value: 'permissions', label: 'Permisos', description: 'Lo que puede hacer en este canal' },
+];
+
+/** The menu under every view of `user`; the view on screen is marked. */
+export const userMenu = (customId: string, view: UserView) => viewMenu(customId, USER_VIEW_OPTIONS, view, 'Elige qué ver de esta persona');
 
 export interface UserViewInput {
   user: UserViewUser;

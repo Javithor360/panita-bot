@@ -146,6 +146,7 @@ Panitacraft nació entre amigos durante la pandemia, en 2020, y creció edición
 - **Panitacraft 2.75** (16 de agosto al 14 de noviembre de 2025): SMP semi-vanilla de aventura indefinida con una oleada de jugadores nuevos, eventos comunitarios, economía y un gran casino público con minijuegos. La Invasión del End puso a los Enderman al control del Overworld y el Nether; los jugadores consiguieron una armadura nueva y derrotaron al Dragón.
 - **Panitamon** (24 de enero al 15 de marzo de 2026): aventura corta con el modpack Cobbleverse, un universo Pokémon con Ciudad Luminalia como punto de partida, gimnasios y ligas del Alto Mando. No necesitó eventos del staff.
 - **Tezzlar III** (1 de julio al 2 de agosto de 2026): supervivencia semi-hardcore de 31 días con vidas limitadas, cambios de dificultad diarios, eventos sorpresa y misiones individuales y grupales. En el último día, los sobrevivientes se enfrentaron a Javithor360 y lo derrotaron. El detalle está en el otro archivo.
+- **Enriquecraft 666** (abre el 27 de noviembre de 2026): SMP vanilla inspirado en la serie Elitecraft, sexta edición de una serie creada por el Medievo y hospedada por Panitacraft gracias a una alianza entre ambas comunidades. Con reglas, sistema de pranks y herramientas propias (Panita Client, Enriquemod, chat de voz por proximidad); todo está en la sección de Enriquecraft 666 y en el comando `/enriquecraft`.
 
 Quién lideraba cada edición no está registrado en la web: se pregunta al staff.
 

@@ -22,6 +22,7 @@ import { bareMinecraftCommand, startBridge } from './features/minecraft';
 import { bridgeMessageEvent } from './events/bridgeMessage';
 import { galleryPostEvent, galleryReactionEvent } from './events/galleryUpload';
 import { registerAuditLog } from './events/auditLog';
+import { welcomeEvent } from './events/welcome';
 
 const client = new Client({
   intents: [
@@ -35,7 +36,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     // Bans and unbans, and reading the audit log to tell who did what
     GatewayIntentBits.GuildModeration,
-    // Keeps the emoji cache right when someone changes emojis by hand, for `emoji` and `server --emojis`
+    // Keeps the emoji cache right when someone changes emojis by hand, for `emoji` and `server --emojis`; also the emoji, sticker and soundboard events of the audit log
     GatewayIntentBits.GuildEmojisAndStickers,
     // Who is in a voice channel and what they are doing, for `user` and `server --activity`
     GatewayIntentBits.GuildVoiceStates,
@@ -76,6 +77,7 @@ client.on(Events.MessageCreate, createMessageHandler(registry, bareMinecraftComm
 client.on(Events.MessageCreate, createDirectMessageHandler());
 client.on(Events.MessageCreate, bridgeMessageEvent);
 client.on(Events.MessageCreate, galleryPostEvent);
+client.on(Events.MessageCreate, welcomeEvent);
 client.on(Events.MessageReactionAdd, galleryReactionEvent);
 registerAuditLog(client);
 

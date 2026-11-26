@@ -26,13 +26,13 @@ describe('conversation memory', () => {
     assert.deepEqual(conversations.recall(undefined), []);
   });
 
-  it('keeps only the last six exchanges', () => {
+  it('keeps only the last ten exchanges', () => {
     const { conversations } = make();
-    conversations.remember('M', [1, 2, 3, 4, 5, 6, 7, 8].map(turn));
-    assert.deepEqual(conversations.recall('M'), [3, 4, 5, 6, 7, 8].map(turn));
+    conversations.remember('M', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(turn));
+    assert.deepEqual(conversations.recall('M'), [3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(turn));
   });
 
-  it('forgets a conversation after ten minutes', () => {
+  it('forgets a conversation after half an hour', () => {
     const { conversations, advance } = make();
     conversations.remember('M', [turn(1)]);
     advance(CONVERSATION_TTL_MS - 1);

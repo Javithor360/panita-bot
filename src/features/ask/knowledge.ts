@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { buildEnriquecraftKnowledge } from './enriquecraftKnowledge';
 import { buildTezzlarKnowledge } from './tezzlarKnowledge';
 
 /** `config/panitacraft-knowledge.md`: the source and the build are both three folders below the project. */
@@ -28,8 +29,12 @@ export const parseKnowledge = (source: string, blockedTerms: readonly string[]):
   return knowledge;
 };
 
-/** The knowledge files, followed by what the commands about Tezzlar III know (built from their data). */
+/** The knowledge files, followed by what the commands about Enriquecraft and about Tezzlar III know (built from their data). */
 export const loadKnowledge = (
   blockedTerms: readonly string[],
   files: readonly string[] = [KNOWLEDGE_FILE, DATA_FILE],
-): string => parseKnowledge([...files.map(file => readFileSync(file, 'utf8')), buildTezzlarKnowledge()].join('\n\n'), blockedTerms);
+): string =>
+  parseKnowledge(
+    [...files.map(file => readFileSync(file, 'utf8')), buildEnriquecraftKnowledge(), buildTezzlarKnowledge()].join('\n\n'),
+    blockedTerms,
+  );

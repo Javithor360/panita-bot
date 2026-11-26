@@ -1,4 +1,4 @@
-import './support';
+import { MEMBER_TURN, messageOf } from './support';
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, mock } from 'node:test';
 import { cleanChat, composeInput, MAX_CHAT_CHARS, MAX_CHAT_LINES, MAX_LINE_CHARS, refersToChat } from '../src/features/ask/chatContext';
@@ -145,6 +145,7 @@ describe('/ask with quoted chat', () => {
   it('works as before when there is no chat', async () => {
     const { service, requests } = make();
     await service.ask('1', 'hola');
-    assert.equal(requests[0].input, 'hola');
+    assert.match(requests[0].input, MEMBER_TURN, 'only the date comes before the message');
+    assert.equal(messageOf(requests[0].input), 'hola');
   });
 });

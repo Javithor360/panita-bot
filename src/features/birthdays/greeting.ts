@@ -41,3 +41,48 @@ export const isGreetingOf = (message: PostedMessage, botId: string, day: string,
   message.authorId === botId &&
   message.content.startsWith(GREETING_PREFIX) &&
   localDate(message.createdAt, offsetHours) === day;
+
+/** Messages per request, which is the most Discord returns. */
+const PAGE_SIZE = 100;
+/** How far back a restart looks for its own greeting: 3000 messages, so a busy general channel cannot hide it. */
+const MAX_PAGES = 30;
+
+/** A message of the channel with its id, to ask for the page before it. */
+export interface HistoryMessage extends PostedMessage {
+  id: string;
+}
+
+/** What a search of the channel history found. */
+export interface HistorySearch {
+  /** The greeting of the day was seen. */
+  greeted: boolean;
+  /** The search reached the start of the day (or the start of the channel), so `greeted: false` is certain. */
+  complete: boolean;
+}
+
+/**
+ * Looks for the bot's greeting of the local day `day` in the channel, newest messages first, page by page until the
+ * history goes back past the start of that day. Reading only the last page is not enough: in a busy channel the
+ * greeting scrolls out of it, and a restart would greet again.
+ */
+export const searchGreeting = async (
+  fetchPage: (before: string | undefined, limit: number) => Promise<HistoryMessage[]>,
+  botId: string,
+  day: string,
+  offsetHours: number,
+  maxPages: number = MAX_PAGES,
+): Promise<HistorySearch> => {
+  let before: string | undefined;
+  for (let page = 0; page < maxPages; page += 1) {
+    const messages = await fetchPage(before, PAGE_SIZE);
+    if (messages.some(message => isGreetingOf(message, botId, day, offsetHours))) return { greeted: true, complete: true };
+
+    const oldest = messages[messages.length - 1];
+    // An empty or short page is the start of the channel; an older message than the day is past its start
+    if (!oldest || messages.length < PAGE_SIZE || localDate(oldest.createdAt, offsetHours) < day) {
+      return { greeted: false, complete: true };
+    }
+    before = oldest.id;
+  }
+  return { greeted: false, complete: false };
+};

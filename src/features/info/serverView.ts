@@ -7,6 +7,7 @@ import { dateWithAge } from './dates';
 import { BOOST_TIER, boostsToNextTier, emojiLimit, featureLabels, stickerLimit, VERIFICATION } from './labels';
 import { clampPage, pageRow, paginate, type PageSlot } from './pages';
 import { pastel } from './palette';
+import { viewMenu, type ViewOption } from './viewMenu';
 import { presenceRow, type PresenceCounts } from './presence';
 import {
   activityLines,
@@ -297,6 +298,30 @@ const imageEmbed = (data: ServerData, kind: 'icon' | 'banner', random?: () => nu
     .setImage(url);
 };
 
+const SERVER_VIEW_LABELS: Record<ServerView, string> = {
+  info: 'Información',
+  roles: 'Roles',
+  emojis: 'Emojis',
+  channels: 'Canales',
+  activity: 'Actividad',
+  community: 'Comunidad',
+  stickers: 'Stickers',
+  events: 'Eventos',
+  sounds: 'Sonidos',
+  boost: 'Mejoras',
+  icon: 'Ícono',
+  banner: 'Banner',
+};
+
+/** The options of the menu of `server`: the information, then every flag with the text it already has. */
+export const SERVER_VIEW_OPTIONS: ReadonlyArray<ViewOption<ServerView>> = [
+  { value: 'info', label: SERVER_VIEW_LABELS.info, description: 'La información general del servidor' },
+  ...SERVER_FLAGS.map(({ flag, help }) => ({ value: flag, label: SERVER_VIEW_LABELS[flag], description: help })),
+];
+
+/** The menu under every view of `server`; the view on screen is marked. */
+export const serverMenu = (customId: string, view: ServerView) => viewMenu(customId, SERVER_VIEW_OPTIONS, view, 'Elige qué ver del servidor');
+
 /** A paged list of lines (events, sounds, stickers). */
 const listPage = (data: ServerData, title: string, lines: string[], perPage: number, empty: string, requested: number, random?: () => number): Paged => {
   const pages = paginate(lines, perPage);
@@ -330,7 +355,8 @@ const communityEmbed = (data: ServerData, extra: ServerExtra, random?: () => num
 
 /**
  * The reply for a view: the embed and, for the lists that have more than one page, the buttons. `makeId` builds the
- * custom id of a button from the page it leads to, so the buttons carry the page and need no memory.
+ * custom id of a button from the page it leads to, so the buttons carry the page and need no memory. With a `menuId`
+ * there is also the menu that switches to another view.
  */
 export const serverMessage = (
   view: ServerView,
@@ -339,7 +365,9 @@ export const serverMessage = (
   makeId: (view: ServerView, page: number, slot: PageSlot) => string,
   random?: () => number,
   extra: ServerExtra = {},
+  menuId?: string,
 ): BaseMessageOptions => {
+  const menu = menuId ? [serverMenu(menuId, view)] : [];
   const paged =
     view === 'roles' ? rolesPage(data, page, random)
     : view === 'emojis' ? emojisPage(data, page, random)
@@ -351,7 +379,7 @@ export const serverMessage = (
 
   if (paged) {
     const row = pageRow((target, slot) => makeId(view, target, slot), paged.page, paged.total);
-    return { embeds: [paged.embed], components: row ? [row] : [], allowedMentions: { parse: [] } };
+    return { embeds: [paged.embed], components: [...(row ? [row] : []), ...menu], allowedMentions: { parse: [] } };
   }
 
   const embed =
@@ -360,5 +388,5 @@ export const serverMessage = (
     : view === 'community' ? communityEmbed(data, extra, random)
     : view === 'icon' || view === 'banner' ? imageEmbed(data, view, random)
     : infoEmbed(data, random);
-  return { embeds: [embed], components: [], allowedMentions: { parse: [] } };
+  return { embeds: [embed], components: menu, allowedMentions: { parse: [] } };
 };

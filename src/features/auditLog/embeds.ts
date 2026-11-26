@@ -11,9 +11,9 @@ export interface UserRef {
   bot?: boolean;
 }
 
-const RED = 0xf04747;
-const GREY = 0x99aab5;
-const ORANGE = 0xffa05c;
+export const RED = 0xf04747;
+export const GREY = 0x99aab5;
+export const ORANGE = 0xffa05c;
 
 const NO_CONTENT = '*(sin texto)*';
 const UNAVAILABLE = '*contenido no disponible: el mensaje es anterior al arranque del bot*';
@@ -22,7 +22,7 @@ const UNAVAILABLE = '*contenido no disponible: el mensaje es anterior al arranqu
 export const fenced = (text: string, max = FIELD_MAX - 10): string =>
   `\`\`\`\n${clip(text.replaceAll('```', '`​``'), max)}\n\`\`\``;
 
-const entry = (input: {
+export const entry = (input: {
   label: string;
   color: number;
   user?: UserRef | null;
@@ -42,8 +42,8 @@ const entry = (input: {
   return embed;
 };
 
-const person = (user: UserRef) => `<@${user.id}> (\`${user.id}\`)`;
-const who = (executorId: string | null) => (executorId ? `<@${executorId}>` : 'No se pudo saber');
+export const person = (user: UserRef) => `<@${user.id}> (\`${user.id}\`)`;
+export const who = (executorId: string | null) => (executorId ? `<@${executorId}>` : 'No se pudo saber');
 
 export const messageDeleted = (input: {
   author: UserRef | null;

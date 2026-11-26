@@ -17,6 +17,12 @@ delete process.env.ASK_BLOCKED_TERMS;
 
 export const API_BASE = 'https://api.test.invalid';
 
+/** The turn of a member that carries only the date and the message: `[TODAY: ...]`, then `[MEMBER'S MESSAGE]` and the text. */
+export const MEMBER_TURN = /^\[TODAY: \d{4}-\d{2}-\d{2}, [^\]]+\]\n\n\[MEMBER'S MESSAGE\]\n/;
+
+/** The text the member wrote in a turn built by the service, whatever lines come before it. */
+export const messageOf = (input: string): string => input.slice(input.indexOf("[MEMBER'S MESSAGE]\n") + "[MEMBER'S MESSAGE]\n".length);
+
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 

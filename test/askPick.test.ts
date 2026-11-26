@@ -1,4 +1,4 @@
-import './support';
+import { messageOf } from './support';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { composeInput } from '../src/features/ask/chatContext';
@@ -114,13 +114,15 @@ describe('/ask with the dice', () => {
   it('adds nothing for other questions, even with people around', async () => {
     const { service, requests } = make(() => 0);
     await service.ask('1', '¿cuál es tu comida favorita?', [], [], [], ['Ana']);
-    assert.equal(requests[0].input, '¿cuál es tu comida favorita?');
+    assert.equal(messageOf(requests[0].input), '¿cuál es tu comida favorita?');
+    assert.ok(!requests[0].input.includes('DICE ROLL'));
   });
 
   it('adds nothing when nobody is around, so the model uses its fallbacks', async () => {
     const { service, requests } = make(() => 0);
     await service.ask('1', '¿cuál es tu miembro favorito?');
-    assert.equal(requests[0].input, '¿cuál es tu miembro favorito?');
+    assert.equal(messageOf(requests[0].input), '¿cuál es tu miembro favorito?');
+    assert.ok(!requests[0].input.includes('DICE ROLL'));
   });
 
   it('never offers a person with a blocked term', async () => {
