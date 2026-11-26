@@ -11,7 +11,7 @@ import { parsePrefixArgs, type ParseResult } from '../src/core/prefixParser';
 import { getRegistry } from '../src/core/registry';
 import { features, join, prankClarifications, prankLevels, rules, utilityCommands } from '../src/data/enriquecraft';
 import { run as runCommands, view as commandsView } from '../src/features/enriquecraft/commands';
-import { overview as featuresOverview, single as featureView } from '../src/features/enriquecraft/features';
+import { answer, LIST, menu, overview as featuresOverview, single as featureView } from '../src/features/enriquecraft/features';
 import { view as infoView } from '../src/features/enriquecraft/info';
 import { view as joinView } from '../src/features/enriquecraft/join';
 import { IMAGES_DIR, type View } from '../src/features/enriquecraft/look';
@@ -186,6 +186,7 @@ const fakeContext = (options: Record<string, string>) => {
   const replies: any[] = [];
   const ctx = {
     options: { getString: (name: string) => options[name] ?? null, getSubcommand: () => null },
+    customId: (action: string) => `enriquecraft:${action}|1`,
     reply: async (payload: unknown) => { replies.push(payload); },
   } as unknown as CommandContext;
   return { ctx, replies };
@@ -238,4 +239,63 @@ test('commands answers with the feature of the utility commands', async () => {
   const { ctx, replies } = fakeContext({});
   await runCommands(ctx);
   assert.match(replies[0].embeds[0].toJSON().title, /Comandos de utilidad/);
+});
+
+// ── The menu of the features ─────────────────────────────────────────────────────────────────────────────────────
+
+const menuOf = (view: View) => view.components![0].toJSON().components[0] as any;
+
+test('the menu has the list and every feature, with labels and descriptions that Discord accepts', () => {
+  const select = menuOf({ embeds: [], components: [menu('enriquecraft:feature|1')] });
+  assert.equal(select.custom_id, 'enriquecraft:feature|1');
+  assert.deepEqual(select.options.map((option: any) => option.value), [LIST, ...features.map(feature => feature.id)]);
+  for (const option of select.options) {
+    assert.ok(option.label.length <= 100, option.label);
+    assert.ok(option.description.length <= 100, option.description);
+  }
+});
+
+test('the list and every feature carry the menu, with the one on screen marked', () => {
+  const list = menuOf(featuresOverview('enriquecraft:feature|1'));
+  assert.deepEqual(list.options.filter((option: any) => option.default).map((option: any) => option.value), [LIST]);
+
+  for (const feature of features) {
+    const marked = menuOf(featureView(feature, 'enriquecraft:feature|1')).options.filter((option: any) => option.default);
+    assert.deepEqual(marked.map((option: any) => option.value), [feature.id], feature.id);
+  }
+  assert.ok(commandsView('enriquecraft:feature|1').components, 'the commands answer has it too');
+});
+
+test('without a custom id there is no menu', () => {
+  assert.equal(featuresOverview().components, undefined);
+  assert.equal(featureView(features[0]).components, undefined);
+});
+
+test('the menu answers with the list, or with the feature that was picked and its picture', () => {
+  assert.match(answer(LIST, 'enriquecraft:feature|1').embeds[0].toJSON().title!, /CARACTERÍSTICAS/);
+  const login = answer('login', 'enriquecraft:feature|1');
+  assert.match(login.embeds[0].toJSON().title!, /Inicio de sesión/);
+  assert.deepEqual(login.files?.map(file => file.name), ['login.gif']);
+  assert.throws(() => answer('nope', 'enriquecraft:feature|1'), UserError);
+});
+
+test('picking in the menu swaps the message and drops the picture that was on screen', async () => {
+  const handler = enriquecraft.components!.feature as any;
+  assert.equal(handler.kind, 'select');
+
+  const updates: any[] = [];
+  const interaction = (value: string) => ({ user: { id: '1' }, values: [value], update: async (payload: unknown) => { updates.push(payload); } });
+
+  await handler.run(interaction('chat'));
+  await handler.run(interaction('voz'));
+  await handler.run(interaction(LIST));
+
+  assert.deepEqual(updates.map(update => update.attachments), [[], [], []]);
+  assert.deepEqual(updates[0].files.map((file: any) => file.name), ['interchat.png']);
+  assert.equal(updates[1].files, undefined, 'a feature without a picture sends none');
+  assert.match(updates[2].embeds[0].toJSON().title, /CARACTERÍSTICAS/);
+  // The owner stays the one who ran the command, so nobody else can drive the menu
+  assert.equal(menuOf(updates[0]).custom_id, 'enriquecraft:feature|1');
+
+  await assert.rejects(handler.run(interaction('nope')), UserError);
 });

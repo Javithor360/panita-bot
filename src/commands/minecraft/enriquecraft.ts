@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
-import { defineCommand } from '../../core/command';
+import { defineCommand, select } from '../../core/command';
+import { encodeCustomId } from '../../core/customId';
 import type { CommandContext } from '../../core/context';
 import { UserError } from '../../core/errors';
 import { features, prankClarifications, prankLevels, rules } from '../../data/enriquecraft';
@@ -99,5 +100,15 @@ export default defineCommand({
     const handler = HANDLERS[ctx.options.getSubcommand() ?? ''];
     if (!handler) throw new UserError('subcomando inválido.');
     await handler(ctx);
+  },
+  components: {
+    // The menu under the list of features and under each one: it swaps the message for the one chosen
+    feature: select({
+      async run(interaction) {
+        const customId = encodeCustomId({ namespace: 'enriquecraft', action: 'feature', owner: interaction.user.id });
+        // `attachments: []` drops the picture of the feature that was on screen
+        await interaction.update({ ...featuresView.answer(interaction.values[0], customId), attachments: [] });
+      },
+    }),
   },
 });

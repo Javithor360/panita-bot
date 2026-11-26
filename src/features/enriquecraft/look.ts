@@ -1,12 +1,13 @@
 import path from 'node:path';
-import { AttachmentBuilder, type EmbedAuthorOptions, type EmbedBuilder } from 'discord.js';
+import { AttachmentBuilder, type ActionRowBuilder, type EmbedAuthorOptions, type EmbedBuilder, type StringSelectMenuBuilder } from 'discord.js';
 import { PREFIX } from '../../config/constants';
 import { emojiUrl } from '../../config/emojis';
 
-/** What a subcommand answers: embeds, and the pictures of `assets/enriquecraft/` they show. */
+/** What a subcommand answers: embeds, the pictures of `assets/enriquecraft/` they show, and a menu when there is one. */
 export interface View {
   embeds: EmbedBuilder[];
   files?: AttachmentBuilder[];
+  components?: ActionRowBuilder<StringSelectMenuBuilder>[];
 }
 
 export const COLOR = 0xe8a33d;
