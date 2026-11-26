@@ -234,7 +234,7 @@ Syntax: `<required>`, `[optional]`, `[--flag]`. Aliases work with the prefix onl
 | `enriquecraft info` | What Enriquecraft is and its goal. | `enri`, `ec`; `!ec informacion`, `!ec general` |
 | `enriquecraft rules [regla]` | The rules of the server, all at once or one of them. | `!ec reglas`, `!ec normas` |
 | `enriquecraft pranks [nivel]` | The prank system: the levels from Mimo (level zero) to Arlequín, the Extremo indicator and the clarifications. | `!ec bromas` |
-| `enriquecraft features [caracteristica]` | What the server offers (account and whitelist, Panita Client, Enriquemod, login, chat, voice chat, commands, support): a list, or one feature in full with its picture. | `!ec caracteristicas`, `!ec mecanicas` |
+| `enriquecraft features [caracteristica]` | What the server offers (account and whitelist, Panita Client, Enriquemod, login, chat, voice chat, commands, support): a list, or one feature in full with its picture. A menu under the list (and under each feature) opens any of them in place; only whoever ran the command can use it. | `!ec caracteristicas`, `!ec mecanicas` |
 | `enriquecraft commands` | The utility commands of the Minecraft server (`/c`, `/skin`, `/tps`, `/prank set`). | `!ec comandos`, `!ec cmds` |
 | `enriquecraft join` | The IP, the game version and how to get in (`!activar`, Panita Client). | `!ec jugar`, `!ec ip`, `!ec unirse` |
 | `enchantments` | Maximum enchantment and potion levels in Tezzlar III. | `enchantment`, `encantamientos`, `enchants` |

@@ -171,6 +171,7 @@ Sigue el mismo estilo que Tezzlar para que los embeds se vean iguales:
 4. **Una sola palabra para los niveles:** "nivel" (Mimo es el nivel cero y no permite ninguna broma ni tiene indicador Extremo); "indicador" solo para Extremo.
 5. **Cada vista cabe en los límites de Discord** (descripción 4096, campo 1024, embed 6000): lo comprueba `test/enriquecraft.test.ts`. Una imagen se adjunta con `imageOf` y se muestra con `attachment://nombre`.
 6. Las opciones `regla`, `nivel` y `caracteristica` son listas de opciones sacadas de los mismos datos; al añadir una regla o una característica no hay que tocar el comando.
+7. **El menú de `features`** (`features.menu`, componente `enriquecraft:feature` con `|ownerId`) va debajo de la lista y de cada característica: abre cualquiera en el mismo mensaje (`interaction.update`, con `attachments: []` para quitar la imagen anterior), marca la que está en pantalla y su primera opción vuelve a la lista. Cada opción sale de `label` y `summary` (máximo 100 caracteres), así que una característica nueva aparece sola en el menú.
 
 ## Formato de Tezzlar Days (`src/data/tezzlar.ts`)
 Al momento de agregar información para los días de Tezzlar en el archivo `tezzlar.ts`, se DEBEN seguir estrictamente las siguientes reglas de formato para mantener una estética consistente en los Embeds de Discord:
