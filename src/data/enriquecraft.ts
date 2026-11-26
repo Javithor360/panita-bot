@@ -297,3 +297,22 @@ export const join = {
     `**Recomendado:** descarga [Panita Client](${URLS.launcherDownload}) para tener el modpack oficial (voice chat, texture pack y Enriquemod) siempre actualizado.`,
   ],
 } as const;
+
+// ── Only for what `/ask` knows ───────────────────────────────────────────────────────────────────────────────────
+
+/** When the server opens. `/ask` compares it with today's date to say whether it is already open. */
+export const opens = { name: 'Enriquecraft 666', date: '2026-11-27', text: '27 de noviembre de 2026' } as const;
+
+/**
+ * What is known about Panita Client beyond its feature text. Every line comes from the document of the server or from the
+ * activation flow of the bot, so the assistant can answer the questions about it without guessing.
+ */
+export const panitaClientFacts: readonly string[] = [
+  'Panita Client es el launcher oficial de Panitacraft: descarga e instala el modpack complementario del servidor y lo mantiene actualizado de forma automática.',
+  `Se descarga en ${URLS.launcherDownload}`,
+  'Es compatible con Windows y Linux.',
+  'Para usarlo hay que iniciar sesión con la cuenta de Panitacraft (se activa con `!activar`, que es lo mismo que `/register`) y después agregar la cuenta de Minecraft, ya sea premium o no premium. El inicio de sesión se confirma con un código desde Discord.',
+  'El modpack oficial incluye el chat de voz por proximidad (Voice Chat), el Texture Pack oficial y Enriquemod, entre otros.',
+  'Es recomendado pero no obligatorio: también se puede entrar al servidor con el cliente de Minecraft Vanilla; Panita Client es para quien quiere una experiencia personalizada y mejorada.',
+  'Si hay problemas con la instalación o con la cuenta, se abre un ticket y el staff ayuda.',
+];

@@ -106,13 +106,16 @@ describe('knowledge', () => {
     assert.ok(!/@everyone|@here/.test(knowledge));
   });
 
-  it('says the project has no active server, who the creator is, and explains the ranks', () => {
+  it('says Enriquecraft 666 is the current server and when it opens, who the creator is, and explains the ranks', () => {
     const knowledge = loadKnowledge([]);
-    assert.match(knowledge, /no hay ningún servidor de Minecraft activo/);
+    assert.doesNotMatch(knowledge, /no hay ningún servidor de Minecraft activo/);
+    assert.match(knowledge, /servidor de Minecraft de ahora es \*\*Enriquecraft 666\*\*/);
+    assert.match(knowledge, /Abre el 27 de noviembre de 2026/);
     assert.match(knowledge, /creador.*Javithor360/);
-    assert.match(knowledge, /Administradores: Fiendrox y Javithor360/);
-    assert.match(knowledge, /Moderadores: zPalach y Aerosmith_/, 'Aerø is a moderator, not an administrator');
-    assert.ok(!/Administradores:[^.]*Aer/.test(knowledge));
+    assert.match(knowledge, /Administradores: Fiendrox y Javithor360\./);
+    assert.match(knowledge, /Moderadores: zPalach, Aerosmith_ \(Aerø\) y Starmiss/, 'Aerø and zPalach are moderators; the admin rank on the website is temporary');
+    assert.match(knowledge, /Ayudantes: Slick303 y PanchitaSimp/);
+    assert.ok(!/Administradores:[^.]*(Aer|zPalach)/.test(knowledge), 'neither of them is an administrator');
     assert.match(knowledge, /\*\*Invitado\*\*/);
     assert.match(knowledge, /\*\*Miembro\*\*/);
   });

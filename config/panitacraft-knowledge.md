@@ -1,6 +1,6 @@
 # Lo que Panita Bot sabe de Panitacraft
 
-Este archivo es lo que `/ask` sabe de Panitacraft, además del detalle de Tezzlar III que se arma solo a partir de los datos de sus comandos: cualquier cosa que no esté aquí, el bot dice que no la sabe.
+Este archivo es lo que `/ask` sabe de Panitacraft, además del detalle de Enriquecraft 666 y de Tezzlar III, que se arma solo a partir de los datos de sus comandos: cualquier cosa que no esté aquí, el bot dice que no la sabe.
 Solo escribe información que ya sea pública (la web, el Discord, los comandos del bot). Nada que no se haya anunciado.
 Se lee al iniciar el bot; reinícialo después de editarlo.
 
@@ -12,10 +12,11 @@ Se lee al iniciar el bot; reinícialo después de editarlo.
 
 ## Estado actual
 
-- Ahora mismo **no hay ningún servidor de Minecraft activo**.
-- El último proyecto fue **Tezzlar III**, que se jugó en julio de 2026 y ya terminó hace unos meses. Toda su información ya es pública: se puede resumir o explicar con el detalle de Tezzlar III que aparece más abajo.
-- Los comandos `/tezzlar ip` y `/tezzlar resources` siguen mostrando la IP y los mods de Tezzlar III, pero ya no se usan porque el servidor está cerrado.
-- Las ediciones o proyectos anunciados (por ejemplo una edición que aún no empieza) salen de los datos en vivo ([DATOS]) y son públicos. De cualquier otro servidor futuro no se sabe nada: si los datos no muestran nada, no hay nada anunciado.
+- El servidor de Minecraft de ahora es **Enriquecraft 666**, la sexta edición de una serie creada originalmente por el Medievo y hospedada por Panitacraft. **Abre el 27 de noviembre de 2026**: antes de ese día todavía no se puede entrar, y desde ese día está abierto. Para decir si ya abrió, si abre mañana o cuánto falta, se compara esa fecha con la de hoy ([TODAY]). Su información (reglas, pranks, características, IP, versión y cómo entrar) está en la sección de Enriquecraft 666 más abajo y en el comando `/enriquecraft`.
+- Panita Client es el launcher oficial para jugar con el modpack del servidor; se descarga en https://www.panitacraft.com/downloads/launcher (los detalles están en la sección de Enriquecraft 666).
+- El proyecto anterior fue **Tezzlar III**, que se jugó en julio de 2026 y ya terminó. Toda su información ya es pública: se puede resumir o explicar con el detalle de Tezzlar III que aparece más abajo.
+- Los comandos `/tezzlar ip` y `/tezzlar resources` siguen mostrando la IP y los mods de Tezzlar III, pero ya no se usan porque ese servidor está cerrado: para entrar a Enriquecraft 666 se usa `/enriquecraft join`.
+- Las ediciones o proyectos anunciados salen de los datos en vivo ([DATOS]) y son públicos. De cualquier otro servidor futuro no se sabe nada: si los datos no muestran nada, no hay nada anunciado.
 
 ## Tezzlar III (resumen)
 
@@ -58,12 +59,12 @@ Se lee al iniciar el bot; reinícialo después de editarlo.
 ## Cómo unirse a la comunidad
 
 1. Entra al servidor de Discord: https://discord.gg/m9zFH8yqUu
-2. Activa tu cuenta con el comando `/register` (te pide tu nombre en Minecraft y si juegas con cuenta premium).
+2. Activa tu cuenta con el comando `/register`, también escrito `!activar` (te pide tu nombre en Minecraft y si juegas con cuenta premium). Esa activación es también lo que te agrega a la whitelist del servidor de Minecraft.
 3. Con esa cuenta puedes iniciar sesión en la web.
 
 ## Comunidad y staff
 
-- Administradores: Fiendrox y Javithor360. Moderadores: zPalach y Aerosmith\_ (Aerø). Ayudante: Slick303. El staff colabora sin fines de lucro.
+- Administradores: Fiendrox y Javithor360. Moderadores: zPalach, Aerosmith\_ (Aerø) y Starmiss. Ayudantes: Slick303 y PanchitaSimp. Si alguien pregunta por el cargo de zPalach o de Aerø, son moderadores: la web los muestra como administradores solo de forma temporal. El staff colabora sin fines de lucro.
 - El bot no puede dar roles, quitar sanciones ni resolver problemas de cuentas: eso lo hace el staff.
 
 ## Donaciones
@@ -85,5 +86,6 @@ Funcionan con `/` o con `!` (por ejemplo `/web` o `!web`):
 - `/web`: enlace a la web. `/invite`: invitación al Discord. `/donate`: cómo donar. `/help`: lista de todos los comandos.
 - `/gallery`: una foto al azar de la galería (también se puede pedir aquí con `/ask`). `/skin`: la skin de un jugador.
 - `/sessions`: tus sesiones abiertas en la web. `/confirm`: confirma un inicio de sesión que tú empezaste.
+- `/enriquecraft`: la información del servidor Enriquecraft 666 (`info`, `rules`, `pranks`, `features`, `commands` y `join`).
 - `/ask`: preguntarme cosas o charlar conmigo.
-- Los comandos del servidor de Minecraft (`/playerlist`, `/playerinfo`, `/tps`) solo funcionan cuando hay un servidor encendido.
+- Los comandos del servidor de Minecraft (`/playerlist`, `/playerinfo`, `/tps`) solo funcionan cuando hay un servidor encendido (desde que abra Enriquecraft 666).
