@@ -53,6 +53,8 @@ export interface AnswerRequest {
   history?: ReadonlyArray<{ question: string; answer: string }>;
   /** Stable, anonymous id of the member (never the Discord id), so OpenAI can tell abusers apart. */
   safetyId: string;
+  /** The effort for this answer, instead of the one of the client (an opinion deserves more thinking than a greeting). */
+  effort?: ReasoningEffort;
 }
 
 export interface RouteRequest {
@@ -167,7 +169,7 @@ export const createOpenAiClient = (config: OpenAiConfig): OpenAiClient => {
   return {
     configured: !!config.apiKey,
 
-    async answer({ instructions, input, history = [], safetyId }) {
+    async answer({ instructions, input, history = [], safetyId, effort: requested }) {
       const send = async (effort: ReasoningEffort | undefined, sampling: boolean) => {
         const response = await post('/responses', {
           model: config.model,
@@ -193,7 +195,7 @@ export const createOpenAiClient = (config: OpenAiConfig): OpenAiClient => {
         return { text: textOf(body), body };
       };
 
-      let effort = refused.reasoning ? undefined : config.reasoningEffort;
+      let effort = refused.reasoning ? undefined : (requested ?? config.reasoningEffort);
       let sampling = !refused.temperature;
       let result;
       // A setting the model refuses is dropped, and only that one; the request is made again (at most twice). What was

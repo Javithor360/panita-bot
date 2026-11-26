@@ -17,7 +17,7 @@ import { buildInstructions } from '../features/ask/prompt';
 import { routeQuestion } from '../features/ask/router';
 import { runLookups } from '../features/ask/run';
 import { createCallBudget, getKnowledge, type Knowledge } from './knowledge';
-import { createOpenAiClient, OpenAiError, type OpenAiClient } from './openai';
+import { createOpenAiClient, OpenAiError, type OpenAiClient, type ReasoningEffort } from './openai';
 
 export const ASK_MESSAGES = {
   unavailable: 'No puedo responder eso en este momento. Inténtalo más tarde.',
@@ -51,6 +51,8 @@ export interface AskDeps {
   data?: Knowledge;
   /** The clock of the durations written in the data. */
   now?: () => Date;
+  /** The effort for the answers about opinions and ratings; the one of the client when not given. */
+  opinionEffort?: ReasoningEffort;
   /** The openings of the latest jokes, to avoid repeating them; one per service when not given. */
   recentJokes?: RecentJokes;
   /** How strict the moderation of what people write is (see `features/ask/moderation`); `severe` when not given. */
@@ -214,6 +216,8 @@ export const createAskService =(deps: AskDeps): AskService => {
             input: composeInput(question, quoted, dice, data.block, [todayLine(deps.now?.() ?? new Date(), env.BIRTHDAY_UTC_OFFSET_HOURS), memberLine(asker, deps.blockedTerms)], [angleLine(angle), angle ? avoidLine(recentJokes.list()) : null]),
             history,
             safetyId: deps.safetyIdOf(userId),
+            // An opinion or a rating needs more thinking than a greeting to come up with something that is not the first joke
+            ...(angle && deps.opinionEffort ? { effort: deps.opinionEffort } : {}),
           });
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
@@ -287,6 +291,7 @@ export const getAskService = (): AskService => {
     safetyIdOf: userId => createHmac('sha256', hmacKey).update(userId).digest('hex').slice(0, 32),
     data: getKnowledge(),
     moderation: env.ASK_MODERATION,
+    opinionEffort: env.ASK_OPINION_REASONING_EFFORT === 'same' ? undefined : env.ASK_OPINION_REASONING_EFFORT,
   });
   return service;
 };

@@ -124,6 +124,18 @@ const askReasoningEffort = (): AskReasoningEffort => {
   return value as AskReasoningEffort;
 };
 
+/** The effort for the answers about opinions and ratings: `same` leaves it to `ASK_REASONING_EFFORT`. */
+const OPINION_EFFORTS = ['same', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+type AskOpinionEffort = (typeof OPINION_EFFORTS)[number];
+
+const askOpinionEffort = (): AskOpinionEffort => {
+  const value = (optional('ASK_OPINION_REASONING_EFFORT') ?? 'medium').toLowerCase();
+  if (!(OPINION_EFFORTS as readonly string[]).includes(value)) {
+    throw new Error(`[Config] ASK_OPINION_REASONING_EFFORT must be one of ${OPINION_EFFORTS.join(', ')}`);
+  }
+  return value as AskOpinionEffort;
+};
+
 /** How strict `/ask` is with what people write: `off`, `severe` (only the worst is refused) or `strict` (what OpenAI flags). */
 const askModeration = (): ModerationMode => {
   const value = (optional('ASK_MODERATION') ?? 'severe').toLowerCase();
@@ -204,6 +216,8 @@ export const env = {
   ASK_ROUTER_MAX_TOKENS: integerInRange('ASK_ROUTER_MAX_TOKENS', 500, 50, 4000),
   /** How much the model thinks before it answers. A model that does not take the setting is asked without it. */
   ASK_REASONING_EFFORT: askReasoningEffort(),
+  /** How much the model thinks for an opinion, a rating or a roast, which need more than a greeting does. `same` uses the one above. */
+  ASK_OPINION_REASONING_EFFORT: askOpinionEffort(),
   /** Upper bound of an answer of `/ask`, hidden reasoning included. */
   ASK_MAX_OUTPUT_TOKENS: integerInRange('ASK_MAX_OUTPUT_TOKENS', 4000, 500, 32000),
   /** Seconds the provider has to answer before `/ask` gives up. Thinking takes longer than answering at once. */
