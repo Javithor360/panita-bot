@@ -77,7 +77,7 @@ export default defineCommand({
     description:
       'Todo sobre el servidor de Enriquecraft. Subcomandos: `info` (qué es y su objetivo), `rules [regla]` (el reglamento), `pranks [nivel]` (el sistema de pranks), '
       + '`features [característica]` (lo que ofrece el servidor), `commands` (los comandos de utilidad) y `join` (la IP, la versión y cómo entrar).',
-    aliases: ['enri', 'ec'],
+    aliases: ['enrique', 'ec'],
   },
   // Spanish and short names of the subcommands (`!ec reglas`, `!ec jugar`)
   prefix: {

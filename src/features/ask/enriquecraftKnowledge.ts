@@ -23,7 +23,7 @@ export const buildEnriquecraftKnowledge = (): string => {
     `## ${opens.name} (el servidor de Minecraft de ahora)`,
     '',
     `- ${opens.name} abre el ${opens.text}. Antes de ese día todavía no se puede entrar; desde ese día está abierto. Compara esa fecha con la de hoy ([TODAY]) para decir si ya abrió, si abre mañana o cuánto falta, y nunca des otra fecha.`,
-    `- Dirección: ${join.ip}. Versión de Minecraft: ${join.version}. El comando \`/enriquecraft\` (también \`!enri\` y \`!ec\`) muestra todo esto en el Discord: \`info\`, \`rules\`, \`pranks\`, \`features\`, \`commands\` y \`join\`.`,
+    `- Dirección: ${join.ip}. Versión de Minecraft: ${join.version}. El comando \`/enriquecraft\` (también \`!enrique\` y \`!ec\`) muestra todo esto en el Discord: \`info\`, \`rules\`, \`pranks\`, \`features\`, \`commands\` y \`join\`.`,
     '',
     '### Información general',
     clean(info.about),

@@ -85,10 +85,11 @@ test('an id that does not exist is not accepted', () => {
   assert.notEqual(parse('pranks inventado').kind, 'ok');
 });
 
-test('"enri" and "ec" open the command, and no other command uses those names', () => {
+test('"enrique" and "ec" open the command, and no other command uses those names', () => {
   const registry = getRegistry();
   assert.equal(registry.resolve('enriquecraft')?.data.name, 'enriquecraft');
-  assert.equal(registry.resolve('enri')?.data.name, 'enriquecraft');
+  assert.equal(registry.resolve('enrique')?.data.name, 'enriquecraft');
+  assert.equal(registry.resolve('enri'), undefined, 'the old alias is gone');
   assert.equal(registry.resolve('ec')?.data.name, 'enriquecraft');
 });
 
