@@ -5,6 +5,7 @@ import { UserError } from '../core/errors';
 import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '../features/ask/guard';
 import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emojis';
 import { cleanChat, composeInput, memberLine, todayLine, type ChatLine } from '../features/ask/chatContext';
+import { angleLine, rollAngle } from '../features/ask/creativity';
 import type { Turn } from '../features/ask/conversations';
 import { rollPerson } from '../features/ask/pick';
 import { buildDataBlock, type LookupResult } from '../features/ask/data';
@@ -162,6 +163,8 @@ export const createAskService =(deps: AskDeps): AskService => {
       let quoted = cleanChat(chat, deps.blockedTerms);
       // For "who is your favorite", the person is rolled here, so it changes every time and does not depend on the model
       const dice = rollPerson(question, people, deps.blockedTerms, deps.random);
+      // For an opinion or a rating, the bot picks the comedic angle, so the answers do not all lean on the name
+      const angle = rollAngle(question, deps.random);
 
       const verdict = deps.limits.tryAcquire(userId, history.length > 0 ? 'reply' : 'new');
       if (verdict !== 'ok') throw new UserError(LIMIT_MESSAGES[verdict]);
@@ -205,7 +208,7 @@ export const createAskService =(deps: AskDeps): AskService => {
           answer = await deps.client.answer({
             instructions: instructionsFor(emojiNames(emojis)),
             // The date lets it say whether something already opened; the name lets it talk to the member, not about a stranger
-            input: composeInput(question, quoted, dice, data.block, [todayLine(deps.now?.() ?? new Date(), env.BIRTHDAY_UTC_OFFSET_HOURS), memberLine(asker, deps.blockedTerms)]),
+            input: composeInput(question, quoted, dice, data.block, [todayLine(deps.now?.() ?? new Date(), env.BIRTHDAY_UTC_OFFSET_HOURS), memberLine(asker, deps.blockedTerms)], [angleLine(angle)]),
             history,
             safetyId: deps.safetyIdOf(userId),
           });

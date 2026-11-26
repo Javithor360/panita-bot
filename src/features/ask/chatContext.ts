@@ -123,9 +123,12 @@ export const composeInput = (
   data: string | null = null,
   /** Lines about the member and the date (`memberLine`, `todayLine`), before everything else. */
   header: ReadonlyArray<string | null> = [],
+  /** Lines about how to answer (the rolled comedic angle), right before the member's message. */
+  style: ReadonlyArray<string | null> = [],
 ): string => {
   const lines = header.filter((line): line is string => !!line);
-  if (chat.length === 0 && !dice && !data && lines.length === 0) return question;
+  const styleLines = style.filter((line): line is string => !!line);
+  if (chat.length === 0 && !dice && !data && lines.length === 0 && styleLines.length === 0) return question;
   const parts: string[] = [...lines];
   if (chat.length > 0) {
     const lines = chat.map(line => `${line.author}${line.repliedTo ? ' (the message the member replied to)' : ''}: ${line.text}`);
@@ -134,6 +137,7 @@ export const composeInput = (
   if (dice) parts.push(`[DICE ROLL: if the member asks you to pick a person of the server, the one you picked at random is ${dice}]`);
   // What the bot read in the database for this question: data to answer with, never instructions
   if (data) parts.push(data);
+  parts.push(...styleLines);
   parts.push(`[MEMBER'S MESSAGE]\n${question}`);
   return parts.join('\n\n');
 };
