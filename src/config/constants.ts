@@ -30,8 +30,16 @@ export const URLS = {
   enriquecraftTrailer: 'https://www.youtube.com/watch?v=4nAiLdzxo9M',
   resourcesDownload: 'https://drive.google.com/file/d/1JPClbxD9urlw_sNY2xtu-5OD8S0YIlE5/view',
   fabricInstaller: 'https://fabricmc.net/use/installer/',
+  /** The Terms of Use and the Privacy Policy that every player accepts, linked from the rules of Enriquecraft. */
+  termsOfUse: `${WEB_BASE}/terms-of-use`,
+  privacyPolicy: `${WEB_BASE}/privacy-policy`,
+  /** Download page of Panita Client, the launcher with the official modpack. */
+  launcherDownload: `${WEB_BASE}/downloads/launcher`,
   ticketHelpChannel: 'https://discord.com/channels/707103390852710491/1406385534712156301/1521266058206511146',
 } as const;
+
+/** The channel where the chat of Minecraft and the one of Discord meet (`#live-server`), mentioned by `enriquecraft features chat`. */
+export const LIVE_SERVER_CHANNEL_ID = '1575346365205188720';
 
 /** The webhook the bot makes in each channel it bridges to Minecraft. */
 /**
@@ -52,6 +60,8 @@ export const MINECRAFT_BRIDGE = { webhookName: 'Enriquecraft' } as const;
 export const SERVER = {
   domain: 'mc.panitacraft.com',
   numericIp: '51.81.146.102:25593',
+  /** The game version of Enriquecraft, shown by `enriquecraft join`. */
+  version: '26.3',
 } as const;
 
 // TODO: move these Discord CDN attachments to Cloudinary; signed Discord links expire.
