@@ -36,7 +36,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     // Bans and unbans, and reading the audit log to tell who did what
     GatewayIntentBits.GuildModeration,
-    // Keeps the emoji cache right when someone changes emojis by hand, for `emoji` and `server --emojis`
+    // Keeps the emoji cache right when someone changes emojis by hand, for `emoji` and `server --emojis`; also the emoji, sticker and soundboard events of the audit log
     GatewayIntentBits.GuildEmojisAndStickers,
     // Who is in a voice channel and what they are doing, for `user` and `server --activity`
     GatewayIntentBits.GuildVoiceStates,
