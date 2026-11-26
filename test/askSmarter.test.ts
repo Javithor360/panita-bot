@@ -115,6 +115,9 @@ describe('/ask service with the date and the member', () => {
       async route() {
         return { lookups: [] };
       },
+      async flaggedEach(texts) {
+        return texts.map(() => false);
+      },
       async flagged() {
         return false;
       },

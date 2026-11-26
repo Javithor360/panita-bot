@@ -27,6 +27,9 @@ const fakeClient = ({ answer = 'Hola', flagged = false, configured = true }: Fak
       if (answer instanceof Error) throw answer;
       return answer;
     },
+    async flaggedEach(texts) {
+      return texts.map(() => false);
+    },
     async flagged(text) {
       moderated.push(text);
       if (flagged instanceof Error) throw flagged;
@@ -101,7 +104,10 @@ describe('/ask service', () => {
     const client: OpenAiClient = {
       configured: true,
       async answer() { calls.answered++; return 'Hola'; },
-      async flagged() {
+      async flaggedEach(texts) {
+      return texts.map(() => false);
+    },
+    async flagged() {
         if (++calls.flagged <= failures) throw new OpenAiError(failure, 'HTTP 403');
         return false;
       },

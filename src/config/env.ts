@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 import { DEFAULT_AVATAR_CRACKED, DEFAULT_AVATAR_PREMIUM, DEFAULT_AVATAR_SKIN } from '../lib/minecraft';
+import { MODERATION_MODES, type ModerationMode } from '../features/ask/moderation';
 import { URLS } from './constants';
 
 config();
@@ -123,6 +124,15 @@ const askReasoningEffort = (): AskReasoningEffort => {
   return value as AskReasoningEffort;
 };
 
+/** How strict `/ask` is with what people write: `off`, `severe` (only the worst is refused) or `strict` (what OpenAI flags). */
+const askModeration = (): ModerationMode => {
+  const value = (optional('ASK_MODERATION') ?? 'severe').toLowerCase();
+  if (!(MODERATION_MODES as readonly string[]).includes(value)) {
+    throw new Error(`[Config] ASK_MODERATION must be one of ${MODERATION_MODES.join(', ')}`);
+  }
+  return value as ModerationMode;
+};
+
 /** The sampling temperature of the answers of `/ask` (0 to 2), or `undefined` to leave it to the model. */
 const askTemperature = (): number | undefined => {
   const raw = optional('ASK_TEMPERATURE');
@@ -200,6 +210,8 @@ export const env = {
   ASK_TIMEOUT_SECONDS: integerInRange('ASK_TIMEOUT_SECONDS', 40, 5, 120),
   /** Sampling temperature, for models that take it (`gpt-6-luna` does not: leave it unset there). Unset by default. */
   ASK_TEMPERATURE: askTemperature(),
+  /** How strict the moderation of what members write is: `severe` (default) refuses only the worst, `strict` whatever OpenAI flags, `off` never checks. */
+  ASK_MODERATION: askModeration(),
   /** Seconds a member waits between two questions to `/ask`. */
   ASK_COOLDOWN_SECONDS: integerInRange('ASK_COOLDOWN_SECONDS', 20, 0, 3600),
   /** Seconds between two replies in a conversation (a reply to an answer of `/ask`). */

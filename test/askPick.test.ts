@@ -82,6 +82,7 @@ describe('/ask with the dice', () => {
       configured: true,
       async answer(request) { requests.push(request); return 'Jaja mi favorito es Carla'; },
       async flagged() { return false; },
+      async flaggedEach(texts) { return texts.map(() => false); },
     };
     const service = createAskService({
       client,

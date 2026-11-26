@@ -11,6 +11,7 @@ import { buildDataBlock, type LookupResult } from '../features/ask/data';
 import { needsLookup } from '../features/ask/gate';
 import { findBlockedTerm, loadKnowledge } from '../features/ask/knowledge';
 import { createAskLimits, type AskLimits } from '../features/ask/limits';
+import { categoriesFor, type ModerationMode } from '../features/ask/moderation';
 import { buildInstructions } from '../features/ask/prompt';
 import { routeQuestion } from '../features/ask/router';
 import { runLookups } from '../features/ask/run';
@@ -25,7 +26,7 @@ export const ASK_MESSAGES = {
   daily: 'Ya hiciste muchas preguntas hoy. Vuelve mañana y seguimos charlando.',
   global: 'Hoy ya respondí muchísimas preguntas. Vuelve mañana.',
   busy: 'Estoy atendiendo a varias personas a la vez. Inténtalo de nuevo en un momento.',
-  flagged: 'No puedo ayudarte con eso.',
+  flagged: 'Con eso sí no me meto. Pregúntame otra cosa.',
   failed: 'No pude responder ahora mismo. Inténtalo de nuevo en un momento.',
   /** For a question that names something that has not been announced: no model involved. */
   /** Stands for the question in the history when it named something that was not announced. */
@@ -49,6 +50,8 @@ export interface AskDeps {
   data?: Knowledge;
   /** The clock of the durations written in the data. */
   now?: () => Date;
+  /** How strict the moderation of what people write is (see `features/ask/moderation`); `severe` when not given. */
+  moderation?: ModerationMode;
 }
 
 export interface AskAnswer {
@@ -96,12 +99,22 @@ const providerFailure = (error: OpenAiError): UserError => {
  * The moderation is free and now and then fails once for no lasting reason (a bare 403 from the edge, a timeout), so it
  * is tried a second time before giving up. A missing key or an exhausted spending limit is not retried.
  */
-const flaggedWithRetry = async (client: OpenAiClient, text: string): Promise<boolean> => {
+const flaggedWithRetry = async (client: OpenAiClient, text: string, only?: readonly string[]): Promise<boolean> => {
   try {
-    return await client.flagged(text);
+    return await client.flagged(text, only);
   } catch (error) {
     if (!(error instanceof OpenAiError) || error.failure === 'not_configured' || error.failure === 'quota') throw error;
-    return client.flagged(text);
+    return client.flagged(text, only);
+  }
+};
+
+/** The same retry for the lines of the chat around the question. */
+const flaggedEachWithRetry = async (client: OpenAiClient, texts: readonly string[], only?: readonly string[]): Promise<boolean[]> => {
+  try {
+    return await client.flaggedEach(texts, only);
+  } catch (error) {
+    if (!(error instanceof OpenAiError) || error.failure === 'not_configured' || error.failure === 'quota') throw error;
+    return client.flaggedEach(texts, only);
   }
 };
 
@@ -146,7 +159,7 @@ export const createAskService =(deps: AskDeps): AskService => {
       if (!checked.ok) throw new UserError(checked.reason === 'empty' ? ASK_MESSAGES.empty : ASK_MESSAGES.tooLong);
       const { question } = checked;
       // Messages with a blocked term never reach the model, just like a question with one
-      const quoted = cleanChat(chat, deps.blockedTerms);
+      let quoted = cleanChat(chat, deps.blockedTerms);
       // For "who is your favorite", the person is rolled here, so it changes every time and does not depend on the model
       const dice = rollPerson(question, people, deps.blockedTerms, deps.random);
 
@@ -161,14 +174,27 @@ export const createAskService =(deps: AskDeps): AskService => {
         }
 
         // A question is never answered unchecked: when the moderation cannot run, the member is told so
+        const mode = deps.moderation ?? 'severe';
         try {
-          // The quoted chat is checked with the question: what the model reads is what is moderated
-          const checked = [...quoted.map(line => line.text), question].join('\n');
-          if (await flaggedWithRetry(deps.client, checked)) throw new UserError(ASK_MESSAGES.flagged);
+          // Only what the member wrote decides whether the question is answered, and only the worst of it refuses
+          if (mode !== 'off' && (await flaggedWithRetry(deps.client, question, categoriesFor(mode)))) throw new UserError(ASK_MESSAGES.flagged);
         } catch (error) {
           if (!(error instanceof OpenAiError)) throw error;
           deps.limits.refund(userId);
           throw providerFailure(error);
+        }
+
+        // What other people said in the channel is moderated line by line, and what is flagged is left out of what the model
+        // reads. It must never make a fair question unanswerable: someone's rude message from a minute ago is not the
+        // member's. When the check cannot run, the answer is given without the chat.
+        if (quoted.length > 0 && mode !== 'off') {
+          try {
+            const flags = await flaggedEachWithRetry(deps.client, quoted.map(line => line.text), categoriesFor(mode));
+            quoted = quoted.filter((_, index) => !flags[index]);
+          } catch (error) {
+            if (!(error instanceof OpenAiError)) throw error;
+            quoted = [];
+          }
         }
 
         // The router and the reads count under the same cooldown, daily limit and in-flight slot as the question itself
@@ -252,6 +278,7 @@ export const getAskService = (): AskService => {
     }),
     safetyIdOf: userId => createHmac('sha256', hmacKey).update(userId).digest('hex').slice(0, 32),
     data: getKnowledge(),
+    moderation: env.ASK_MODERATION,
   });
   return service;
 };

@@ -74,8 +74,13 @@ export interface OpenAiClient {
    * value). It is a plain answer in a fixed shape: no tool, no function and no browsing is enabled.
    */
   route(request: RouteRequest): Promise<unknown>;
-  /** Whether OpenAI's free moderation flags the text. Throws `OpenAiError` when the check cannot run. */
-  flagged(text: string): Promise<boolean>;
+  /**
+   * Whether OpenAI's free moderation flags the text. With `only`, just those categories count (`sexual/minors`...), and a
+   * flag for any other is ignored. Throws `OpenAiError` when the check cannot run.
+   */
+  flagged(text: string, only?: readonly string[]): Promise<boolean>;
+  /** The same for several texts in one call: whether each one is flagged, in the same order. */
+  flaggedEach(texts: readonly string[], only?: readonly string[]): Promise<boolean[]>;
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -107,6 +112,14 @@ const textOf = (body: ResponsesBody): string => {
   }
   return parts.join('\n').trim();
 };
+
+interface ModerationBody {
+  results?: Array<{ flagged?: boolean; categories?: Record<string, boolean> }>;
+}
+
+/** Whether a result counts: any flag, or, with `only`, a flag in one of those categories. */
+const verdictOf = (result: { flagged?: boolean; categories?: Record<string, boolean> }, only?: readonly string[]): boolean =>
+  only ? only.some(category => result.categories?.[category] === true) : result.flagged === true;
 
 const failureOf = async (response: Response): Promise<OpenAiError> => {
   let code = '';
@@ -249,10 +262,18 @@ export const createOpenAiClient = (config: OpenAiConfig): OpenAiClient => {
       }
     },
 
-    async flagged(text) {
+    async flagged(text, only) {
       const response = await post('/moderations', { model: MODERATION_MODEL, input: text });
-      const body = (await response.json()) as { results?: Array<{ flagged?: boolean }> };
-      return body.results?.[0]?.flagged === true;
+      const body = (await response.json()) as ModerationBody;
+      return body.results?.[0] ? verdictOf(body.results[0], only) : false;
+    },
+
+    async flaggedEach(texts, only) {
+      if (texts.length === 0) return [];
+      const response = await post('/moderations', { model: MODERATION_MODEL, input: [...texts] });
+      const body = (await response.json()) as ModerationBody;
+      if (!body.results || body.results.length !== texts.length) throw new OpenAiError('empty', 'the moderation did not answer once for each text');
+      return body.results.map(result => verdictOf(result, only));
     },
   };
 };

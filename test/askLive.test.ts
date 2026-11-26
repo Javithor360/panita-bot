@@ -51,6 +51,9 @@ const fakeClient = ({ answer = 'Listo', lookups = { lookups: [] } }: FakeOptions
       if (lookups instanceof Error) throw lookups;
       return lookups;
     },
+    async flaggedEach(texts) {
+      return texts.map(() => false);
+    },
     async flagged() {
       return false;
     },

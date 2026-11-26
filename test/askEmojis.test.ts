@@ -125,6 +125,7 @@ describe('/ask with emojis', () => {
       configured: true,
       async answer(request) { requests.push(request); return answer; },
       async flagged() { return false; },
+      async flaggedEach(texts) { return texts.map(() => false); },
     };
     const service = createAskService({
       client,

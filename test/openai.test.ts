@@ -126,4 +126,24 @@ describe('OpenAI client', () => {
     assert.equal(await client().flagged('fine'), false);
     assert.equal(calls[0].url, `${BASE}/moderations`);
   });
+
+  it('moderates several texts in one call and answers once for each, in order', async () => {
+    const calls = stub(json(200, { results: [{ flagged: false }, { flagged: true }, { flagged: false }] }));
+    assert.deepEqual(await client().flaggedEach(['uno', 'dos', 'tres']), [false, true, false]);
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, `${BASE}/moderations`);
+    assert.deepEqual(JSON.parse(String(calls[0].init.body)).input, ['uno', 'dos', 'tres']);
+  });
+
+  it('makes no call for no texts', async () => {
+    const calls = stub(json(200, { results: [] }));
+    assert.deepEqual(await client().flaggedEach([]), []);
+    assert.equal(calls.length, 0);
+  });
+
+  it('does not guess when the moderation answers another number of results', async () => {
+    stub(json(200, { results: [{ flagged: false }] }));
+    assert.equal(await failure(client().flaggedEach(['uno', 'dos'])), 'empty');
+  });
 });
