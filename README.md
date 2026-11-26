@@ -74,10 +74,11 @@ The bot reads its settings from a `.env` file in the project root. It validates 
 | `PASSWORD_RESET_CHANNEL_ID` | — | Public channel (`#comandos`) where a password reset goes when the member's DMs are closed and they agree to it on the website. Without it that fallback is reported as failed. |
 | `GALLERY_CHANNEL_ID` | — | Gallery channel (`903017941300281344`). A trusted author's photo post there gets the bot's 👍, and the author's own 👍 offers the quick upload. Without it the quick upload is off. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | With `GALLERY_CHANNEL_ID` | The website's Cloudinary account (cloud name `panita`; the API only accepts photos from `res.cloudinary.com/panita`). The bot signs its uploads with them and never logs them. |
+| `DEFAULT_ROLE_IDS` | — | Roles (comma-separated ids) that every new human member gets when they join, in one call: `707103390861099084,707103390861099087,707103390861099080`. Without it nobody is given a role. The bot needs **Manage Roles** and its own role must be above these roles. |
 | `BIRTHDAY_CHANNEL_ID` | — | General channel (`707103391167545422`) where the daily birthday greeting is posted. Without it there is no greeting. |
 | `BIRTHDAY_UTC_OFFSET_HOURS` | — | Offset from UTC of the day the greeting follows, from -12 to 14. Defaults to `-6` (no daylight saving). |
 | `BIRTHDAY_HOUR` | — | Hour (0-23, in that offset) from which the greeting is sent. Defaults to `10`, so 16:00 UTC. |
-| `MODLOG_CHANNEL_ID` | — | Staff channel where every moderation case and the audit log (deleted and edited messages, joins, leaves, kicks, bans, timeouts) are posted. Without it the commands still answer and send the DM, but nothing is logged. See [Moderation and audit log](#moderation-and-audit-log). |
+| `MODLOG_CHANNEL_ID` | — | Staff channel where every moderation case and the audit log (deleted and edited messages, joins, leaves, kicks, bans, timeouts, voice activity, roles, server settings, emojis, stickers and sounds) are posted. Without it the commands still answer and send the DM, but nothing is logged. See [Moderation and audit log](#moderation-and-audit-log). |
 | `OPENAI_API_KEY` | — | Key of the OpenAI project of the bot (give it **Write** on *Responses* and *Moderations* only). Without it `/ask` answers that it is not available. Never logged. |
 | `OPENAI_MODEL` | `gpt-6-luna` | Model `/ask` uses. It must be allowed in the OpenAI project. |
 | `ASK_ROUTER_MODEL`, `ASK_ROUTER_MAX_TOKENS` | the model of `OPENAI_MODEL`, 500 | Model that turns a question about players, editions, forms, photos, donors or Panita del Mes into at most 3 reads of the API, and the cap of its answer, hidden reasoning included (50 to 4000). It only runs for questions that can need data. It must be allowed in the OpenAI project. |
@@ -346,13 +347,17 @@ A **trusted author** (an enabled member with that flag on the website; admins an
 
 The logic is in `src/features/quickUpload/` (`flow` has the rules, `view` the texts and the form, `offers` the held offers), the Cloudinary calls in `src/lib/cloudinary.ts` (signed `fetch`, no SDK) and the API calls in `src/services/gallery.ts`. The button and the form are components of `/gallery`. The bot needs the **Add Reactions** permission in the channel and the `GuildMessageReactions` intent; a pinned note in the channel should say that the author's own 👍 starts the upload and that Discord reactions are not gallery likes.
 
+### Welcome
+
+When someone joins, the bot gives them the roles in `DEFAULT_ROLE_IDS` and replies to Discord's own join message (the one with the "Wave to say hi!" button) with one of six Discord stickers picked at random (`WELCOME_STICKERS` in `src/config/constants.ts`). Whether Discord lets a bot send a standard sticker is not guaranteed; if it refuses, the bot replies with a short text that pings only the new member. This needs the server's welcome messages to be on, and *Send Messages* in the system channel.
+
 ### Birthday greeting
 
 Members set their birthday in the website's settings (there is no Discord command for it). On the day, the bot posts one greeting in the general channel (`BIRTHDAY_CHANNEL_ID`) that mentions everyone who has a birthday, so the rest can congratulate them.
 
 - **Schedule.** The bot owns it: a tick every minute, and the greeting is due from 10:00 in UTC-6 (16:00 UTC; `BIRTHDAY_HOUR` and `BIRTHDAY_UTC_OFFSET_HOURS`). It is "from", not "at": a bot that was down at 10:00 greets when it comes back the same day.
 - **The API only answers "who has a birthday on this date".** The bot sends the local day (`GET /v1/discord/users/birthdays?date=YYYY-MM-DD`) and gets `discord_id`, `ign` and `discord_name` per enabled member. The API decides the February 29 rule (it lists them on Feb 28 in years without a Feb 29) and never returns a year or an age, so the greeting never mentions one.
-- **One greeting per day.** The day is closed only after the message was posted, or when the list is empty. If the API or Discord fails the day stays open and the next tick retries; the failure is logged once, not every minute. The bot keeps no state: after a restart it reads the channel's last 100 messages and does not greet again if its own greeting of that day is there (it also does not post when it cannot read the channel, since that could be a duplicate).
+- **One greeting per day.** The day is closed only after the message was posted, or when the list is empty. If the API or Discord fails the day stays open and the next tick retries; the failure is logged once, not every minute. The bot keeps no state: after a restart it reads the channel back, 100 messages at a time and up to 3000, until it passes the start of the day, and does not greet again if its own greeting of that day is there. It also does not post when it cannot read the channel, or when the channel is so busy that 3000 messages do not reach the start of the day: both could be a duplicate.
 - **Mentions.** The message pings only the listed members (`allowedMentions`).
 - The bot needs **View Channel**, **Send Messages**, **Read Message History** and **Mention Users** in the channel.
 
@@ -379,9 +384,14 @@ The staff commands (`kick`, `ban`, `unban`, `mute`, `unmute`, `clear`, `hide`, `
 | Member leaves | Their roles and when they joined. A kick done by hand shows as a **kick** with who did it. |
 | Ban, unban | Who did it and why, from Discord's audit log. |
 | Timeout set or lifted | Until when, and who did it. |
+| Voice: joins, leaves, switches channel | Who and which channels. Moved or disconnected by a moderator shows as such, with who did it. |
+| Voice: server mute or deafen, stream | A mute or deafen that someone else applied (not the member's own), and when a member starts or ends a stream. |
+| Role created, edited, deleted | Name, color, display and mention settings, and the permissions added and removed; who did it. Moving a role in the list is not logged. |
+| Server settings | Name, description, icon, banner, verification level, content filter, notifications, system, rules and AFK channels, language, vanity URL and owner. |
+| Emoji, sticker, sound | Created, renamed or edited, and deleted, with a picture when there is one and who did it. |
 
 - **Not duplicated.** What the bot does itself (a `ban`, a `mute`, a `clear`...) is remembered for 30 seconds (`src/features/moderation/recent.ts`), so the same ban is not logged again when Discord reports it. Bots, webhooks (the Minecraft bridge), the log channel itself and `!commands` are never logged.
-- **Best effort.** Who did a kick, ban or timeout comes from Discord's audit log, which can lag by a second or two; the bot waits a moment, and if it cannot read it the entry says "No se pudo saber". Nickname and role changes are not logged on purpose: the website and Minecraft syncs change them constantly.
+- **Best effort.** Who did a kick, ban or timeout comes from Discord's audit log, which can lag by a second or two; the bot waits a moment, and if it cannot read it the entry says "No se pudo saber". Nickname and role changes of members are not logged on purpose: the website and Minecraft syncs change them constantly. Who moved or disconnected someone in voice is a guess: Discord's entries for those actions name no member, so the bot matches the fresh entry (and, for a move, the channel); if it finds none, the entry shows the member as having moved or left by themselves.
 - **Needs** the *Kick Members*, *Ban Members*, *Moderate Members*, *Manage Messages*, *Manage Channels* (for `hide`) and *View Audit Log* permissions, the *Server Moderation* intent (already requested in code) and *Send Messages* and *Embed Links* in the log channel. A leave is only logged for members the bot has cached.
 - **Prefix quirks.** The prefix parser fills text in order, so a bare number before the reason is read as the `ban` days or the `unwarn` number, and `mute` takes the first word as the time only when it looks like one (`30m`, `2h`, `1d`).
 - Remember to run `npm run deploy` after updating so Discord learns the new slash commands. The warning commands need the matching version of panita-api (the `warnings` endpoints and the `discord.warnings` table).
