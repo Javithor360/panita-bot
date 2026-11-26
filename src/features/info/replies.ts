@@ -5,7 +5,7 @@ import { avatarMessage, pictureMessage } from './avatarView';
 import { ensureMembers, isMemberListComplete, joinPosition } from './members';
 import type { PresenceInfo } from './presence';
 import type { CosmeticsInput, PermissionsInput, VoiceInfo } from './userExtras';
-import { userEmbed, type UserView, type UserViewMember, type UserViewUser } from './userView';
+import { userEmbed, userMenu, type UserView, type UserViewMember, type UserViewUser } from './userView';
 
 /**
  * Reads real Discord objects into the plain inputs of the views, and builds each reply. Commands and the "which one do
@@ -104,9 +104,16 @@ const accountOf = async (guild: Guild, userId: string): Promise<User> => {
 
 /**
  * `user`: the profile, or with a flag the badges, the cosmetics or the permissions in `channel`. Someone who is not in the
- * server only gets what the account has.
+ * server only gets what the account has. With a `menuId` (the custom id of the menu, which carries who it is about) the
+ * reply also has the menu that switches to another view.
  */
-export const buildUserReply = async (guild: Guild, userId: string, view: UserView, channel: GuildBasedChannel | null): Promise<BaseMessageOptions> => {
+export const buildUserReply = async (
+  guild: Guild,
+  userId: string,
+  view: UserView,
+  channel: GuildBasedChannel | null,
+  menuId?: string,
+): Promise<BaseMessageOptions> => {
   const user = await accountOf(guild, userId);
   const member = await guild.members.fetch(userId).catch(() => null);
 
@@ -125,7 +132,7 @@ export const buildUserReply = async (guild: Guild, userId: string, view: UserVie
     cosmetics: view === 'cosmetics' ? cosmeticsOf(user, guild) : undefined,
     permissions: view === 'permissions' && member ? permissionsOf(member, channel) : null,
   });
-  return { embeds: [embed], allowedMentions: { parse: [] } };
+  return { embeds: [embed], components: menuId ? [userMenu(menuId, view)] : [], allowedMentions: { parse: [] } };
 };
 
 /** `avatar`: the server avatar of a member when they have one (unless `global`), otherwise the account's. */

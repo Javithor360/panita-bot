@@ -1,9 +1,10 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { CATEGORIES } from '../../config/constants';
 import { defineCommand, select } from '../../core/command';
+import { encodeCustomId } from '../../core/customId';
 import { UserError } from '../../core/errors';
 import { buildUserReply } from '../../features/info/replies';
-import type { UserView } from '../../features/info/userView';
+import { USER_VIEW_OPTIONS, type UserView } from '../../features/info/userView';
 import { answerFor, finishPick } from '../../features/lookup/command';
 
 /** The flags of `user`, each showing something else instead of the profile. */
@@ -14,6 +15,10 @@ const FLAGS = [
 ] as const satisfies ReadonlyArray<{ flag: Exclude<UserView, 'profile'>; help: string }>;
 
 const isView = (value: string | undefined): value is Exclude<UserView, 'profile'> => FLAGS.some(({ flag }) => flag === value);
+const isAnyView = (value: string | undefined): value is UserView => USER_VIEW_OPTIONS.some(option => option.value === value);
+
+/** The custom id of the menu under a reply: it carries who the reply is about, and only whoever asked can use it. */
+const menuIdOf = (userId: string, ownerId: string) => encodeCustomId({ namespace: 'user', action: 'view', args: [userId], owner: ownerId });
 
 const builder = new SlashCommandBuilder()
   .setName('user')
@@ -39,14 +44,25 @@ export default defineCommand({
     if (chosen.length > 1) throw new UserError(`usa una sola opción a la vez (${chosen.map(({ flag }) => `\`--${flag}\``).join(', ')}).`);
 
     const view: UserView = chosen[0]?.flag ?? 'profile';
-    await answerFor(ctx, chosen.length > 0 ? [view] : [], userId => buildUserReply(ctx.guild, userId, view, ctx.channel));
+    await answerFor(ctx, chosen.length > 0 ? [view] : [], userId => buildUserReply(ctx.guild, userId, view, ctx.channel, menuIdOf(userId, ctx.user.id)));
   },
   components: {
     pick: select({
       async run(interaction, [flag]) {
         if (!interaction.inCachedGuild()) return;
         const view: UserView = isView(flag) ? flag : 'profile';
-        await finishPick(interaction, userId => buildUserReply(interaction.guild, userId, view, interaction.channel));
+        await finishPick(interaction, userId => buildUserReply(interaction.guild, userId, view, interaction.channel, menuIdOf(userId, interaction.user.id)));
+      },
+    }),
+    // The menu under a reply: another view of the same person
+    view: select({
+      async run(interaction, [userId]) {
+        if (!interaction.inCachedGuild()) return;
+        const view = interaction.values[0];
+        if (!isAnyView(view)) throw new UserError('esta vista ya no existe.');
+
+        await interaction.deferUpdate();
+        await interaction.editReply(await buildUserReply(interaction.guild, userId, view, interaction.channel, menuIdOf(userId, interaction.user.id)));
       },
     }),
   },
