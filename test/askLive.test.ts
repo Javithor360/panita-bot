@@ -1,4 +1,4 @@
-import { apiError, json, silenceApiLogs } from './support';
+import { apiError, json, MEMBER_TURN, messageOf, silenceApiLogs } from './support';
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import { UserError } from '../src/core/errors';
@@ -85,7 +85,8 @@ describe('/ask with live data', () => {
     await service.ask('1', '¿Cómo me uno al servidor?');
 
     assert.equal(routes.length, 0);
-    assert.equal(answers[0].input, '¿Cómo me uno al servidor?');
+    assert.equal(messageOf(answers[0].input), '¿Cómo me uno al servidor?');
+    assert.match(answers[0].input, MEMBER_TURN, 'nothing was looked up: only the date comes before the message');
     assert.ok(!asked.some(path => !['/v1/bot/editions', '/v1/bot/forms'].includes(path)), 'only the lists of names are read, in the background');
   });
 
@@ -93,7 +94,8 @@ describe('/ask with live data', () => {
     const { service, routes, answers } = make({}, { data: undefined });
     await service.ask('1', '¿Quién es Ana?');
     assert.equal(routes.length, 0);
-    assert.equal(answers[0].input, '¿Quién es Ana?');
+    assert.equal(messageOf(answers[0].input), '¿Quién es Ana?');
+    assert.match(answers[0].input, MEMBER_TURN);
   });
 
   it('asks the router once with only the cleaned question, and adds nothing when it finds no lookup', async () => {
@@ -113,7 +115,7 @@ describe('/ask with live data', () => {
     await service.ask('1', '¿Quién es el jugador Ana?');
 
     const { input, instructions } = answers[0];
-    assert.match(input, /^\[DATOS:/);
+    assert.match(input, /^\[TODAY: [^\]]+\]\n\n\[DATOS:/);
     assert.match(input, /Emblemas: 5; títulos: 1/);
     assert.match(input, /Cumpleaños: 14 de marzo/);
     assert.ok(input.indexOf('[FIN DE DATOS]') < input.indexOf("[MEMBER'S MESSAGE]"));
@@ -356,7 +358,8 @@ describe('/ask rules about the data', () => {
   it('keeps forbidding guessing and gossip', () => {
     assert.match(rules, /never guess, complete or invent what it does not say/);
     assert.match(rules, /no invented stories, habits, ranks, activity, dates, relationships or personal data/);
-    assert.match(rules, /Stay kind: no insults, rumors or accusations/);
+    assert.match(rules, /no insults, rumors or accusations about anyone/);
+    assert.match(rules, /nothing about anyone's appearance, identity, health or family/);
   });
 
   it('allows the links of the data and no others', () => {

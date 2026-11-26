@@ -3,7 +3,7 @@ import { CATEGORIES, PREFIX } from '../../config/constants';
 import { defineCommand } from '../../core/command';
 import type { CommandContext } from '../../core/context';
 import { UserError } from '../../core/errors';
-import { CHAT_WINDOW_MS, refersToChat, type ChatLine } from '../../features/ask/chatContext';
+import { recentLines, refersToChat, type ChatLine } from '../../features/ask/chatContext';
 import { conversations } from '../../features/ask/conversations';
 import { asksToPickPerson, MAX_CANDIDATES } from '../../features/ask/pick';
 import type { ServerEmoji } from '../../features/ask/emojis';
@@ -117,16 +117,16 @@ const chatFor = async (ctx: CommandContext, question: string): Promise<ChatLine[
       if (replied && readable(replied)) lines.push({ author: authorOf(replied), text: replied.content, repliedTo: true });
     }
 
-    if (refersToChat(question)) {
-      const recent = await channel.messages.fetch(
-        ctx.triggerMessageId ? { limit: CHAT_FETCH_LIMIT, before: ctx.triggerMessageId } : { limit: CHAT_FETCH_LIMIT },
-      );
-      const now = Date.now();
-      const earlier = [...recent.values()]
-        .reverse()
-        .filter(message => readable(message) && message.id !== repliedId && now - message.createdTimestamp <= CHAT_WINDOW_MS);
-      lines.unshift(...earlier.map(message => ({ author: authorOf(message), text: message.content })));
-    }
+    // Always read what was said just before, so a joke or an "eso" is understood; a question that points at the chat gets more
+    const pointed = refersToChat(question);
+    const recent = await channel.messages.fetch(
+      ctx.triggerMessageId ? { limit: CHAT_FETCH_LIMIT, before: ctx.triggerMessageId } : { limit: CHAT_FETCH_LIMIT },
+    );
+    const earlier = [...recent.values()]
+      .reverse()
+      .filter(readable)
+      .map(message => ({ id: message.id, author: authorOf(message), text: message.content, at: message.createdTimestamp }));
+    lines.unshift(...recentLines(earlier, Date.now(), pointed, repliedId));
   } catch {
     // No permission to read the channel history: the question is answered without the chat
   }
@@ -167,7 +167,7 @@ export default defineCommand({
     let settled = false;
     const answering = (async () => {
       if (await isTicketChannel(ctx)) throw new UserError(TICKET_REFUSAL);
-      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx), history, await chatFor(ctx, prompt), await peopleFor(ctx, prompt));
+      return getAskService().ask(ctx.user.id, await withNames(ctx, prompt), usableEmojis(ctx), history, await chatFor(ctx, prompt), await peopleFor(ctx, prompt), ctx.member.displayName);
     })().finally(() => { settled = true; });
 
     await Promise.race([answering.catch(() => {}), waitFor(DEFER_AFTER_MS)]);
@@ -183,7 +183,7 @@ export default defineCommand({
       await ctx.reply({ content: text, allowedMentions: { parse: [] }, suppressEmbeds: true });
     }
 
-    // Anyone replying to this answer in the next ten minutes continues the talk, with the last exchanges as context
+    // Anyone replying to this answer in the next half hour continues the talk, with the last exchanges as context
     const sent = await ctx.fetchReply().catch(() => null);
     if (sent) conversations.remember(sent.id, [...history, turn]);
   },

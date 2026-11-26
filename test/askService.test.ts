@@ -1,4 +1,4 @@
-import './support';
+import { MEMBER_TURN, messageOf } from './support';
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, mock } from 'node:test';
 import { UserError } from '../src/core/errors';
@@ -67,7 +67,8 @@ describe('/ask service', () => {
     assert.equal((await service.ask('123456789012345678', '  ¿Qué   es Panitacraft? ')).text, '¡Hola!');
 
     assert.equal(requests.length, 1);
-    assert.equal(requests[0].input, '¿Qué es Panitacraft?');
+    assert.match(requests[0].input, MEMBER_TURN);
+    assert.equal(messageOf(requests[0].input), '¿Qué es Panitacraft?');
     assert.ok(requests[0].instructions.includes(KNOWLEDGE));
     assert.ok(!requests[0].instructions.includes('Qué es Panitacraft?'), 'the question never gets into the instructions');
   });
@@ -169,7 +170,7 @@ describe('/ask service', () => {
     const history = [{ question: 'hola', answer: 'ey' }];
     const answer = await service.ask('1', '¿y tú?', [{ name: 'feliz', id: '1', animated: false }], history);
     assert.deepEqual(requests[0].history, history);
-    assert.equal(requests[0].input, '¿y tú?');
+    assert.equal(messageOf(requests[0].input), '¿y tú?');
     assert.deepEqual(answer.turn, { question: '¿y tú?', answer: 'Claro, jaja :feliz:' }, 'remembered as the model wrote it, with no emoji codes');
   });
 

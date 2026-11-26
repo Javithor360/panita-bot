@@ -111,6 +111,27 @@ const idList = (name: string): string[] => {
   return [...new Set(ids)];
 };
 
+/** How much `/ask` thinks before it answers; `off` sends no reasoning setting at all. */
+const REASONING_EFFORTS = ['off', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+type AskReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+const askReasoningEffort = (): AskReasoningEffort => {
+  const value = (optional('ASK_REASONING_EFFORT') ?? 'low').toLowerCase();
+  if (!(REASONING_EFFORTS as readonly string[]).includes(value)) {
+    throw new Error(`[Config] ASK_REASONING_EFFORT must be one of ${REASONING_EFFORTS.join(', ')}`);
+  }
+  return value as AskReasoningEffort;
+};
+
+/** The sampling temperature of the answers of `/ask` (0 to 2), or `undefined` to leave it to the model. */
+const askTemperature = (): number | undefined => {
+  const raw = optional('ASK_TEMPERATURE');
+  if (raw === undefined) return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 2) throw new Error('[Config] ASK_TEMPERATURE must be a number between 0 and 2');
+  return value;
+};
+
 const GALLERY_CHANNEL_ID = optionalId('GALLERY_CHANNEL_ID');
 
 /**
@@ -171,6 +192,14 @@ export const env = {
   ASK_ROUTER_MODEL: optional('ASK_ROUTER_MODEL'),
   /** Upper bound of the router's answer, hidden reasoning included. */
   ASK_ROUTER_MAX_TOKENS: integerInRange('ASK_ROUTER_MAX_TOKENS', 500, 50, 4000),
+  /** How much the model thinks before it answers. A model that does not take the setting is asked without it. */
+  ASK_REASONING_EFFORT: askReasoningEffort(),
+  /** Upper bound of an answer of `/ask`, hidden reasoning included. */
+  ASK_MAX_OUTPUT_TOKENS: integerInRange('ASK_MAX_OUTPUT_TOKENS', 4000, 500, 32000),
+  /** Seconds the provider has to answer before `/ask` gives up. Thinking takes longer than answering at once. */
+  ASK_TIMEOUT_SECONDS: integerInRange('ASK_TIMEOUT_SECONDS', 40, 5, 120),
+  /** Sampling temperature, for models that take it (`gpt-6-luna` does not: leave it unset there). Unset by default. */
+  ASK_TEMPERATURE: askTemperature(),
   /** Seconds a member waits between two questions to `/ask`. */
   ASK_COOLDOWN_SECONDS: integerInRange('ASK_COOLDOWN_SECONDS', 20, 0, 3600),
   /** Seconds between two replies in a conversation (a reply to an answer of `/ask`). */

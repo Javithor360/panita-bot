@@ -4,7 +4,7 @@ import { env } from '../config/env';
 import { UserError } from '../core/errors';
 import { checkQuestion, cleanAnswer, extractActions, MAX_QUESTION_CHARS } from '../features/ask/guard';
 import { emojiNames, expandEmojis, type ServerEmoji } from '../features/ask/emojis';
-import { cleanChat, composeInput, type ChatLine } from '../features/ask/chatContext';
+import { cleanChat, composeInput, memberLine, todayLine, type ChatLine } from '../features/ask/chatContext';
 import type { Turn } from '../features/ask/conversations';
 import { rollPerson } from '../features/ask/pick';
 import { buildDataBlock, type LookupResult } from '../features/ask/data';
@@ -74,6 +74,8 @@ export interface AskService {
     chat?: readonly ChatLine[],
     /** Names of people around in the channel, for a question that asks to pick one (the service rolls the dice). */
     people?: readonly string[],
+    /** What to call the member (their name in the server), so the assistant can talk to them and poke at them. */
+    asker?: string,
   ): Promise<AskAnswer>;
 }
 
@@ -137,7 +139,7 @@ export const createAskService =(deps: AskDeps): AskService => {
   };
 
   return {
-    async ask(userId, rawQuestion, emojis = [], history = [], chat = [], people = []) {
+    async ask(userId, rawQuestion, emojis = [], history = [], chat = [], people = [], asker) {
       if (!deps.client.configured) throw new UserError(ASK_MESSAGES.unavailable);
 
       const checked = checkQuestion(rawQuestion);
@@ -176,7 +178,8 @@ export const createAskService =(deps: AskDeps): AskService => {
         try {
           answer = await deps.client.answer({
             instructions: instructionsFor(emojiNames(emojis)),
-            input: composeInput(question, quoted, dice, data.block),
+            // The date lets it say whether something already opened; the name lets it talk to the member, not about a stranger
+            input: composeInput(question, quoted, dice, data.block, [todayLine(deps.now?.() ?? new Date(), env.BIRTHDAY_UTC_OFFSET_HOURS), memberLine(asker, deps.blockedTerms)]),
             history,
             safetyId: deps.safetyIdOf(userId),
           });
@@ -219,6 +222,10 @@ export const getAskService = (): AskService => {
     baseUrl: URLS.openai,
     routerModel: env.ASK_ROUTER_MODEL,
     routerMaxOutputTokens: env.ASK_ROUTER_MAX_TOKENS,
+    maxOutputTokens: env.ASK_MAX_OUTPUT_TOKENS,
+    timeoutMs: env.ASK_TIMEOUT_SECONDS * 1000,
+    reasoningEffort: env.ASK_REASONING_EFFORT === 'off' ? undefined : env.ASK_REASONING_EFFORT,
+    temperature: env.ASK_TEMPERATURE,
   });
   let knowledge = '';
   let usable = client.configured;
