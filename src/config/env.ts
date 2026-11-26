@@ -102,6 +102,15 @@ const integerInRange = (name: string, fallback: number, min: number, max: number
 const wordList = (name: string): string[] =>
   (optional(name) ?? '').split(',').map(word => word.trim().toLowerCase()).filter(Boolean);
 
+/** A comma-separated list of Discord ids; empty when the variable is not set. */
+const idList = (name: string): string[] => {
+  const ids = (optional(name) ?? '').split(',').map(id => id.trim()).filter(Boolean);
+  for (const id of ids) {
+    if (!SNOWFLAKE.test(id)) throw new Error(`[Config] ${name} must be a comma-separated list of Discord ids`);
+  }
+  return [...new Set(ids)];
+};
+
 const GALLERY_CHANNEL_ID = optionalId('GALLERY_CHANNEL_ID');
 
 /**
@@ -151,6 +160,8 @@ export const env = {
   BIRTHDAY_UTC_OFFSET_HOURS: integerInRange('BIRTHDAY_UTC_OFFSET_HOURS', -6, -12, 14),
   /** Hour (0-23, in that offset) from which the greeting is due. */
   BIRTHDAY_HOUR: integerInRange('BIRTHDAY_HOUR', 10, 0, 23),
+  /** Roles every new human member gets when they join, comma-separated. Without them nobody is given a role. */
+  DEFAULT_ROLE_IDS: idList('DEFAULT_ROLE_IDS'),
   /** Staff channel where every moderation case and the audit log (deleted and edited messages, joins, leaves, bans, timeouts) are posted. Without it nothing is logged there. */
   MODLOG_CHANNEL_ID: optionalId('MODLOG_CHANNEL_ID'),
   /** Key of the OpenAI project of the bot. Without it `/ask` answers that it is not available. Never logged. */

@@ -22,6 +22,7 @@ import { bareMinecraftCommand, startBridge } from './features/minecraft';
 import { bridgeMessageEvent } from './events/bridgeMessage';
 import { galleryPostEvent, galleryReactionEvent } from './events/galleryUpload';
 import { registerAuditLog } from './events/auditLog';
+import { welcomeEvent } from './events/welcome';
 
 const client = new Client({
   intents: [
@@ -76,6 +77,7 @@ client.on(Events.MessageCreate, createMessageHandler(registry, bareMinecraftComm
 client.on(Events.MessageCreate, createDirectMessageHandler());
 client.on(Events.MessageCreate, bridgeMessageEvent);
 client.on(Events.MessageCreate, galleryPostEvent);
+client.on(Events.MessageCreate, welcomeEvent);
 client.on(Events.MessageReactionAdd, galleryReactionEvent);
 registerAuditLog(client);
 

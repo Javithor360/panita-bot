@@ -34,6 +34,19 @@ export const URLS = {
 } as const;
 
 /** The webhook the bot makes in each channel it bridges to Minecraft. */
+/**
+ * Discord's own stickers that the bot sends under the join message of a new member, one picked at random each time (as
+ * the "Wave to say hi!" button does). Wumpus Beyond, Clyde Bot, Cheerful Choco, Doggo Replies, Robo Nelly and Sassy Peach.
+ */
+export const WELCOME_STICKERS = [
+  '749054660769218631',
+  '754108890559283200',
+  '781291131828699156',
+  '816087792291282944',
+  '751606379340365864',
+  '819128604311027752',
+] as const;
+
 export const MINECRAFT_BRIDGE = { webhookName: 'Enriquecraft' } as const;
 
 export const SERVER = {
